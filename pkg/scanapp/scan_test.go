@@ -23,6 +23,23 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
 func TestRun_ResumeFromStateFile(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -277,7 +294,7 @@ func TestPollPressureAPI_PauseResumeTransition(t *testing.T) {
 		PressureInterval: 5 * time.Millisecond,
 	}
 	ctrl := speedctrl.NewController()
-	logOut := &bytes.Buffer{}
+	logOut := &lockedBuffer{}
 	logger := newLogger("info", false, logOut)
 	errCh := make(chan error, 1)
 
@@ -304,7 +321,7 @@ func TestPollPressureAPI_PauseResumeTransition(t *testing.T) {
 
 func TestStartManualPauseMonitor_LogsStateChange(t *testing.T) {
 	ctrl := speedctrl.NewController()
-	out := &bytes.Buffer{}
+	out := &lockedBuffer{}
 	logger := newLogger("info", false, out)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -316,6 +333,7 @@ func TestStartManualPauseMonitor_LogsStateChange(t *testing.T) {
 	ctrl.SetManualPaused(false)
 	time.Sleep(250 * time.Millisecond)
 	cancel()
+	time.Sleep(50 * time.Millisecond)
 
 	logs := out.String()
 	if !strings.Contains(logs, "掃描已手動暫停") || !strings.Contains(logs, "掃描已手動恢復") {

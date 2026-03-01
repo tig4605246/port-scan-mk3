@@ -19,18 +19,23 @@ var (
 // StartKeyboardLoop enables raw-mode keyboard handling and toggles pause on space key.
 func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 	fd := keyboardFD()
-	if !keyboardIsTerminal(fd) {
+	isTerminal := keyboardIsTerminal
+	makeRaw := keyboardMakeRaw
+	restore := keyboardRestore
+	input := keyboardInput
+
+	if !isTerminal(fd) {
 		return nil
 	}
 
-	oldState, err := keyboardMakeRaw(fd)
+	oldState, err := makeRaw(fd)
 	if err != nil {
 		return err
 	}
 
 	go func() {
 		defer func() {
-			_ = keyboardRestore(fd, oldState)
+			_ = restore(fd, oldState)
 		}()
 		buf := make([]byte, 1)
 		for {
@@ -40,7 +45,7 @@ func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 			default:
 			}
 
-			n, readErr := keyboardInput.Read(buf)
+			n, readErr := input.Read(buf)
 			if readErr != nil || n == 0 {
 				return
 			}
