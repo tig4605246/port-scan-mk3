@@ -3,13 +3,29 @@ services:
     build:
       context: ./mock-target-open
     networks:
-      - e2e-net
+      e2e-net:
+        ipv4_address: 172.28.0.10
+
   mock-target-closed:
     build:
       context: ./mock-target-closed
     networks:
-      - e2e-net
+      e2e-net:
+        ipv4_address: 172.28.0.11
+
+  scanner:
+    build:
+      context: ..
+      dockerfile: e2e/scanner/Dockerfile
+    networks:
+      e2e-net: {}
+    volumes:
+      - ./inputs:/inputs
+      - ./out:/out
 
 networks:
   e2e-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

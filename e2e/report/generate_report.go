@@ -1,9 +1,12 @@
 package report
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Summary struct {
@@ -25,4 +28,42 @@ func Generate(outDir string, s Summary) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(outDir, "report.txt"), []byte(txt), 0o644)
+}
+
+func SummarizeCSV(path string) (Summary, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return Summary{}, err
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+	rows, err := r.ReadAll()
+	if err != nil {
+		return Summary{}, err
+	}
+	if len(rows) < 2 {
+		return Summary{}, fmt.Errorf("scan result csv has no data rows")
+	}
+
+	s := Summary{}
+	for i := 1; i < len(rows); i++ {
+		row := rows[i]
+		if len(row) < 3 {
+			return Summary{}, io.ErrUnexpectedEOF
+		}
+		status := strings.TrimSpace(row[2])
+		s.Total++
+		switch status {
+		case "open":
+			s.Open++
+		case "close":
+			s.Closed++
+		case "close(timeout)":
+			s.Timeout++
+		default:
+			return Summary{}, fmt.Errorf("unsupported status in result csv: %s", status)
+		}
+	}
+	return s, nil
 }

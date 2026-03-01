@@ -15,6 +15,7 @@ func main() {
 
 func run(args []string, _ io.Writer, stderr io.Writer) int {
 	var out string
+	var csvPath string
 	var total int
 	var open int
 	var closed int
@@ -23,6 +24,7 @@ func run(args []string, _ io.Writer, stderr io.Writer) int {
 	fs := flag.NewFlagSet("generate-report", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	fs.StringVar(&out, "out", "e2e/out", "output directory")
+	fs.StringVar(&csvPath, "csv", "", "scan results csv path")
 	fs.IntVar(&total, "total", 0, "total targets")
 	fs.IntVar(&open, "open", 0, "open targets")
 	fs.IntVar(&closed, "closed", 0, "closed targets")
@@ -32,7 +34,17 @@ func run(args []string, _ io.Writer, stderr io.Writer) int {
 		return 2
 	}
 
-	err := report.Generate(out, report.Summary{Total: total, Open: open, Closed: closed, Timeout: timeout})
+	summary := report.Summary{Total: total, Open: open, Closed: closed, Timeout: timeout}
+	if csvPath != "" {
+		parsed, err := report.SummarizeCSV(csvPath)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		summary = parsed
+	}
+
+	err := report.Generate(out, summary)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1

@@ -16,9 +16,8 @@ TCP port scanner CLI written in Go.
   - `go test ./...`
 - Coverage gate:
   - `bash scripts/coverage_gate.sh`
-- E2E (Docker optional):
+- E2E (Docker required):
   - `bash e2e/run_e2e.sh`
-  - `E2E_SKIP_DOCKER=1 bash e2e/run_e2e.sh`
 
 ## Artifacts
 
