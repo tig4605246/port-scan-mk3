@@ -24,3 +24,17 @@ func TestParseConfig_InvalidFormat(t *testing.T) {
 		t.Fatal("expected error for invalid format")
 	}
 }
+
+func TestParseConfig_PressureIntervalSeconds(t *testing.T) {
+	cfg, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-interval", "7",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.PressureInterval != 7*time.Second {
+		t.Fatalf("expected 7s, got %v", cfg.PressureInterval)
+	}
+}

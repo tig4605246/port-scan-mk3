@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -8,6 +10,8 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/cli"
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/input"
+	"github.com/xuxiping/port-scan-mk3/pkg/scanapp"
+	"github.com/xuxiping/port-scan-mk3/pkg/state"
 )
 
 func main() {
@@ -45,12 +49,24 @@ func runMain(args []string, stdout, stderr io.Writer) int {
 }
 
 func runScan(args []string, stdout, stderr io.Writer) int {
-	_, err := config.Parse(args)
+	cfg, err := config.Parse(args)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 2
 	}
-	_, _ = fmt.Fprintln(stdout, "scan mode is wired; pipeline implementation pending")
+
+	ctx, cancel := state.WithSIGINTCancel(context.Background())
+	defer cancel()
+
+	err = scanapp.Run(ctx, cfg, stdout, stderr, scanapp.RunOptions{})
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			fmt.Fprintln(stderr, "scan canceled")
+			return 130
+		}
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
 	return 0
 }
 

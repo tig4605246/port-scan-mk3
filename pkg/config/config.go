@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"strconv"
 	"time"
 )
 
@@ -26,6 +27,7 @@ type Config struct {
 func Parse(args []string) (Config, error) {
 	fs := flag.NewFlagSet("port-scan", flag.ContinueOnError)
 	cfg := Config{}
+	pressureIntervalRaw := "5s"
 
 	fs.StringVar(&cfg.CIDRFile, "cidr-file", "", "CIDR CSV path")
 	fs.StringVar(&cfg.PortFile, "port-file", "", "Port CSV path")
@@ -36,7 +38,7 @@ func Parse(args []string) (Config, error) {
 	fs.IntVar(&cfg.BucketCapacity, "bucket-capacity", 100, "bucket capacity")
 	fs.IntVar(&cfg.Workers, "workers", 10, "worker count")
 	fs.StringVar(&cfg.PressureAPI, "pressure-api", "http://localhost:8080/api/pressure", "pressure api")
-	fs.DurationVar(&cfg.PressureInterval, "pressure-interval", 5*time.Second, "pressure poll interval")
+	fs.StringVar(&pressureIntervalRaw, "pressure-interval", "5s", "pressure poll interval (duration or seconds)")
 	fs.BoolVar(&cfg.DisableAPI, "disable-api", false, "disable pressure api")
 	fs.StringVar(&cfg.Resume, "resume", "", "resume state file")
 	fs.StringVar(&cfg.LogLevel, "log-level", "info", "debug|info|error")
@@ -50,6 +52,18 @@ func Parse(args []string) (Config, error) {
 	}
 	if cfg.Format != "human" && cfg.Format != "json" {
 		return Config{}, errors.New("-format must be human or json")
+	}
+	if seconds, err := strconv.Atoi(pressureIntervalRaw); err == nil {
+		cfg.PressureInterval = time.Duration(seconds) * time.Second
+	} else {
+		interval, parseErr := time.ParseDuration(pressureIntervalRaw)
+		if parseErr != nil {
+			return Config{}, errors.New("-pressure-interval must be duration like 5s or integer seconds")
+		}
+		cfg.PressureInterval = interval
+	}
+	if cfg.PressureInterval <= 0 {
+		return Config{}, errors.New("-pressure-interval must be > 0")
 	}
 
 	return cfg, nil

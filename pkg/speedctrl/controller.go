@@ -59,6 +59,20 @@ func (c *Controller) SetManualPaused(v bool) {
 	c.recomputeLocked()
 }
 
+func (c *Controller) ToggleManualPaused() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.manualPaused = !c.manualPaused
+	c.recomputeLocked()
+	return c.manualPaused
+}
+
+func (c *Controller) ManualPaused() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.manualPaused
+}
+
 func (c *Controller) IsPaused() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
