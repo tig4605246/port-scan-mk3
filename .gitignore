@@ -1,1 +1,3 @@
 .codex/
+coverage.out
+e2e/out/
