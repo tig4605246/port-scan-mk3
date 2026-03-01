@@ -40,7 +40,7 @@ func TestRunMain_ScanWritesCSV(t *testing.T) {
 	portFile := filepath.Join(tmp, "ports.csv")
 	outFile := filepath.Join(tmp, "out.csv")
 
-	if err := os.WriteFile(cidrFile, []byte("fab_name,cidr,cidr_name\nfab1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n1/tcp\n"), 0o644); err != nil {
@@ -68,13 +68,13 @@ func TestRunMain_ScanWritesCSV(t *testing.T) {
 		t.Fatalf("failed to read output csv: %v", err)
 	}
 	out := string(data)
-	if !strings.Contains(out, "ip,port,status,response_time_ms,fab_name,cidr,cidr_name") {
+	if !strings.Contains(out, "ip,ip_cidr,port,status,response_time_ms,fab_name,cidr_name") {
 		t.Fatalf("missing header: %s", out)
 	}
-	if !strings.Contains(out, "127.0.0.1,"+strconv.Itoa(openPort)+",open") {
+	if !strings.Contains(out, "127.0.0.1,127.0.0.1/32,"+strconv.Itoa(openPort)+",open") {
 		t.Fatalf("missing open row: %s", out)
 	}
-	if !strings.Contains(out, "127.0.0.1,1,close") && !strings.Contains(out, "127.0.0.1,1,close(timeout)") {
+	if !strings.Contains(out, "127.0.0.1,127.0.0.1/32,1,close") && !strings.Contains(out, "127.0.0.1,127.0.0.1/32,1,close(timeout)") {
 		t.Fatalf("missing close row: %s", out)
 	}
 }
@@ -86,7 +86,7 @@ func TestScanApp_CancelSavesResumeState(t *testing.T) {
 	outFile := filepath.Join(tmp, "out.csv")
 	resumeFile := filepath.Join(tmp, "resume_state.json")
 
-	if err := os.WriteFile(cidrFile, []byte("fab_name,cidr,cidr_name\nfab1,127.0.0.1/24,loopback\n"), 0o644); err != nil {
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1/24,127.0.0.1/24,loopback\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(portFile, []byte("1/tcp\n2/tcp\n3/tcp\n"), 0o644); err != nil {
@@ -121,5 +121,68 @@ func TestScanApp_CancelSavesResumeState(t *testing.T) {
 	}
 	if _, statErr := os.Stat(resumeFile); statErr != nil {
 		t.Fatalf("expected resume state file, got err=%v", statErr)
+	}
+}
+
+func TestRunMain_ScanWritesOpenedResultsCSV(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	openOnlyFile := filepath.Join(tmp, "opened_results.csv")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n1/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code := runMain([]string{
+		"scan",
+		"-cidr-file", cidrFile,
+		"-port-file", portFile,
+		"-output", outFile,
+		"-workers", "1",
+		"-delay", "0ms",
+		"-timeout", "100ms",
+		"-disable-api=true",
+	}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+
+	data, err := os.ReadFile(openOnlyFile)
+	if err != nil {
+		t.Fatalf("failed to read opened_results.csv: %v", err)
+	}
+	out := string(data)
+	if !strings.Contains(out, "ip,ip_cidr,port,status,response_time_ms,fab_name,cidr_name") {
+		t.Fatalf("missing header: %s", out)
+	}
+	if !strings.Contains(out, ",open,") {
+		t.Fatalf("expected open row: %s", out)
+	}
+	if strings.Contains(out, ",close,") || strings.Contains(out, "close(timeout)") {
+		t.Fatalf("opened_results.csv must contain open rows only: %s", out)
 	}
 }

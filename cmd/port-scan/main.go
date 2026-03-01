@@ -77,7 +77,7 @@ func validateInputs(cfg config.Config) (bool, string) {
 	}
 	defer cidrFile.Close()
 
-	if _, err := input.LoadCIDRs(cidrFile); err != nil {
+	if _, err := input.LoadCIDRsWithColumns(cidrFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol); err != nil {
 		return false, err.Error()
 	}
 
@@ -96,5 +96,5 @@ func validateInputs(cfg config.Config) (bool, string) {
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "port-scan scan -cidr-file <file> -port-file <file> [flags]")
 	fmt.Fprintln(w, "port-scan validate -cidr-file <file> -port-file <file> [-format human|json]")
-	fmt.Fprintln(w, "Flags: -resume -disable-api -pressure-api -pressure-interval -bucket-rate -bucket-capacity -workers -timeout -delay -log-level -format")
+	fmt.Fprintln(w, "Flags: -cidr-ip-col -cidr-ip-cidr-col -resume -disable-api -pressure-api -pressure-interval -bucket-rate -bucket-capacity -workers -timeout -delay -log-level -format")
 }

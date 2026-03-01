@@ -9,10 +9,10 @@ import (
 func TestSummarizeCSV(t *testing.T) {
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "scan_results.csv")
-	data := "ip,port,status,response_time_ms,fab_name,cidr,cidr_name\n" +
-		"172.28.0.10,8080,open,1,fab1,172.28.0.10/32,open-target\n" +
-		"172.28.0.11,8080,close,0,fab2,172.28.0.11/32,closed-target\n" +
-		"172.28.0.12,8080,close(timeout),0,fab3,172.28.0.12/32,timeout-target\n"
+	data := "ip,ip_cidr,port,status,response_time_ms,fab_name,cidr_name\n" +
+		"172.28.0.10,172.28.0.10/32,8080,open,1,fab1,open-target\n" +
+		"172.28.0.11,172.28.0.11/32,8080,close,0,fab2,closed-target\n" +
+		"172.28.0.12,172.28.0.12/32,8080,close(timeout),0,fab3,timeout-target\n"
 	if err := os.WriteFile(csvPath, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}

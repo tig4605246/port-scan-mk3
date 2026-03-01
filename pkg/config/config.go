@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,6 +23,8 @@ type Config struct {
 	Resume           string
 	LogLevel         string
 	Format           string
+	CIDRIPCol        string
+	CIDRIPCidrCol    string
 }
 
 func Parse(args []string) (Config, error) {
@@ -43,12 +46,17 @@ func Parse(args []string) (Config, error) {
 	fs.StringVar(&cfg.Resume, "resume", "", "resume state file")
 	fs.StringVar(&cfg.LogLevel, "log-level", "info", "debug|info|error")
 	fs.StringVar(&cfg.Format, "format", "human", "human|json")
+	fs.StringVar(&cfg.CIDRIPCol, "cidr-ip-col", "ip", "cidr csv ip column name")
+	fs.StringVar(&cfg.CIDRIPCidrCol, "cidr-ip-cidr-col", "ip_cidr", "cidr csv ip_cidr column name")
 
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
 	}
 	if cfg.CIDRFile == "" || cfg.PortFile == "" {
 		return Config{}, errors.New("-cidr-file and -port-file are required")
+	}
+	if strings.TrimSpace(cfg.CIDRIPCol) == "" || strings.TrimSpace(cfg.CIDRIPCidrCol) == "" {
+		return Config{}, errors.New("-cidr-ip-col and -cidr-ip-cidr-col must be non-empty")
 	}
 	if cfg.Format != "human" && cfg.Format != "json" {
 		return Config{}, errors.New("-format must be human or json")

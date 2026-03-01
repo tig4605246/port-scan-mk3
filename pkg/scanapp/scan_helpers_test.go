@@ -1,0 +1,156 @@
+package scanapp
+
+import (
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/xuxiping/port-scan-mk3/pkg/config"
+	"github.com/xuxiping/port-scan-mk3/pkg/input"
+	"github.com/xuxiping/port-scan-mk3/pkg/task"
+)
+
+func TestIndexToRuntimeTarget_Errors(t *testing.T) {
+	targets := []scanTarget{{ip: "10.0.0.1"}}
+	ports := []int{80}
+
+	if _, _, err := indexToRuntimeTarget(nil, ports, 0); err == nil {
+		t.Fatal("expected empty targets error")
+	}
+	if _, _, err := indexToRuntimeTarget(targets, nil, 0); err == nil {
+		t.Fatal("expected empty ports error")
+	}
+	if _, _, err := indexToRuntimeTarget(targets, ports, -1); err == nil {
+		t.Fatal("expected negative index error")
+	}
+	if _, _, err := indexToRuntimeTarget(targets, ports, 2); err == nil {
+		t.Fatal("expected out of range error")
+	}
+
+	gotTarget, gotPort, err := indexToRuntimeTarget(targets, ports, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotTarget.ip != "10.0.0.1" || gotPort != 80 {
+		t.Fatalf("unexpected mapping: %+v port=%d", gotTarget, gotPort)
+	}
+}
+
+func TestBuildCIDRGroups_ErrorAndSortPaths(t *testing.T) {
+	if _, err := buildCIDRGroups([]input.CIDRRecord{{IPRaw: "10.0.0.1"}}); err == nil {
+		t.Fatal("expected missing ip_cidr error")
+	}
+
+	_, ipNet, _ := net.ParseCIDR("10.0.0.0/24")
+	if _, err := buildCIDRGroups([]input.CIDRRecord{{CIDR: "10.0.0.0/24", Net: ipNet}}); err != nil {
+		t.Fatalf("expected fallback selector from net, got err=%v", err)
+	}
+
+	if _, err := buildCIDRGroups([]input.CIDRRecord{{CIDR: "10.0.0.0/24", IPRaw: "bad-selector"}}); err == nil {
+		t.Fatal("expected expand selector error")
+	}
+
+	rows := []input.CIDRRecord{
+		{CIDR: "10.0.0.0/24", Selector: mustSelectorNet(t, "10.0.0.3/32"), FabName: "fab", CIDRName: "name"},
+		{CIDR: "10.0.0.0/24", Selector: mustSelectorNet(t, "10.0.0.1/32"), FabName: "fab", CIDRName: "name"},
+	}
+	groups, err := buildCIDRGroups(rows)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := groups["10.0.0.0/24"].targets
+	if len(got) != 2 || got[0].ip != "10.0.0.1" || got[1].ip != "10.0.0.3" {
+		t.Fatalf("unexpected sorted targets: %#v", got)
+	}
+}
+
+func TestBuildRuntime_TotalCountMismatch(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{CIDR: "10.0.0.0/24", Selector: mustSelectorNet(t, "10.0.0.1/32")},
+	}
+	chunks := []task.Chunk{{
+		CIDR:       "10.0.0.0/24",
+		Ports:      []string{"80/tcp"},
+		TotalCount: 2, // expected should be 1
+	}}
+	_, err := buildRuntime(chunks, rows, nil, config.Config{BucketRate: 1, BucketCapacity: 1})
+	if err == nil {
+		t.Fatal("expected total_count mismatch error")
+	}
+}
+
+func TestReadCIDRFileAndReadPortFile_Errors(t *testing.T) {
+	if _, err := readCIDRFile("/not-exist", "ip", "ip_cidr"); err == nil {
+		t.Fatal("expected read cidr file error")
+	}
+	if _, err := readPortFile("/not-exist"); err == nil {
+		t.Fatal("expected read port file error")
+	}
+}
+
+func TestLoadOrBuildChunks_Resume(t *testing.T) {
+	dir := t.TempDir()
+	resume := filepath.Join(dir, "resume.json")
+	if err := os.WriteFile(resume, []byte(`[{"cidr":"10.0.0.0/24","next_index":1,"total_count":1}]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chunks, err := loadOrBuildChunks(config.Config{Resume: resume}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(chunks) != 1 || chunks[0].CIDR != "10.0.0.0/24" {
+		t.Fatalf("unexpected chunks: %#v", chunks)
+	}
+}
+
+func TestResumePathPreference(t *testing.T) {
+	if got := resumePath(config.Config{Resume: "cfg.json"}, RunOptions{ResumeStatePath: "opt.json"}); got != "opt.json" {
+		t.Fatalf("unexpected resume path: %s", got)
+	}
+	if got := resumePath(config.Config{Resume: "cfg.json"}, RunOptions{}); got != "cfg.json" {
+		t.Fatalf("unexpected resume path: %s", got)
+	}
+	if got := resumePath(config.Config{}, RunOptions{}); got != defaultResumeStateFile {
+		t.Fatalf("unexpected default resume path: %s", got)
+	}
+}
+
+func TestEnsureFDLimit_HugeWorkers(t *testing.T) {
+	err := ensureFDLimit(1_000_000_000)
+	if err == nil {
+		t.Fatal("expected fd limit error for huge workers")
+	}
+}
+
+func TestFetchPressure_MissingFieldAndUnsupportedType(t *testing.T) {
+	missingFieldAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprintln(w, `{"x":1}`)
+	}))
+	defer missingFieldAPI.Close()
+	if _, err := fetchPressure(&http.Client{Timeout: time.Second}, missingFieldAPI.URL); err == nil || !strings.Contains(err.Error(), "pressure field missing") {
+		t.Fatalf("expected missing pressure field error, got %v", err)
+	}
+
+	unsupportedTypeAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprintln(w, `{"pressure":true}`)
+	}))
+	defer unsupportedTypeAPI.Close()
+	if _, err := fetchPressure(&http.Client{Timeout: time.Second}, unsupportedTypeAPI.URL); err == nil || !strings.Contains(err.Error(), "unsupported pressure field type") {
+		t.Fatalf("expected unsupported type error, got %v", err)
+	}
+}
+
+func mustSelectorNet(t *testing.T, raw string) *net.IPNet {
+	t.Helper()
+	_, n, err := net.ParseCIDR(raw)
+	if err != nil {
+		t.Fatalf("parse cidr failed: %v", err)
+	}
+	return n
+}

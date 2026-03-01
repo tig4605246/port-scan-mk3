@@ -45,14 +45,25 @@ func SummarizeCSV(path string) (Summary, error) {
 	if len(rows) < 2 {
 		return Summary{}, fmt.Errorf("scan result csv has no data rows")
 	}
+	header := rows[0]
+	statusIdx := -1
+	for i, h := range header {
+		if strings.TrimSpace(h) == "status" {
+			statusIdx = i
+			break
+		}
+	}
+	if statusIdx < 0 {
+		return Summary{}, fmt.Errorf("scan result csv missing status column")
+	}
 
 	s := Summary{}
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
-		if len(row) < 3 {
+		if len(row) <= statusIdx {
 			return Summary{}, io.ErrUnexpectedEOF
 		}
-		status := strings.TrimSpace(row[2])
+		status := strings.TrimSpace(row[statusIdx])
 		s.Total++
 		switch status {
 		case "open":

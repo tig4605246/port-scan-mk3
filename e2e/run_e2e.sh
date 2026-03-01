@@ -17,12 +17,23 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-rm -f "$OUT_DIR/scan_results.csv" "$OUT_DIR/report.html" "$OUT_DIR/report.txt"
+rm -f "$OUT_DIR/scan_results.csv" \
+  "$OUT_DIR/opened_results.csv" \
+  "$OUT_DIR/report.html" \
+  "$OUT_DIR/report.txt" \
+  "$OUT_DIR"/resume_state*.json \
+  "$OUT_DIR"/scan_results_*.csv \
+  "$OUT_DIR"/scenario_*.log
 
-cat > "$INPUT_DIR/cidr.csv" <<'EOF'
-fab_name,cidr,cidr_name
-fab-open,172.28.0.10/32,mock-target-open
-fab-closed,172.28.0.11/32,mock-target-closed
+cat > "$INPUT_DIR/cidr_normal.csv" <<'EOF'
+asset_id,fab_name,source_ip,source_cidr,cidr_name,owner
+asset-1,fab-open,172.28.0.10,172.28.0.0/24,mock-target-open,team-a
+asset-2,fab-closed,172.28.0.11,172.28.0.0/24,mock-target-closed,team-b
+EOF
+
+cat > "$INPUT_DIR/cidr_fail.csv" <<'EOF'
+asset_id,fab_name,source_ip,source_cidr,cidr_name,owner
+asset-3,fab-fail,172.28.0.0/28,172.28.0.0/24,mock-target-fail,team-c
 EOF
 
 cat > "$INPUT_DIR/ports.csv" <<'EOF'
@@ -30,7 +41,13 @@ cat > "$INPUT_DIR/ports.csv" <<'EOF'
 EOF
 
 docker compose -f "$COMPOSE_FILE" down -v --remove-orphans >/dev/null 2>&1 || true
-docker compose -f "$COMPOSE_FILE" up -d --build mock-target-open mock-target-closed
+docker compose -f "$COMPOSE_FILE" up -d --build \
+  mock-target-open \
+  mock-target-closed \
+  pressure-api-ok \
+  pressure-api-5xx \
+  pressure-api-timeout
+docker compose -f "$COMPOSE_FILE" build scanner
 trap 'docker compose -f "$COMPOSE_FILE" down -v --remove-orphans' EXIT
 
 OPEN_READY=0
@@ -46,17 +63,33 @@ if [[ "$OPEN_READY" -ne 1 ]]; then
   exit 1
 fi
 
-docker compose -f "$COMPOSE_FILE" run --rm scanner scan \
-  -cidr-file /inputs/cidr.csv \
+run_scan() {
+  docker compose -f "$COMPOSE_FILE" run --rm -w /out scanner scan "$@"
+}
+
+run_scan \
+  -cidr-file /inputs/cidr_normal.csv \
   -port-file /inputs/ports.csv \
   -output /out/scan_results.csv \
+  -cidr-ip-col source_ip \
+  -cidr-ip-cidr-col source_cidr \
+  -pressure-api http://pressure-api-ok:8080/api/pressure \
+  -pressure-interval 200ms \
   -workers 2 \
   -delay 0ms \
   -timeout 200ms \
-  -disable-api=true \
   -log-level error
 
-go test ./tests/integration -v
+if [[ ! -f "$OUT_DIR/opened_results.csv" ]]; then
+  echo "e2e assertion failed: opened_results.csv not found" >&2
+  exit 1
+fi
+if awk -F, 'NR>1 && $4 != "open" {exit 1}' "$OUT_DIR/opened_results.csv"; then
+  :
+else
+  echo "e2e assertion failed: opened_results.csv contains non-open row" >&2
+  exit 1
+fi
 
 go run ./e2e/report/cmd/generate -out "$OUT_DIR" -csv "$OUT_DIR/scan_results.csv"
 
@@ -72,5 +105,47 @@ if [[ $(( ${CLOSED_COUNT:-0} + ${TIMEOUT_COUNT:-0} )) -lt 1 ]]; then
   echo "e2e assertion failed: expected at least 1 non-open result" >&2
   exit 1
 fi
+
+run_expected_failure() {
+  local scenario="$1"
+  local pressure_api="$2"
+  local pressure_interval="$3"
+
+  rm -f "$OUT_DIR/resume_state.json"
+  set +e
+  run_scan \
+    -cidr-file /inputs/cidr_fail.csv \
+    -port-file /inputs/ports.csv \
+    -output "/out/scan_results_${scenario}.csv" \
+    -cidr-ip-col source_ip \
+    -cidr-ip-cidr-col source_cidr \
+    -pressure-api "$pressure_api" \
+    -pressure-interval "$pressure_interval" \
+    -workers 1 \
+    -bucket-rate 1 \
+    -bucket-capacity 1 \
+    -delay 0ms \
+    -timeout 200ms \
+    -log-level error \
+    >"$OUT_DIR/scenario_${scenario}.log" 2>&1
+  local code=$?
+  set -e
+
+  if [[ "$code" -eq 0 ]]; then
+    echo "e2e assertion failed: scenario ${scenario} should fail but exited 0" >&2
+    exit 1
+  fi
+  if [[ ! -f "$OUT_DIR/resume_state.json" ]]; then
+    echo "e2e assertion failed: scenario ${scenario} missing resume_state.json" >&2
+    exit 1
+  fi
+  mv "$OUT_DIR/resume_state.json" "$OUT_DIR/resume_state_${scenario}.json"
+}
+
+run_expected_failure "api_5xx" "http://pressure-api-5xx:8080/api/pressure" "200ms"
+run_expected_failure "api_timeout" "http://pressure-api-timeout:8080/api/pressure" "200ms"
+run_expected_failure "api_conn_fail" "http://127.0.0.1:9/api/pressure" "200ms"
+
+go test ./tests/integration -v
 
 echo "e2e report generated at $OUT_DIR"

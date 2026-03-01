@@ -8,6 +8,7 @@ import (
 
 type Record struct {
 	IP         string
+	IPCidr     string
 	Port       int
 	Status     string
 	ResponseMS int64
@@ -26,20 +27,21 @@ func NewCSVWriter(out io.Writer) *CSVWriter {
 }
 
 func (cw *CSVWriter) Write(r Record) error {
-	if !cw.wroteHeader {
-		if err := cw.w.Write([]string{"ip", "port", "status", "response_time_ms", "fab_name", "cidr", "cidr_name"}); err != nil {
-			return err
-		}
-		cw.wroteHeader = true
+	if err := cw.WriteHeader(); err != nil {
+		return err
 	}
 
+	cidr := r.IPCidr
+	if cidr == "" {
+		cidr = r.CIDR
+	}
 	row := []string{
 		r.IP,
+		cidr,
 		strconv.Itoa(r.Port),
 		r.Status,
 		strconv.FormatInt(r.ResponseMS, 10),
 		r.FabName,
-		r.CIDR,
 		r.CIDRName,
 	}
 	if err := cw.w.Write(row); err != nil {
@@ -47,4 +49,16 @@ func (cw *CSVWriter) Write(r Record) error {
 	}
 	cw.w.Flush()
 	return cw.w.Error()
+}
+
+func (cw *CSVWriter) WriteHeader() error {
+	if !cw.wroteHeader {
+		if err := cw.w.Write([]string{"ip", "ip_cidr", "port", "status", "response_time_ms", "fab_name", "cidr_name"}); err != nil {
+			return err
+		}
+		cw.wroteHeader = true
+		cw.w.Flush()
+		return cw.w.Error()
+	}
+	return nil
 }

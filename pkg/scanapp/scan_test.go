@@ -65,7 +65,7 @@ func TestRun_ResumeFromStateFile(t *testing.T) {
 	outFile := filepath.Join(tmp, "out.csv")
 	resumeFile := filepath.Join(tmp, "resume.json")
 
-	if err := os.WriteFile(cidrFile, []byte("fab_name,cidr,cidr_name\nfab1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n1/tcp\n"), 0o644); err != nil {
@@ -108,10 +108,10 @@ func TestRun_ResumeFromStateFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := string(data)
-	if !strings.Contains(out, "127.0.0.1,1,close") && !strings.Contains(out, "127.0.0.1,1,close(timeout)") {
+	if !strings.Contains(out, "127.0.0.1,127.0.0.1/32,1,close") && !strings.Contains(out, "127.0.0.1,127.0.0.1/32,1,close(timeout)") {
 		t.Fatalf("expected resumed scan row, got: %s", out)
 	}
-	if strings.Contains(out, "127.0.0.1,"+strconv.Itoa(openPort)+",open") {
+	if strings.Contains(out, "127.0.0.1,127.0.0.1/32,"+strconv.Itoa(openPort)+",open") {
 		t.Fatalf("did not expect already-scanned port row, got: %s", out)
 	}
 }
@@ -128,7 +128,7 @@ func TestRun_PressureAPIFailsThreeTimes(t *testing.T) {
 	outFile := filepath.Join(tmp, "out.csv")
 	resumeFile := filepath.Join(tmp, "resume_state.json")
 
-	if err := os.WriteFile(cidrFile, []byte("fab_name,cidr,cidr_name\nfab1,127.0.0.0/24,loopback\n"), 0o644); err != nil {
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.0/24,127.0.0.0/24,loopback\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(portFile, []byte("1/tcp\n"), 0o644); err != nil {
@@ -338,5 +338,132 @@ func TestStartManualPauseMonitor_LogsStateChange(t *testing.T) {
 	logs := out.String()
 	if !strings.Contains(logs, "掃描已手動暫停") || !strings.Contains(logs, "掃描已手動恢復") {
 		t.Fatalf("expected manual pause/resume logs, got: %s", logs)
+	}
+}
+
+func TestRun_ScansOnlyIPsListedByIPColumn(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+
+	if err := os.WriteFile(cidrFile, []byte(
+		"fab_name,ip,ip_cidr,cidr_name\n"+
+			"fab1,127.0.0.1,127.0.0.0/30,subset\n",
+	), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n1/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          100 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+	}
+	if err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{DisableKeyboard: true}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	outBytes, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(outBytes)), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected header + 2 rows for 1 listed ip x 2 ports, got %d lines: %s", len(lines), string(outBytes))
+	}
+	if strings.Contains(string(outBytes), "127.0.0.2") || strings.Contains(string(outBytes), "127.0.0.3") {
+		t.Fatalf("unexpected non-listed ip in output: %s", string(outBytes))
+	}
+}
+
+func TestRun_WritesOpenedResultsCSV(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	openOnlyPath := filepath.Join(tmp, "opened_results.csv")
+
+	if err := os.WriteFile(cidrFile, []byte(
+		"fab_name,ip,ip_cidr,cidr_name\n"+
+			"fab1,127.0.0.1,127.0.0.1/32,loopback\n",
+	), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n1/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          100 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+	}
+	if err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{DisableKeyboard: true}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	openOnlyBytes, err := os.ReadFile(openOnlyPath)
+	if err != nil {
+		t.Fatalf("read opened_results.csv failed: %v", err)
+	}
+	openOnly := string(openOnlyBytes)
+	if !strings.Contains(openOnly, ",open,") {
+		t.Fatalf("expected at least one open record, got: %s", openOnly)
+	}
+	if strings.Contains(openOnly, ",close,") || strings.Contains(openOnly, "close(timeout)") {
+		t.Fatalf("opened_results.csv must include open records only, got: %s", openOnly)
 	}
 }

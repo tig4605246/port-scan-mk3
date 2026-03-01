@@ -38,3 +38,30 @@ func TestParseConfig_PressureIntervalSeconds(t *testing.T) {
 		t.Fatalf("expected 7s, got %v", cfg.PressureInterval)
 	}
 }
+
+func TestParseConfig_CIDRColumnFlags(t *testing.T) {
+	cfg, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-cidr-ip-col", "source_ip",
+		"-cidr-ip-cidr-col", "source_cidr",
+	})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if cfg.CIDRIPCol != "source_ip" || cfg.CIDRIPCidrCol != "source_cidr" {
+		t.Fatalf("unexpected cols: %#v", cfg)
+	}
+}
+
+func TestParseConfig_CIDRColumnFlags_NonEmpty(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-cidr-ip-col", " ",
+		"-cidr-ip-cidr-col", "source_cidr",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty cidr-ip-col")
+	}
+}

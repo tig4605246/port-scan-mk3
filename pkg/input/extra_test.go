@@ -6,7 +6,7 @@ import (
 )
 
 func TestLoadCIDRs_InvalidHeader(t *testing.T) {
-	_, err := LoadCIDRs(strings.NewReader("a,b,c\n1,10.0.0.0/24,x\n"))
+	_, err := LoadCIDRs(strings.NewReader("a,b,c\n1,10.0.0.1,10.0.0.0/24\n"))
 	if err == nil {
 		t.Fatal("expected header error")
 	}

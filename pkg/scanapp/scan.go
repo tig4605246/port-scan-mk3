@@ -2,6 +2,7 @@ package scanapp
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,17 +46,23 @@ type RunOptions struct {
 }
 
 type chunkRuntime struct {
-	meta  input.CIDRRecord
-	net   *net.IPNet
-	ports []int
-	state *task.Chunk
-	bkt   *ratelimit.LeakyBucket
+	ipCidr  string
+	ports   []int
+	targets []scanTarget
+	state   *task.Chunk
+	bkt     *ratelimit.LeakyBucket
+}
+
+type scanTarget struct {
+	ip       string
+	fabName  string
+	cidrName string
 }
 
 type scanTask struct {
 	chunkIdx int
 	fabName  string
-	cidr     string
+	ipCidr   string
 	cidrName string
 	ip       string
 	port     int
@@ -67,12 +75,18 @@ type scanResult struct {
 
 func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts RunOptions) error {
 	logger := newLogger(cfg.LogLevel, cfg.Format == "json", stderr)
+	if strings.TrimSpace(cfg.CIDRIPCol) == "" {
+		cfg.CIDRIPCol = "ip"
+	}
+	if strings.TrimSpace(cfg.CIDRIPCidrCol) == "" {
+		cfg.CIDRIPCidrCol = "ip_cidr"
+	}
 
 	if err := ensureFDLimit(cfg.Workers); err != nil {
 		return err
 	}
 
-	cidrRecords, err := readCIDRFile(cfg.CIDRFile)
+	cidrRecords, err := readCIDRFile(cfg.CIDRFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol)
 	if err != nil {
 		return err
 	}
@@ -99,6 +113,20 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	}
 	defer outFile.Close()
 	csvWriter := writer.NewCSVWriter(outFile)
+	if err := csvWriter.WriteHeader(); err != nil {
+		return err
+	}
+
+	openOnlyPath := filepath.Join(filepath.Dir(cfg.Output), "opened_results.csv")
+	openOnlyFile, err := os.Create(openOnlyPath)
+	if err != nil {
+		return err
+	}
+	defer openOnlyFile.Close()
+	openOnlyWriter := writer.NewOpenOnlyWriter(writer.NewCSVWriter(openOnlyFile))
+	if err := openOnlyWriter.WriteHeader(); err != nil {
+		return err
+	}
 
 	workers := cfg.Workers
 	if workers <= 0 {
@@ -151,11 +179,11 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 					chunkIdx: t.chunkIdx,
 					record: writer.Record{
 						IP:         res.IP,
+						IPCidr:     t.ipCidr,
 						Port:       res.Port,
 						Status:     res.Status,
 						ResponseMS: res.ResponseTimeMS,
 						FabName:    t.fabName,
-						CIDR:       t.cidr,
 						CIDRName:   t.cidrName,
 					},
 				}
@@ -197,6 +225,10 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				continue
 			}
 			if err := csvWriter.Write(res.record); err != nil && runErr == nil {
+				runErr = err
+				cancel()
+			}
+			if err := openOnlyWriter.Write(res.record); err != nil && runErr == nil {
 				runErr = err
 				cancel()
 			}
@@ -282,7 +314,7 @@ func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Contr
 				return err
 			}
 
-			ip, port, err := task.IndexToIPv4Target(rt.net, rt.ports, i)
+			target, port, err := indexToRuntimeTarget(rt.targets, rt.ports, i)
 			if err != nil {
 				return err
 			}
@@ -291,15 +323,15 @@ func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Contr
 				return ctx.Err()
 			case taskCh <- scanTask{
 				chunkIdx: idx,
-				fabName:  rt.meta.FabName,
-				cidr:     ch.CIDR,
-				cidrName: ch.CIDRName,
-				ip:       ip,
+				fabName:  target.fabName,
+				ipCidr:   ch.CIDR,
+				cidrName: target.cidrName,
+				ip:       target.ip,
 				port:     port,
 			}:
 			}
 			ch.NextIndex = i + 1
-			logger.debugf("dispatch cidr=%s target=%s:%d next_index=%d/%d", ch.CIDR, ip, port, ch.NextIndex, ch.TotalCount)
+			logger.debugf("dispatch cidr=%s target=%s:%d next_index=%d/%d", ch.CIDR, target.ip, port, ch.NextIndex, ch.TotalCount)
 			if cfg.Delay > 0 {
 				time.Sleep(cfg.Delay)
 			}
@@ -308,13 +340,13 @@ func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Contr
 	return nil
 }
 
-func readCIDRFile(path string) ([]input.CIDRRecord, error) {
+func readCIDRFile(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return input.LoadCIDRs(f)
+	return input.LoadCIDRsWithColumns(f, ipCol, ipCidrCol)
 }
 
 func readPortFile(path string) ([]input.PortSpec, error) {
@@ -330,20 +362,31 @@ func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSp
 	if cfg.Resume != "" {
 		return state.Load(cfg.Resume)
 	}
+	groups, err := buildCIDRGroups(cidrRecords)
+	if err != nil {
+		return nil, err
+	}
 	rawPorts := make([]string, 0, len(portSpecs))
 	for _, p := range portSpecs {
 		rawPorts = append(rawPorts, p.Raw)
 	}
-	out := make([]task.Chunk, 0, len(cidrRecords))
-	for _, rec := range cidrRecords {
-		hostCount, err := task.CountIPv4Hosts(rec.Net)
-		if err != nil {
-			return nil, err
+	cidrs := make([]string, 0, len(groups))
+	for cidr := range groups {
+		cidrs = append(cidrs, cidr)
+	}
+	sort.Strings(cidrs)
+
+	out := make([]task.Chunk, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		g := groups[cidr]
+		total := len(g.targets) * len(portSpecs)
+		cidrName := ""
+		if len(g.targets) > 0 {
+			cidrName = g.targets[0].cidrName
 		}
-		total := hostCount * len(portSpecs)
 		out = append(out, task.Chunk{
-			CIDR:         rec.CIDR,
-			CIDRName:     rec.CIDRName,
+			CIDR:         cidr,
+			CIDRName:     cidrName,
 			Ports:        rawPorts,
 			NextIndex:    0,
 			ScannedCount: 0,
@@ -355,15 +398,15 @@ func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSp
 }
 
 func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error) {
-	cidrMeta := make(map[string]input.CIDRRecord, len(cidrRecords))
-	for _, rec := range cidrRecords {
-		cidrMeta[rec.CIDR] = rec
+	groups, err := buildCIDRGroups(cidrRecords)
+	if err != nil {
+		return nil, err
 	}
 
 	runtimes := make([]*chunkRuntime, 0, len(chunks))
 	for i := range chunks {
 		ch := &chunks[i]
-		rec, ok := cidrMeta[ch.CIDR]
+		group, ok := groups[ch.CIDR]
 		if !ok {
 			return nil, fmt.Errorf("cidr %s from chunk not found in cidr file", ch.CIDR)
 		}
@@ -381,12 +424,12 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 			return nil, err
 		}
 
+		expectedTotal := len(group.targets) * len(ports)
 		if ch.TotalCount == 0 {
-			hostCount, err := task.CountIPv4Hosts(rec.Net)
-			if err != nil {
-				return nil, err
-			}
-			ch.TotalCount = hostCount * len(ports)
+			ch.TotalCount = expectedTotal
+		}
+		if ch.TotalCount != expectedTotal {
+			return nil, fmt.Errorf("chunk total_count mismatch for %s: state=%d expected=%d", ch.CIDR, ch.TotalCount, expectedTotal)
 		}
 		if ch.NextIndex >= ch.TotalCount {
 			ch.Status = "completed"
@@ -394,15 +437,93 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 			ch.Status = "pending"
 		}
 		rt := &chunkRuntime{
-			meta:  rec,
-			net:   rec.Net,
-			ports: ports,
-			state: ch,
-			bkt:   ratelimit.NewLeakyBucket(cfg.BucketRate, cfg.BucketCapacity),
+			ipCidr:  ch.CIDR,
+			ports:   ports,
+			targets: group.targets,
+			state:   ch,
+			bkt:     ratelimit.NewLeakyBucket(cfg.BucketRate, cfg.BucketCapacity),
 		}
 		runtimes = append(runtimes, rt)
 	}
 	return runtimes, nil
+}
+
+type cidrGroup struct {
+	targets []scanTarget
+}
+
+func buildCIDRGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error) {
+	out := make(map[string]cidrGroup)
+	for _, rec := range cidrRecords {
+		cidr := rec.CIDR
+		if cidr == "" && rec.Net != nil {
+			cidr = rec.Net.String()
+		}
+		if cidr == "" {
+			return nil, fmt.Errorf("record missing ip_cidr")
+		}
+
+		selector := ""
+		switch {
+		case rec.Selector != nil:
+			selector = rec.Selector.String()
+		case strings.TrimSpace(rec.IPRaw) != "":
+			selector = strings.TrimSpace(rec.IPRaw)
+		case rec.Net != nil:
+			selector = rec.Net.String()
+		default:
+			return nil, fmt.Errorf("record for cidr %s missing selector", cidr)
+		}
+
+		ips, err := task.ExpandIPSelectors([]string{selector})
+		if err != nil {
+			return nil, fmt.Errorf("expand selector failed for cidr %s: %w", cidr, err)
+		}
+
+		group := out[cidr]
+		for _, ip := range ips {
+			group.targets = append(group.targets, scanTarget{
+				ip:       ip,
+				fabName:  rec.FabName,
+				cidrName: rec.CIDRName,
+			})
+		}
+		out[cidr] = group
+	}
+
+	for cidr, group := range out {
+		sort.Slice(group.targets, func(i, j int) bool {
+			return ipv4ToUint32(group.targets[i].ip) < ipv4ToUint32(group.targets[j].ip)
+		})
+		out[cidr] = group
+	}
+	return out, nil
+}
+
+func indexToRuntimeTarget(targets []scanTarget, ports []int, idx int) (scanTarget, int, error) {
+	if len(targets) == 0 {
+		return scanTarget{}, 0, fmt.Errorf("empty targets")
+	}
+	if len(ports) == 0 {
+		return scanTarget{}, 0, fmt.Errorf("empty ports")
+	}
+	if idx < 0 {
+		return scanTarget{}, 0, fmt.Errorf("negative index")
+	}
+	targetIdx := idx / len(ports)
+	portIdx := idx % len(ports)
+	if targetIdx >= len(targets) {
+		return scanTarget{}, 0, fmt.Errorf("index out of range")
+	}
+	return targets[targetIdx], ports[portIdx], nil
+}
+
+func ipv4ToUint32(ip string) uint32 {
+	parsed := net.ParseIP(ip).To4()
+	if parsed == nil {
+		return 0
+	}
+	return binary.BigEndian.Uint32(parsed)
 }
 
 func parsePortRows(rows []string) ([]int, error) {
