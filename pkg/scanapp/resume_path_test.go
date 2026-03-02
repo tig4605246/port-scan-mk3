@@ -7,7 +7,7 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 )
 
-func TestResumePath_ResolveRules(t *testing.T) {
+func TestResumePath_WhenConfigVariantsProvided_ResolvesExpectedPath(t *testing.T) {
 	if got := resumePath(config.Config{Resume: "cfg.json"}, RunOptions{ResumeStatePath: "opt.json"}); got != "opt.json" {
 		t.Fatalf("unexpected resume path with option override: %s", got)
 	}

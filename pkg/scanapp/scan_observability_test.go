@@ -14,7 +14,7 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 )
 
-func Test_observability_progress_summary_events(t *testing.T) {
+func TestRun_WhenObservabilityJSONEnabled_EmitsProgressAndCompletionEvents(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

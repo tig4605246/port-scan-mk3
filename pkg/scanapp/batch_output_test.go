@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestResolveBatchOutputPaths_NoCollision(t *testing.T) {
+func TestResolveBatchOutputPaths_WhenNoExistingFiles_UsesBaseTimestampNames(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 3, 2, 1, 30, 45, 0, time.UTC)
 
@@ -26,7 +26,7 @@ func TestResolveBatchOutputPaths_NoCollision(t *testing.T) {
 	}
 }
 
-func TestResolveBatchOutputPaths_WithCollision(t *testing.T) {
+func TestResolveBatchOutputPaths_WhenExistingFilesCollide_AppendsIncrementingSuffix(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 3, 2, 1, 30, 45, 0, time.UTC)
 
