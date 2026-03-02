@@ -19,7 +19,7 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
-func TestIndexToRuntimeTarget_Errors(t *testing.T) {
+func TestIndexToRuntimeTarget_WhenInputsInvalid_ReturnsErrors(t *testing.T) {
 	targets := []scanTarget{{ip: "10.0.0.1"}}
 	ports := []int{80}
 
@@ -45,7 +45,7 @@ func TestIndexToRuntimeTarget_Errors(t *testing.T) {
 	}
 }
 
-func TestBuildCIDRGroups_ErrorAndSortPaths(t *testing.T) {
+func TestBuildCIDRGroups_WhenInputsVary_ReturnsErrorsAndSortedTargets(t *testing.T) {
 	if _, err := buildCIDRGroups([]input.CIDRRecord{{IPRaw: "10.0.0.1"}}); err == nil {
 		t.Fatal("expected missing ip_cidr error")
 	}
@@ -73,7 +73,7 @@ func TestBuildCIDRGroups_ErrorAndSortPaths(t *testing.T) {
 	}
 }
 
-func TestBuildRuntime_TotalCountMismatch(t *testing.T) {
+func TestBuildRuntime_WhenTotalCountMismatch_ReturnsError(t *testing.T) {
 	rows := []input.CIDRRecord{
 		{CIDR: "10.0.0.0/24", Selector: mustSelectorNet(t, "10.0.0.1/32")},
 	}
@@ -88,7 +88,7 @@ func TestBuildRuntime_TotalCountMismatch(t *testing.T) {
 	}
 }
 
-func TestReadCIDRFileAndReadPortFile_Errors(t *testing.T) {
+func TestReadCIDRFileAndReadPortFile_WhenFileMissing_ReturnsError(t *testing.T) {
 	if _, err := readCIDRFile("/not-exist", "ip", "ip_cidr"); err == nil {
 		t.Fatal("expected read cidr file error")
 	}
@@ -97,7 +97,7 @@ func TestReadCIDRFileAndReadPortFile_Errors(t *testing.T) {
 	}
 }
 
-func TestLoadOrBuildChunks_Resume(t *testing.T) {
+func TestLoadOrBuildChunks_WhenResumePathProvided_LoadsStateFromFile(t *testing.T) {
 	dir := t.TempDir()
 	resume := filepath.Join(dir, "resume.json")
 	if err := os.WriteFile(resume, []byte(`[{"cidr":"10.0.0.0/24","next_index":1,"total_count":1}]`), 0o644); err != nil {
@@ -112,7 +112,7 @@ func TestLoadOrBuildChunks_Resume(t *testing.T) {
 	}
 }
 
-func TestResumePathPreference(t *testing.T) {
+func TestResumePath_WhenMultipleSourcesProvided_UsesPriorityOrder(t *testing.T) {
 	if got := resumePath(config.Config{Resume: "cfg.json"}, RunOptions{ResumeStatePath: "opt.json"}); got != "opt.json" {
 		t.Fatalf("unexpected resume path: %s", got)
 	}
@@ -124,14 +124,14 @@ func TestResumePathPreference(t *testing.T) {
 	}
 }
 
-func TestEnsureFDLimit_HugeWorkers(t *testing.T) {
+func TestEnsureFDLimit_WhenWorkersExceedLimit_ReturnsError(t *testing.T) {
 	err := ensureFDLimit(1_000_000_000)
 	if err == nil {
 		t.Fatal("expected fd limit error for huge workers")
 	}
 }
 
-func TestFetchPressure_MissingFieldAndUnsupportedType(t *testing.T) {
+func TestFetchPressure_WhenFieldMissingOrTypeUnsupported_ReturnsError(t *testing.T) {
 	missingFieldAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprintln(w, `{"x":1}`)
 	}))
@@ -149,7 +149,7 @@ func TestFetchPressure_MissingFieldAndUnsupportedType(t *testing.T) {
 	}
 }
 
-func TestPollPressureAPI_FirstTwoFailuresDoNotFatal(t *testing.T) {
+func TestPollPressureAPI_WhenFirstTwoRequestsFail_DoesNotReturnFatalError(t *testing.T) {
 	steps := []int{500, 500, 200, 200}
 	var mu sync.Mutex
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
