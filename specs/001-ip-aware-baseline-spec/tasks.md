@@ -34,11 +34,11 @@
 
 **Purpose**: 為本 feature 建立共用測試資料與輔助工具
 
-- [ ] T001 建立驗證輸出目錄結構於 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/`（含 `.gitkeep`）
-- [ ] T002 建立 US1/US2/US3 測試輸入樣本於 `/Users/xuxiping/tsmc/port-scan-mk3/tests/integration/testdata/ip_aware/` 與 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/inputs/`
-- [ ] T003 [P] 新增共用檔名斷言 helper 於 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/output_batch_assert.go`
-- [ ] T004 [P] 新增共用 resume 狀態比對 helper 於 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/resume_assert.go`
-- [ ] T005 更新或新增 testkit 測試於 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/output_batch_assert_test.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/resume_assert_test.go`
+- [X] T001 建立驗證輸出目錄結構於 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/`（含 `.gitkeep`）
+- [X] T002 建立 US1/US2/US3 測試輸入樣本於 `/Users/xuxiping/tsmc/port-scan-mk3/tests/integration/testdata/ip_aware/` 與 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/inputs/`
+- [X] T003 [P] 新增共用檔名斷言 helper 於 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/output_batch_assert.go`
+- [X] T004 [P] 新增共用 resume 狀態比對 helper 於 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/resume_assert.go`
+- [X] T005 更新或新增 testkit 測試於 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/output_batch_assert_test.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/internal/testkit/resume_assert_test.go`
 
 ---
 
@@ -48,15 +48,15 @@
 
 **⚠️ CRITICAL**: User Story implementation 必須在本階段完成後才開始
 
-- [ ] T006 擴充 config 契約測試（`-cidr-ip-col`/`-cidr-ip-cidr-col`/`-resume`/`-output`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/config/config_test.go`
-- [ ] T007 實作或調整 config 解析與預設值於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/config/config.go`
-- [ ] T008 [P] 新增批次輸出命名單元測試（UTC `YYYYMMDDTHHMMSSZ` + `-n`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/batch_output_test.go`
-- [ ] T009 實作批次命名與同秒衝突遞增序號邏輯於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/batch_output.go`
-- [ ] T010 [P] 新增 resume 路徑解析單元測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/resume_path_test.go`
-- [ ] T011 實作 resume 讀寫路徑解析 helper（含 `<output-dir>/resume_state.json` fallback）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/resume_path.go`
-- [ ] T012 更新 CLI 使用說明與旗標顯示契約測試於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_extra_test.go`
-- [ ] T013 調整 CLI usage 與解析 glue code 於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main.go`
-- [ ] T014 執行 foundational 驗證：`go test ./pkg/config ./pkg/scanapp ./cmd/port-scan`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/foundational-test.log`
+- [X] T006 擴充 config 契約測試（`-cidr-ip-col`/`-cidr-ip-cidr-col`/`-resume`/`-output`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/config/config_test.go`
+- [X] T007 實作或調整 config 解析與預設值於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/config/config.go`
+- [X] T008 [P] 新增批次輸出命名單元測試（UTC `YYYYMMDDTHHMMSSZ` + `-n`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/batch_output_test.go`
+- [X] T009 實作批次命名與同秒衝突遞增序號邏輯於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/batch_output.go`
+- [X] T010 [P] 新增 resume 路徑解析單元測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/resume_path_test.go`
+- [X] T011 實作 resume 讀寫路徑解析 helper（含 `<output-dir>/resume_state.json` fallback）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/resume_path.go`
+- [X] T012 更新 CLI 使用說明與旗標顯示契約測試於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_extra_test.go`
+- [X] T013 調整 CLI usage 與解析 glue code 於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main.go`
+- [X] T014 執行 foundational 驗證：`go test ./pkg/config ./pkg/scanapp ./cmd/port-scan`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/foundational-test.log`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -70,20 +70,20 @@
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T015 [P] [US1] 新增欄位名精確匹配/重複欄位 fatal 測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/cidr_columns_test.go`
-- [ ] T016 [P] [US1] 新增 fail-fast 驗證矩陣測試（containment/overlap/duplicate）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/validate_ip_rules_test.go`
-- [ ] T017 [P] [US1] 新增 selector 展開與去重行為測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/task/selector_expand_test.go`
-- [ ] T018 [P] [US1] 新增任務數公式斷言測試（`unique(ip-expand) * port_count == task_count`，對應 SC-003）於 `/Users/xuxiping/tsmc/port-scan-mk3/tests/integration/task_count_formula_test.go`
-- [ ] T019 [P] [US1] 新增 validate 子命令整合測試（自訂欄位名 + 錯誤訊息）於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_test.go`
+- [X] T015 [P] [US1] 新增欄位名精確匹配/重複欄位 fatal 測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/cidr_columns_test.go`
+- [X] T016 [P] [US1] 新增 fail-fast 驗證矩陣測試（containment/overlap/duplicate）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/validate_ip_rules_test.go`
+- [X] T017 [P] [US1] 新增 selector 展開與去重行為測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/task/selector_expand_test.go`
+- [X] T018 [P] [US1] 新增任務數公式斷言測試（`unique(ip-expand) * port_count == task_count`，對應 SC-003）於 `/Users/xuxiping/tsmc/port-scan-mk3/tests/integration/task_count_formula_test.go`
+- [X] T019 [P] [US1] 新增 validate 子命令整合測試（自訂欄位名 + 錯誤訊息）於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_test.go`
 
 ### Implementation for User Story 1
 
-- [ ] T020 [US1] 實作欄位名稱 case-sensitive 精確匹配與重複欄位檢查於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/cidr.go`
-- [ ] T021 [US1] 實作完整 fail-fast 驗證矩陣（格式、包含關係、跨組重疊、組內重疊）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/validate.go`
-- [ ] T022 [US1] 調整 CIDR row/domain 結構承載 `ip/ip_cidr` 與 metadata 於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/types.go`
-- [ ] T023 [US1] 實作僅由 `ip` selector 展開目標的任務生成邏輯於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/task/selector_expand.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/task/ipv4.go`
-- [ ] T024 [US1] 串接 validate/scan 啟動流程，保證驗證在任務派發前完成於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
-- [ ] T025 [US1] 執行 US1 測試：`go test ./pkg/input ./pkg/task ./tests/integration ./cmd/port-scan -run 'CIDR|Validate|selector|task|validate'`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/us1-test.log`
+- [X] T020 [US1] 實作欄位名稱 case-sensitive 精確匹配與重複欄位檢查於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/cidr.go`
+- [X] T021 [US1] 實作完整 fail-fast 驗證矩陣（格式、包含關係、跨組重疊、組內重疊）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/validate.go`
+- [X] T022 [US1] 調整 CIDR row/domain 結構承載 `ip/ip_cidr` 與 metadata 於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/types.go`
+- [X] T023 [US1] 實作僅由 `ip` selector 展開目標的任務生成邏輯於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/task/selector_expand.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/task/ipv4.go`
+- [X] T024 [US1] 串接 validate/scan 啟動流程，保證驗證在任務派發前完成於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
+- [X] T025 [US1] 執行 US1 測試：`go test ./pkg/input ./pkg/task ./tests/integration ./cmd/port-scan -run 'CIDR|Validate|selector|task|validate'`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/us1-test.log`
 
 **Checkpoint**: User Story 1 可獨立完成並驗證（MVP）
 
@@ -97,20 +97,20 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T026 [P] [US2] 新增 CSV header/row 契約測試（含 `ip_cidr` 欄位）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/csv_writer_test.go`
-- [ ] T027 [P] [US2] 新增 open-only 行為測試（無 open 時僅表頭）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/open_writer_test.go`
-- [ ] T028 [P] [US2] 新增 scanapp 批次輸出檔名與共用序號測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_test.go`
-- [ ] T029 [P] [US2] 新增 CLI 掃描輸出契約測試（檔名 pattern 與雙檔存在）於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_scan_test.go`
-- [ ] T030 [P] [US2] 新增固定欄位順序與缺值 metadata 空字串輸出測試（對應 FR-011）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/csv_writer_contract_test.go`
+- [X] T026 [P] [US2] 新增 CSV header/row 契約測試（含 `ip_cidr` 欄位）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/csv_writer_test.go`
+- [X] T027 [P] [US2] 新增 open-only 行為測試（無 open 時僅表頭）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/open_writer_test.go`
+- [X] T028 [P] [US2] 新增 scanapp 批次輸出檔名與共用序號測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_test.go`
+- [X] T029 [P] [US2] 新增 CLI 掃描輸出契約測試（檔名 pattern 與雙檔存在）於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_scan_test.go`
+- [X] T030 [P] [US2] 新增固定欄位順序與缺值 metadata 空字串輸出測試（對應 FR-011）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/csv_writer_contract_test.go`
 
 ### Implementation for User Story 2
 
-- [ ] T031 [US2] 實作 scan 結果檔批次命名套用（`scan_results-YYYYMMDDTHHMMSSZ[-n].csv`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/batch_output.go`
-- [ ] T032 [US2] 實作 open-only 同批次檔名套用（`opened_results-YYYYMMDDTHHMMSSZ[-n].csv`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
-- [ ] T033 [US2] 保證 open-only writer 只落 open 且空集合仍寫表頭於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/open_writer.go`
-- [ ] T034 [US2] 對齊 writer record 輸出欄位順序，並將缺值 `fab_name`/`cidr_name` 正規化為空字串於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/csv_writer.go`
-- [ ] T035 [US2] 更新 e2e 正常情境輸出斷言於 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/run_e2e.sh` 與 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/report/generate_report.go`
-- [ ] T036 [US2] 執行 US2 測試：`go test ./pkg/writer ./pkg/scanapp ./cmd/port-scan -run 'open|output|batch|scan|header|metadata'`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/us2-test.log`
+- [X] T031 [US2] 實作 scan 結果檔批次命名套用（`scan_results-YYYYMMDDTHHMMSSZ[-n].csv`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/batch_output.go`
+- [X] T032 [US2] 實作 open-only 同批次檔名套用（`opened_results-YYYYMMDDTHHMMSSZ[-n].csv`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
+- [X] T033 [US2] 保證 open-only writer 只落 open 且空集合仍寫表頭於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/open_writer.go`
+- [X] T034 [US2] 對齊 writer record 輸出欄位順序，並將缺值 `fab_name`/`cidr_name` 正規化為空字串於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/csv_writer.go`
+- [X] T035 [US2] 更新 e2e 正常情境輸出斷言於 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/run_e2e.sh` 與 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/report/generate_report.go`
+- [X] T036 [US2] 執行 US2 測試：`go test ./pkg/writer ./pkg/scanapp ./cmd/port-scan -run 'open|output|batch|scan|header|metadata'`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/us2-test.log`
 
 **Checkpoint**: User Story 1 + 2 各自可獨立驗證
 
@@ -124,23 +124,23 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T037 [P] [US3] 新增 resume 路徑語意測試（顯式 `-resume` 與 default fallback）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_test.go`
-- [ ] T038 [P] [US3] 新增壓力 API 連續失敗 1/2/3 次測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_test.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_helpers_test.go`
-- [ ] T039 [P] [US3] 新增 resume 續跑無重複無遺漏整合測試於 `/Users/xuxiping/tsmc/port-scan-mk3/tests/integration/resume_flow_test.go`
-- [ ] T040 [P] [US3] 新增 CLI 掃描中斷/恢復測試於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_scan_test.go`
-- [ ] T041 [P] [US3] 新增 e2e API 5xx/timeout/conn-fail 斷言（non-zero + resume 檔）於 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/run_e2e.sh`
-- [ ] T042 [P] [US3] 新增結構化事件欄位契約測試（`target`/`port`/`state_transition`/`error_cause`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/logx/logx_contract_test.go`
-- [ ] T043 [P] [US3] 新增長掃描 progress 與 completion summary 事件測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_observability_test.go`
+- [X] T037 [P] [US3] 新增 resume 路徑語意測試（顯式 `-resume` 與 default fallback）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_test.go`
+- [X] T038 [P] [US3] 新增壓力 API 連續失敗 1/2/3 次測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_test.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_helpers_test.go`
+- [X] T039 [P] [US3] 新增 resume 續跑無重複無遺漏整合測試於 `/Users/xuxiping/tsmc/port-scan-mk3/tests/integration/resume_flow_test.go`
+- [X] T040 [P] [US3] 新增 CLI 掃描中斷/恢復測試於 `/Users/xuxiping/tsmc/port-scan-mk3/cmd/port-scan/main_scan_test.go`
+- [X] T041 [P] [US3] 新增 e2e API 5xx/timeout/conn-fail 斷言（non-zero + resume 檔）於 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/run_e2e.sh`
+- [X] T042 [P] [US3] 新增結構化事件欄位契約測試（`target`/`port`/`state_transition`/`error_cause`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/logx/logx_contract_test.go`
+- [X] T043 [P] [US3] 新增長掃描 progress 與 completion summary 事件測試於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan_observability_test.go`
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] 實作 `-resume` 同路徑讀寫與預設 fallback 套用於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/config/config.go`
-- [ ] T045 [US3] 強化中斷保存流程，確保最新 `NextIndex` 與狀態一致性於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/state/state.go`
-- [ ] T046 [US3] 落實 API 失敗計數升級策略（第 3 次 fatal）與可追蹤事件輸出於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/logx/logx.go`
-- [ ] T047 [US3] 落實執行事件欄位正規化輸出（含無錯誤時 `error_cause=none`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/logx/logx.go`
-- [ ] T048 [US3] 落實長掃描 progress 與 completion summary 事件發送於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
-- [ ] T049 [US3] 驗證/調整 OR-gate 暫停恢復邏輯於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/speedctrl/controller.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
-- [ ] T050 [US3] 執行 US3 測試：`go test ./pkg/scanapp ./pkg/logx ./pkg/state ./tests/integration ./cmd/port-scan -run 'resume|pressure|pause|cancel|observability|progress|summary'`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/us3-test.log`
+- [X] T044 [US3] 實作 `-resume` 同路徑讀寫與預設 fallback 套用於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/config/config.go`
+- [X] T045 [US3] 強化中斷保存流程，確保最新 `NextIndex` 與狀態一致性於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/state/state.go`
+- [X] T046 [US3] 落實 API 失敗計數升級策略（第 3 次 fatal）與可追蹤事件輸出於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/logx/logx.go`
+- [X] T047 [US3] 落實執行事件欄位正規化輸出（含無錯誤時 `error_cause=none`）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/logx/logx.go`
+- [X] T048 [US3] 落實長掃描 progress 與 completion summary 事件發送於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
+- [X] T049 [US3] 驗證/調整 OR-gate 暫停恢復邏輯於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/speedctrl/controller.go` 與 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/scan.go`
+- [X] T050 [US3] 執行 US3 測試：`go test ./pkg/scanapp ./pkg/logx ./pkg/state ./tests/integration ./cmd/port-scan -run 'resume|pressure|pause|cancel|observability|progress|summary'`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/us3-test.log`
 
 **Checkpoint**: 三個 user stories 均可獨立測試且功能完整
 
@@ -150,15 +150,15 @@
 
 **Purpose**: 收斂跨故事品質、文件與最終驗證
 
-- [ ] T051 [P] 盤點本 feature 變更涉及的 public package API doc comments 缺口，輸出清單到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/public-api-doc-audit.md`
-- [ ] T052 補齊缺漏 Go doc comments（輸入、輸出、失敗模式）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/`、`/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/`、`/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/`、`/Users/xuxiping/tsmc/port-scan-mk3/pkg/state/` 公開 API
-- [ ] T053 [P] 更新使用文件與範例命令（時間戳輸出與 resume 規則）於 `/Users/xuxiping/tsmc/port-scan-mk3/README.md` 與 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/quickstart.md`
-- [ ] T054 [P] 更新版本化 release notes（新契約/相容性/遷移提醒）於 `/Users/xuxiping/tsmc/port-scan-mk3/docs/release-notes/<version>.md`（`<version>` 採 `MAJOR.MINOR.PATCH`）
-- [ ] T055 執行完整單元與整合測試：`cd /Users/xuxiping/tsmc/port-scan-mk3 && go test ./...`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/full-test.log`
-- [ ] T056 執行 coverage gate：`cd /Users/xuxiping/tsmc/port-scan-mk3 && bash scripts/coverage_gate.sh`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/coverage.log`
-- [ ] T057 執行 e2e gate：`cd /Users/xuxiping/tsmc/port-scan-mk3 && bash e2e/run_e2e.sh`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/e2e.log`
-- [ ] T058 驗證 e2e 報告產物已輸出至 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/out/`（檔案存在與最小摘要欄位），並輸出檢查結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/e2e-artifacts.log`
-- [ ] T059 彙整最終驗證與輸出樣本（含 batch 檔名、resume 狀態、observability 事件）於 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/`
+- [X] T051 [P] 盤點本 feature 變更涉及的 public package API doc comments 缺口，輸出清單到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/public-api-doc-audit.md`
+- [X] T052 補齊缺漏 Go doc comments（輸入、輸出、失敗模式）於 `/Users/xuxiping/tsmc/port-scan-mk3/pkg/input/`、`/Users/xuxiping/tsmc/port-scan-mk3/pkg/scanapp/`、`/Users/xuxiping/tsmc/port-scan-mk3/pkg/writer/`、`/Users/xuxiping/tsmc/port-scan-mk3/pkg/state/` 公開 API
+- [X] T053 [P] 更新使用文件與範例命令（時間戳輸出與 resume 規則）於 `/Users/xuxiping/tsmc/port-scan-mk3/README.md` 與 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/quickstart.md`
+- [X] T054 [P] 更新版本化 release notes（新契約/相容性/遷移提醒）於 `/Users/xuxiping/tsmc/port-scan-mk3/docs/release-notes/<version>.md`（`<version>` 採 `MAJOR.MINOR.PATCH`）
+- [X] T055 執行完整單元與整合測試：`cd /Users/xuxiping/tsmc/port-scan-mk3 && go test ./...`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/full-test.log`
+- [X] T056 執行 coverage gate：`cd /Users/xuxiping/tsmc/port-scan-mk3 && bash scripts/coverage_gate.sh`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/coverage.log`
+- [X] T057 執行 e2e gate：`cd /Users/xuxiping/tsmc/port-scan-mk3 && bash e2e/run_e2e.sh`，並輸出結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/e2e.log`
+- [X] T058 驗證 e2e 報告產物已輸出至 `/Users/xuxiping/tsmc/port-scan-mk3/e2e/out/`（檔案存在與最小摘要欄位），並輸出檢查結果到 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/verification/e2e-artifacts.log`
+- [X] T059 彙整最終驗證與輸出樣本（含 batch 檔名、resume 狀態、observability 事件）於 `/Users/xuxiping/tsmc/port-scan-mk3/specs/001-ip-aware-baseline-spec/`
 
 ---
 

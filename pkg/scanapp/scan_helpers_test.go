@@ -1,6 +1,7 @@
 package scanapp
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -8,11 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/input"
+	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
@@ -116,7 +119,7 @@ func TestResumePathPreference(t *testing.T) {
 	if got := resumePath(config.Config{Resume: "cfg.json"}, RunOptions{}); got != "cfg.json" {
 		t.Fatalf("unexpected resume path: %s", got)
 	}
-	if got := resumePath(config.Config{}, RunOptions{}); got != defaultResumeStateFile {
+	if got := resumePath(config.Config{Output: "/tmp/scan_results.csv"}, RunOptions{}); got != "/tmp/"+defaultResumeStateFile {
 		t.Fatalf("unexpected default resume path: %s", got)
 	}
 }
@@ -143,6 +146,55 @@ func TestFetchPressure_MissingFieldAndUnsupportedType(t *testing.T) {
 	defer unsupportedTypeAPI.Close()
 	if _, err := fetchPressure(&http.Client{Timeout: time.Second}, unsupportedTypeAPI.URL); err == nil || !strings.Contains(err.Error(), "unsupported pressure field type") {
 		t.Fatalf("expected unsupported type error, got %v", err)
+	}
+}
+
+func TestPollPressureAPI_FirstTwoFailuresDoNotFatal(t *testing.T) {
+	steps := []int{500, 500, 200, 200}
+	var mu sync.Mutex
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		status := steps[0]
+		if len(steps) > 1 {
+			steps = steps[1:]
+		}
+		mu.Unlock()
+		if status >= 400 {
+			http.Error(w, "fail", status)
+			return
+		}
+		_, _ = fmt.Fprintln(w, `{"pressure":10}`)
+	}))
+	defer api.Close()
+
+	cfg := config.Config{
+		PressureAPI:      api.URL,
+		PressureInterval: 5 * time.Millisecond,
+	}
+	ctrl := speedctrl.NewController()
+	logOut := &lockedBuffer{}
+	logger := newLogger("info", false, logOut)
+	errCh := make(chan error, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go pollPressureAPI(ctx, cfg, RunOptions{PressureLimit: 90, PressureHTTP: &http.Client{Timeout: time.Second}}, ctrl, logger, errCh)
+
+	time.Sleep(60 * time.Millisecond)
+	cancel()
+	time.Sleep(10 * time.Millisecond)
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("expected no fatal error before 3rd failure, got %v", err)
+	default:
+	}
+	if ctrl.IsPaused() {
+		t.Fatal("expected not paused at low pressure")
+	}
+	logs := logOut.String()
+	if !strings.Contains(logs, "(1/3)") || !strings.Contains(logs, "(2/3)") {
+		t.Fatalf("expected first two failure logs, got: %s", logs)
 	}
 }
 

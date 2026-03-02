@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,8 +33,10 @@ const (
 	defaultPressureLimit   = 90
 )
 
+// DialFunc abstracts TCP dialing for tests and runtime customization.
 type DialFunc func(network, address string, timeout time.Duration) (net.Conn, error)
 
+// RunOptions customizes runtime behaviors that are not exposed as CLI flags.
 type RunOptions struct {
 	Dial             DialFunc
 	ResumeStatePath  string
@@ -73,6 +74,8 @@ type scanResult struct {
 	record   writer.Record
 }
 
+// Run executes a full scan flow: load inputs, dispatch scan tasks, write batch
+// outputs, and persist resume state on interruption/failure.
 func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts RunOptions) error {
 	logger := newLogger(cfg.LogLevel, cfg.Format == "json", stderr)
 	if strings.TrimSpace(cfg.CIDRIPCol) == "" {
@@ -104,10 +107,12 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cfg.Output), 0o755); err != nil && filepath.Dir(cfg.Output) != "." {
+	scanOutputPath, openOnlyPath, err := resolveBatchOutputPaths(cfg.Output, time.Now())
+	if err != nil {
 		return err
 	}
-	outFile, err := os.Create(cfg.Output)
+
+	outFile, err := os.Create(scanOutputPath)
 	if err != nil {
 		return err
 	}
@@ -117,7 +122,6 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	openOnlyPath := filepath.Join(filepath.Dir(cfg.Output), "opened_results.csv")
 	openOnlyFile, err := os.Create(openOnlyPath)
 	if err != nil {
 		return err
@@ -207,7 +211,11 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		dispatchErr  error
 		runErr       error
 		written      int
+		openCount    int
+		closeCount   int
+		timeoutCount int
 	)
+	startedAt := time.Now()
 	for !dispatchDone || resultCh != nil {
 		select {
 		case apiErr := <-apiErrCh:
@@ -240,8 +248,32 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				ch.Status = "scanning"
 			}
 			written++
+			switch {
+			case strings.EqualFold(res.record.Status, "open"):
+				openCount++
+			case strings.Contains(strings.ToLower(res.record.Status), "timeout"):
+				timeoutCount++
+			default:
+				closeCount++
+			}
+			logger.eventf("scan_result", res.record.IP, res.record.Port, "scanned", statusErrorCause(res.record.Status), map[string]any{
+				"status":           res.record.Status,
+				"response_time_ms": res.record.ResponseMS,
+				"cidr":             res.record.IPCidr,
+			})
 			if written%progressStep == 0 {
 				_, _ = fmt.Fprintf(stdout, "progress cidr=%s scanned=%d/%d paused=%t\n", ch.CIDR, ch.ScannedCount, ch.TotalCount, ctrl.IsPaused())
+				completionRate := 0.0
+				if ch.TotalCount > 0 {
+					completionRate = float64(ch.ScannedCount) / float64(ch.TotalCount)
+				}
+				logger.eventf("scan_progress", "", 0, "progress", "none", map[string]any{
+					"cidr":            ch.CIDR,
+					"scanned_count":   ch.ScannedCount,
+					"total_count":     ch.TotalCount,
+					"completion_rate": completionRate,
+					"paused":          ctrl.IsPaused(),
+				})
 			}
 		}
 	}
@@ -262,11 +294,35 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	}
 
 	if runErr != nil {
+		logger.eventf("scan_completion", "", 0, "completion_summary", errorCause(runErr), map[string]any{
+			"total_tasks":   written,
+			"open_count":    openCount,
+			"close_count":   closeCount,
+			"timeout_count": timeoutCount,
+			"duration_ms":   time.Since(startedAt).Milliseconds(),
+			"success":       false,
+		})
 		return runErr
 	}
 	if dispatchErr != nil {
+		logger.eventf("scan_completion", "", 0, "completion_summary", errorCause(dispatchErr), map[string]any{
+			"total_tasks":   written,
+			"open_count":    openCount,
+			"close_count":   closeCount,
+			"timeout_count": timeoutCount,
+			"duration_ms":   time.Since(startedAt).Milliseconds(),
+			"success":       false,
+		})
 		return dispatchErr
 	}
+	logger.eventf("scan_completion", "", 0, "completion_summary", "none", map[string]any{
+		"total_tasks":   written,
+		"open_count":    openCount,
+		"close_count":   closeCount,
+		"timeout_count": timeoutCount,
+		"duration_ms":   time.Since(startedAt).Milliseconds(),
+		"success":       true,
+	})
 	return nil
 }
 
@@ -542,16 +598,6 @@ func parsePortRows(rows []string) ([]int, error) {
 	return ports, nil
 }
 
-func resumePath(cfg config.Config, opts RunOptions) string {
-	if opts.ResumeStatePath != "" {
-		return opts.ResumeStatePath
-	}
-	if cfg.Resume != "" {
-		return cfg.Resume
-	}
-	return defaultResumeStateFile
-}
-
 func ensureFDLimit(workers int) error {
 	var lim syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
@@ -700,25 +746,69 @@ func newLogger(level string, asJSON bool, out io.Writer) *scanLogger {
 }
 
 func (l *scanLogger) debugf(format string, args ...any) {
-	l.logf(0, "debug", format, args...)
+	l.logWithFields(0, "debug", fmt.Sprintf(format, args...), nil)
 }
 
 func (l *scanLogger) infof(format string, args ...any) {
-	l.logf(1, "info", format, args...)
+	l.logWithFields(1, "info", fmt.Sprintf(format, args...), nil)
 }
 
 func (l *scanLogger) errorf(format string, args ...any) {
-	l.logf(2, "error", format, args...)
+	l.logWithFields(2, "error", fmt.Sprintf(format, args...), nil)
 }
 
-func (l *scanLogger) logf(level int, levelName, format string, args ...any) {
+func (l *scanLogger) eventf(msg, target string, port int, transition, errCause string, extra map[string]any) {
+	fields := map[string]any{
+		"target":           target,
+		"port":             port,
+		"state_transition": transition,
+		"error_cause":      errCause,
+	}
+	for k, v := range extra {
+		fields[k] = v
+	}
+	l.logWithFields(1, "info", msg, fields)
+}
+
+func (l *scanLogger) logWithFields(level int, levelName, msg string, fields map[string]any) {
 	if l == nil || level < l.level {
 		return
 	}
-	msg := fmt.Sprintf(format, args...)
+	if fields == nil {
+		fields = map[string]any{}
+	}
 	if l.asJSON {
-		logx.LogJSON(l.out, levelName, msg, map[string]any{})
+		logx.LogJSON(l.out, levelName, msg, fields)
+		return
+	}
+	if len(fields) > 0 {
+		_, _ = fmt.Fprintf(l.out, "[%s] %s fields=%v\n", strings.ToUpper(levelName), msg, fields)
 		return
 	}
 	_, _ = fmt.Fprintf(l.out, "[%s] %s\n", strings.ToUpper(levelName), msg)
+}
+
+func statusErrorCause(status string) string {
+	s := strings.ToLower(status)
+	switch {
+	case strings.Contains(s, "timeout"):
+		return "timeout"
+	case s == "close":
+		return "closed"
+	default:
+		return "none"
+	}
+}
+
+func errorCause(err error) string {
+	if err == nil {
+		return "none"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "deadline_exceeded"
+	}
+	return "runtime_error"
 }

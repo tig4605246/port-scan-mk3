@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -103,7 +104,8 @@ func TestRun_ResumeFromStateFile(t *testing.T) {
 		t.Fatalf("run failed: %v", err)
 	}
 
-	data, err := os.ReadFile(outFile)
+	scanOutputPath := mustFindOne(t, filepath.Join(tmp, "scan_results-*.csv"))
+	data, err := os.ReadFile(scanOutputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,6 +115,49 @@ func TestRun_ResumeFromStateFile(t *testing.T) {
 	}
 	if strings.Contains(out, "127.0.0.1,127.0.0.1/32,"+strconv.Itoa(openPort)+",open") {
 		t.Fatalf("did not expect already-scanned port row, got: %s", out)
+	}
+}
+
+func TestRun_ResumeFallbackPathOnCancel(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "out.csv")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.0/24,127.0.0.0/24,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n2/tcp\n3/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          50 * time.Millisecond,
+		Delay:            5 * time.Millisecond,
+		BucketRate:       1,
+		BucketCapacity:   1,
+		Workers:          1,
+		PressureInterval: 10 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		cancel()
+	}()
+
+	err := Run(ctx, cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{DisableKeyboard: true})
+	if err == nil {
+		t.Fatal("expected cancellation error")
+	}
+	resumeFile := filepath.Join(tmp, defaultResumeStateFile)
+	if _, statErr := os.Stat(resumeFile); statErr != nil {
+		t.Fatalf("expected fallback resume file %s, got err=%v", resumeFile, statErr)
 	}
 }
 
@@ -391,7 +436,8 @@ func TestRun_ScansOnlyIPsListedByIPColumn(t *testing.T) {
 		t.Fatalf("run failed: %v", err)
 	}
 
-	outBytes, err := os.ReadFile(outFile)
+	scanOutputPath := mustFindOne(t, filepath.Join(tmp, "scan_results-*.csv"))
+	outBytes, err := os.ReadFile(scanOutputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -426,7 +472,6 @@ func TestRun_WritesOpenedResultsCSV(t *testing.T) {
 	cidrFile := filepath.Join(tmp, "cidr.csv")
 	portFile := filepath.Join(tmp, "ports.csv")
 	outFile := filepath.Join(tmp, "scan_results.csv")
-	openOnlyPath := filepath.Join(tmp, "opened_results.csv")
 
 	if err := os.WriteFile(cidrFile, []byte(
 		"fab_name,ip,ip_cidr,cidr_name\n"+
@@ -455,6 +500,7 @@ func TestRun_WritesOpenedResultsCSV(t *testing.T) {
 		t.Fatalf("run failed: %v", err)
 	}
 
+	openOnlyPath := mustFindOne(t, filepath.Join(tmp, "opened_results-*.csv"))
 	openOnlyBytes, err := os.ReadFile(openOnlyPath)
 	if err != nil {
 		t.Fatalf("read opened_results.csv failed: %v", err)
@@ -466,4 +512,17 @@ func TestRun_WritesOpenedResultsCSV(t *testing.T) {
 	if strings.Contains(openOnly, ",close,") || strings.Contains(openOnly, "close(timeout)") {
 		t.Fatalf("opened_results.csv must include open records only, got: %s", openOnly)
 	}
+}
+
+func mustFindOne(t *testing.T, pattern string) string {
+	t.Helper()
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		t.Fatalf("glob failed for %s: %v", pattern, err)
+	}
+	sort.Strings(matches)
+	if len(matches) != 1 {
+		t.Fatalf("expected exactly one match for %s, got %d (%v)", pattern, len(matches), matches)
+	}
+	return matches[0]
 }

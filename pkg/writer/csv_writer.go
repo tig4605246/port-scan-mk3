@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+// Record is one scan output row written to CSV.
 type Record struct {
 	IP         string
 	IPCidr     string
@@ -17,15 +18,18 @@ type Record struct {
 	CIDRName   string
 }
 
+// CSVWriter writes scan result rows with the fixed contract header.
 type CSVWriter struct {
 	w           *csv.Writer
 	wroteHeader bool
 }
 
+// NewCSVWriter creates a CSV writer for scan result output.
 func NewCSVWriter(out io.Writer) *CSVWriter {
 	return &CSVWriter{w: csv.NewWriter(out)}
 }
 
+// Write appends a single record and writes header first if needed.
 func (cw *CSVWriter) Write(r Record) error {
 	if err := cw.WriteHeader(); err != nil {
 		return err
@@ -51,6 +55,7 @@ func (cw *CSVWriter) Write(r Record) error {
 	return cw.w.Error()
 }
 
+// WriteHeader writes the fixed result header once.
 func (cw *CSVWriter) WriteHeader() error {
 	if !cw.wroteHeader {
 		if err := cw.w.Write([]string{"ip", "ip_cidr", "port", "status", "response_time_ms", "fab_name", "cidr_name"}); err != nil {

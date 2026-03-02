@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -63,7 +64,8 @@ func TestRunMain_ScanWritesCSV(t *testing.T) {
 		t.Fatalf("expected exit 0, got %d stderr=%s", code, stderr.String())
 	}
 
-	data, err := os.ReadFile(outFile)
+	scanOutputPath := mustFindOneMain(t, filepath.Join(tmp, "scan_results-*.csv"))
+	data, err := os.ReadFile(scanOutputPath)
 	if err != nil {
 		t.Fatalf("failed to read output csv: %v", err)
 	}
@@ -148,7 +150,6 @@ func TestRunMain_ScanWritesOpenedResultsCSV(t *testing.T) {
 	cidrFile := filepath.Join(tmp, "cidr.csv")
 	portFile := filepath.Join(tmp, "ports.csv")
 	outFile := filepath.Join(tmp, "scan_results.csv")
-	openOnlyFile := filepath.Join(tmp, "opened_results.csv")
 
 	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -171,6 +172,7 @@ func TestRunMain_ScanWritesOpenedResultsCSV(t *testing.T) {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
 
+	openOnlyFile := mustFindOneMain(t, filepath.Join(tmp, "opened_results-*.csv"))
 	data, err := os.ReadFile(openOnlyFile)
 	if err != nil {
 		t.Fatalf("failed to read opened_results.csv: %v", err)
@@ -185,4 +187,17 @@ func TestRunMain_ScanWritesOpenedResultsCSV(t *testing.T) {
 	if strings.Contains(out, ",close,") || strings.Contains(out, "close(timeout)") {
 		t.Fatalf("opened_results.csv must contain open rows only: %s", out)
 	}
+}
+
+func mustFindOneMain(t *testing.T, pattern string) string {
+	t.Helper()
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		t.Fatalf("glob failed for %s: %v", pattern, err)
+	}
+	sort.Strings(matches)
+	if len(matches) != 1 {
+		t.Fatalf("expected exactly one match for %s, got %d (%v)", pattern, len(matches), matches)
+	}
+	return matches[0]
 }

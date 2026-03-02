@@ -17,8 +17,8 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-rm -f "$OUT_DIR/scan_results.csv" \
-  "$OUT_DIR/opened_results.csv" \
+rm -f "$OUT_DIR"/scan_results-*.csv \
+  "$OUT_DIR"/opened_results-*.csv \
   "$OUT_DIR/report.html" \
   "$OUT_DIR/report.txt" \
   "$OUT_DIR"/resume_state*.json \
@@ -80,18 +80,26 @@ run_scan \
   -timeout 200ms \
   -log-level error
 
-if [[ ! -f "$OUT_DIR/opened_results.csv" ]]; then
-  echo "e2e assertion failed: opened_results.csv not found" >&2
+SCAN_RESULTS_FILE="$(ls "$OUT_DIR"/scan_results-*.csv 2>/dev/null | sort | tail -n1 || true)"
+OPENED_RESULTS_FILE="$(ls "$OUT_DIR"/opened_results-*.csv 2>/dev/null | sort | tail -n1 || true)"
+
+if [[ -z "${OPENED_RESULTS_FILE}" ]]; then
+  echo "e2e assertion failed: opened_results-*.csv not found" >&2
   exit 1
 fi
-if awk -F, 'NR>1 && $4 != "open" {exit 1}' "$OUT_DIR/opened_results.csv"; then
+if awk -F, 'NR>1 && $4 != "open" {exit 1}' "$OPENED_RESULTS_FILE"; then
   :
 else
-  echo "e2e assertion failed: opened_results.csv contains non-open row" >&2
+  echo "e2e assertion failed: opened_results-*.csv contains non-open row" >&2
   exit 1
 fi
 
-go run ./e2e/report/cmd/generate -out "$OUT_DIR" -csv "$OUT_DIR/scan_results.csv"
+if [[ -z "${SCAN_RESULTS_FILE}" ]]; then
+  echo "e2e assertion failed: scan_results-*.csv not found" >&2
+  exit 1
+fi
+
+go run ./e2e/report/cmd/generate -out "$OUT_DIR" -csv "$SCAN_RESULTS_FILE"
 
 OPEN_COUNT=$(awk -F= '/^Open=/{print $2}' "$OUT_DIR/report.txt")
 CLOSED_COUNT=$(awk -F= '/^Closed=/{print $2}' "$OUT_DIR/report.txt")

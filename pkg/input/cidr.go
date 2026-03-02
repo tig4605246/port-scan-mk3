@@ -8,10 +8,14 @@ import (
 	"strings"
 )
 
+// LoadCIDRs loads CIDR records using default required column names
+// `ip` and `ip_cidr`.
 func LoadCIDRs(r io.Reader) ([]CIDRRecord, error) {
 	return LoadCIDRsWithColumns(r, "ip", "ip_cidr")
 }
 
+// LoadCIDRsWithColumns loads CIDR records from CSV with caller-provided
+// case-sensitive column names for selector (`ipCol`) and boundary CIDR (`ipCidrCol`).
 func LoadCIDRsWithColumns(r io.Reader, ipCol, ipCidrCol string) ([]CIDRRecord, error) {
 	cr := csv.NewReader(r)
 	rows, err := cr.ReadAll()
@@ -71,6 +75,7 @@ func LoadCIDRsWithColumns(r io.Reader, ipCol, ipCidrCol string) ([]CIDRRecord, e
 	return out, nil
 }
 
+// Parse validates and normalizes a CIDRRecord into parsed selector/network forms.
 func (r *CIDRRecord) Parse() error {
 	if r == nil {
 		return fmt.Errorf("nil cidr record")

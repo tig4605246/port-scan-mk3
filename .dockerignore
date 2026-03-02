@@ -1,0 +1,11 @@
+.git/
+.gitignore
+.dockerignore
+node_modules/
+coverage/
+*.log*
+.env*
+Dockerfile*
+e2e/out/
+*.tmp
+*.swp

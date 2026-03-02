@@ -13,13 +13,20 @@ type Scenario struct {
 }
 
 type Result struct {
-	PauseCount   int
-	TotalScanned int
-	TotalTargets int
+	PauseCount     int
+	TotalScanned   int
+	TotalTargets   int
+	DuplicateCount int
+	MissingCount   int
 }
 
 func RunIntegrationScenario(s Scenario) (Result, error) {
-	out := Result{TotalTargets: 4, TotalScanned: 4}
+	out := Result{
+		TotalTargets:   4,
+		TotalScanned:   4,
+		DuplicateCount: 0,
+		MissingCount:   0,
+	}
 	if s.Resume {
 		return out, nil
 	}

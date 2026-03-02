@@ -6,10 +6,16 @@ import (
 	"net"
 )
 
+// ValidateNoOverlap validates CIDR/IP selector rows and rejects conflicting ranges.
 func ValidateNoOverlap(networks []CIDRRecord) error {
 	return ValidateIPRows(networks)
 }
 
+// ValidateIPRows enforces fail-fast input rules:
+// 1) each selector is inside its ip_cidr
+// 2) duplicate (ip, ip_cidr) pairs are rejected
+// 3) ip_cidr groups cannot overlap globally
+// 4) selectors inside same ip_cidr cannot overlap.
 func ValidateIPRows(rows []CIDRRecord) error {
 	for i := range rows {
 		if rows[i].Net == nil || rows[i].Selector == nil {

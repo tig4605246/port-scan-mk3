@@ -65,3 +65,21 @@ func TestParseConfig_CIDRColumnFlags_NonEmpty(t *testing.T) {
 		t.Fatal("expected error for empty cidr-ip-col")
 	}
 }
+
+func TestParseConfig_OutputAndResumeFlags(t *testing.T) {
+	cfg, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-output", "/tmp/out.csv",
+		"-resume", "/tmp/resume_state.json",
+	})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if cfg.Output != "/tmp/out.csv" {
+		t.Fatalf("unexpected output: %s", cfg.Output)
+	}
+	if cfg.Resume != "/tmp/resume_state.json" {
+		t.Fatalf("unexpected resume path: %s", cfg.Resume)
+	}
+}

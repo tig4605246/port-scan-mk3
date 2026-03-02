@@ -13,8 +13,8 @@ cd /Users/xuxiping/tsmc/port-scan-mk3
 go run ./cmd/port-scan validate \
   -cidr-file e2e/inputs/cidr_normal.csv \
   -port-file e2e/inputs/ports.csv \
-  -cidr-ip-col ip \
-  -cidr-ip-cidr-col ip_cidr \
+  -cidr-ip-col source_ip \
+  -cidr-ip-cidr-col source_cidr \
   -format json
 ```
 
@@ -29,8 +29,8 @@ go run ./cmd/port-scan scan \
   -cidr-file e2e/inputs/cidr_normal.csv \
   -port-file e2e/inputs/ports.csv \
   -output e2e/out/scan_results.csv \
-  -cidr-ip-col ip \
-  -cidr-ip-cidr-col ip_cidr \
+  -cidr-ip-col source_ip \
+  -cidr-ip-cidr-col source_cidr \
   -pressure-api http://localhost:8080/api/pressure \
   -pressure-interval 5s \
   -format human
@@ -48,6 +48,7 @@ With explicit resume path:
 go run ./cmd/port-scan scan \
   -cidr-file e2e/inputs/cidr_normal.csv \
   -port-file e2e/inputs/ports.csv \
+  -output e2e/out/scan_results.csv \
   -resume e2e/out/resume_state.json
 ```
 

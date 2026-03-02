@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+// LoadPorts reads line-based port specs in `<port>/tcp` format and returns
+// normalized TCP port definitions.
 func LoadPorts(r io.Reader) ([]PortSpec, error) {
 	scanner := bufio.NewScanner(r)
 	out := make([]PortSpec, 0)
