@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>port-scan-mk3 Architecture</title>
+    <link rel="stylesheet" href="diagram.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>port-scan-mk3 Architecture (Static Block Flow)</h1>
+        <p>CLI orchestration, core package flow, and e2e artifact validation path.</p>
+      </header>
+
+      <section class="layer">
+        <h2>CLI Layer</h2>
+        <div class="grid two">
+          <article class="node">
+            <h3>CLI</h3>
+            <p><code>port-scan validate</code></p>
+            <p><code>port-scan scan</code></p>
+          </article>
+          <article class="node">
+            <h3>config</h3>
+            <p>Parse flags and normalize runtime options.</p>
+          </article>
+        </div>
+      </section>
+
+      <div class="arrow">CLI → input</div>
+
+      <section class="layer">
+        <h2>Core Package Layer</h2>
+        <div class="grid four">
+          <article class="node">
+            <h3>input</h3>
+            <p>Load CIDR/port files and run fail-fast validation.</p>
+          </article>
+          <article class="node">
+            <h3>task</h3>
+            <p>Expand selectors and create scan tasks.</p>
+          </article>
+          <article class="node">
+            <h3>scanapp</h3>
+            <p>Orchestrate dispatch, workers, progress, and completion.</p>
+          </article>
+          <article class="node">
+            <h3>writer</h3>
+            <p>Write batch CSV outputs (full + open-only).</p>
+          </article>
+        </div>
+
+        <div class="grid three">
+          <article class="node subtle">
+            <h3>speedctrl</h3>
+            <p>Pause gate driven by manual control and pressure API.</p>
+          </article>
+          <article class="node subtle">
+            <h3>state</h3>
+            <p>Persist and reload resume state (<code>resume_state.json</code>).</p>
+          </article>
+          <article class="node subtle">
+            <h3>logx</h3>
+            <p>Structured runtime events and diagnostics.</p>
+          </article>
+        </div>
+      </section>
+
+      <div class="arrow">pressure API → speedctrl → scanapp</div>
+      <div class="arrow">scanapp interruption/failure → state (resume_state)</div>
+      <div class="arrow">scanapp results → writer → e2e/out artifacts</div>
+
+      <section class="layer">
+        <h2>External and Artifact Layer</h2>
+        <div class="grid four">
+          <article class="node ext">
+            <h3>CIDR CSV</h3>
+            <p>Input selectors and boundaries.</p>
+          </article>
+          <article class="node ext">
+            <h3>Port CSV</h3>
+            <p>Input port definitions.</p>
+          </article>
+          <article class="node ext">
+            <h3>pressure API</h3>
+            <p>Runtime pressure signal source.</p>
+          </article>
+          <article class="node ext">
+            <h3>Scan Targets</h3>
+            <p>TCP endpoints probed by scanner workers.</p>
+          </article>
+        </div>
+
+        <div class="grid three">
+          <article class="node ext">
+            <h3>Batch Outputs</h3>
+            <p><code>scan_results-*.csv</code> and <code>opened_results-*.csv</code>.</p>
+          </article>
+          <article class="node ext">
+            <h3>Resume State</h3>
+            <p><code>resume_state.json</code> or explicit <code>-resume</code> path.</p>
+          </article>
+          <article class="node ext">
+            <h3>E2E Report</h3>
+            <p><code>e2e/out/report.html</code> and <code>e2e/out/report.txt</code>.</p>
+          </article>
+        </div>
+      </section>
+
+      <footer>
+        <p>e2e flow summary: <code>e2e/run_e2e.sh</code> runs normal + failure scenarios, then verifies artifacts in <code>e2e/out</code>.</p>
+      </footer>
+    </main>
+  </body>
+</html>

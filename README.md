@@ -1,42 +1,78 @@
 # Port Scan MK3
 
-TCP port scanner CLI written in Go.
+Developer-first TCP port scanner CLI in Go with fail-fast input validation, pressure-aware pacing, resumable scanning, and e2e verification.
 
-## Commands
+## How It Works
 
-- Validate inputs:
-  - `go run ./cmd/port-scan validate -cidr-file <cidr.csv> -port-file <ports.csv> -format human`
-  - `go run ./cmd/port-scan validate -cidr-file <cidr.csv> -port-file <ports.csv> -format json`
-- Scan (pipeline wiring in place):
-  - `go run ./cmd/port-scan scan -cidr-file <cidr.csv> -port-file <ports.csv>`
-  - `go run ./cmd/port-scan scan -cidr-file <cidr.csv> -port-file <ports.csv> -cidr-ip-col source_ip -cidr-ip-cidr-col source_cidr`
-  - `go run ./cmd/port-scan scan -cidr-file <cidr.csv> -port-file <ports.csv> -output out/scan_results.csv -resume out/resume_state.json`
+`port-scan-mk3` follows a deterministic pipeline:
 
-## Output Contract
+1. Parse CLI flags and validate required inputs.
+2. Load CIDR CSV and port list, then apply fail-fast validation (format, overlap, containment).
+3. Expand `ip` selectors to concrete IPv4 targets grouped by `ip_cidr`.
+4. Build scan tasks (`target x port`) and dispatch through pause/rate control.
+5. Run TCP probes and emit structured runtime events.
+6. Write timestamped batch output files:
+   - `scan_results-YYYYMMDDTHHMMSSZ[-n].csv`
+   - `opened_results-YYYYMMDDTHHMMSSZ[-n].csv`
+7. Save resume state on cancellation/failure so the next run can continue.
 
-- Each scan run writes a timestamped batch pair:
-  - `scan_results-YYYYMMDDTHHMMSSZ[-n].csv`
-  - `opened_results-YYYYMMDDTHHMMSSZ[-n].csv`
-- `opened_results-*` contains only `open` rows and keeps the same header as the main output.
-- If started multiple times within the same second, `-n` is an increasing positive integer shared by both files.
+## Commands at a Glance
 
-## Resume Rules
+- `validate`: Validate CIDR/port inputs only (no network scan).
+- `scan`: Execute full scan pipeline with optional pressure control and resume.
 
-- If `-resume <path>` is provided, state is loaded from and saved back to the same path.
-- If `-resume` is omitted, fallback path is `<output-dir>/resume_state.json`.
-- On cancellation or runtime failure, current state is persisted for resume.
+Quick usage:
 
-## Tests
+```bash
+go run ./cmd/port-scan validate -cidr-file <cidr.csv> -port-file <ports.csv> -format human
+go run ./cmd/port-scan scan -cidr-file <cidr.csv> -port-file <ports.csv>
+```
 
-- Unit + integration:
-  - `go test ./...`
-- Coverage gate:
-  - `bash scripts/coverage_gate.sh`
-- E2E (Docker required):
-  - `bash e2e/run_e2e.sh`
+## Flags Quick Reference
 
-## Artifacts
+This section lists high-impact flags. Full definitions are in [All flags](docs/cli/flags.md).
 
-- E2E report output:
-  - `e2e/out/report.html`
-  - `e2e/out/report.txt`
+| Flag | Typical Use |
+|------|-------------|
+| `-cidr-file` | CIDR input CSV path (required) |
+| `-port-file` | Port list path (required) |
+| `-cidr-ip-col` / `-cidr-ip-cidr-col` | Map custom CSV column names |
+| `-output` | Choose output directory and filename prefix anchor |
+| `-resume` | Read/write state from explicit path |
+| `-disable-api` | Disable pressure API polling |
+| `-pressure-api` / `-pressure-interval` | Configure pressure-based pause control |
+| `-workers` / `-timeout` / `-delay` | Tune concurrency and probe pacing |
+| `-log-level` / `-format` | Runtime visibility (`human` or `json`) |
+
+## Scenario Cookbook
+
+Use the scenario guide for copy-paste commands and expected behavior:
+
+- [Scenario cookbook](docs/cli/scenarios.md)
+
+## E2E Overview
+
+E2E uses Docker Compose and mock services to verify real scan behavior and artifact outputs.
+
+- Coverage details and topology: [E2E overview](docs/e2e/overview.md)
+- Run e2e: `bash e2e/run_e2e.sh`
+- Expected artifacts: `e2e/out/report.html`, `e2e/out/report.txt`, batch CSVs, and resume-state snapshots.
+
+## Architecture Diagram
+
+Static HTML + CSS architecture diagram:
+
+- [Architecture diagram](docs/architecture/diagram.html)
+
+## Where to Go Deeper
+
+- [All flags](docs/cli/flags.md)
+- [Scenario cookbook](docs/cli/scenarios.md)
+- [E2E overview](docs/e2e/overview.md)
+- [Architecture diagram](docs/architecture/diagram.html)
+
+## Verification Commands
+
+- Unit + integration: `go test ./...`
+- Coverage gate: `bash scripts/coverage_gate.sh`
+- E2E gate: `bash e2e/run_e2e.sh`

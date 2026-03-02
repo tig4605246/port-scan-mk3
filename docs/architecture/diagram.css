@@ -1,0 +1,113 @@
+:root {
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --line: #2563eb;
+  --text: #0f172a;
+  --muted: #475569;
+  --border: #cbd5e1;
+  --layer: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 45%, #f8fafc 100%);
+}
+
+.page {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 8px;
+}
+
+p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+header,
+footer {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.layer {
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid var(--layer);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.node {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  min-height: 96px;
+}
+
+.node.subtle {
+  border-color: #93c5fd;
+}
+
+.node.ext {
+  border-color: #a7f3d0;
+}
+
+.arrow {
+  margin: 8px auto;
+  width: fit-content;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--line);
+  background: #eff6ff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+code {
+  background: #f1f5f9;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+@media (max-width: 960px) {
+  .grid.two,
+  .grid.three,
+  .grid.four {
+    grid-template-columns: 1fr;
+  }
+}
