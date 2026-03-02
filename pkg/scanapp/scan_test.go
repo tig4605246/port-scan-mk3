@@ -41,7 +41,7 @@ func (l *lockedBuffer) String() string {
 	return l.b.String()
 }
 
-func TestRun_ResumeFromStateFile(t *testing.T) {
+func TestRun_WhenResumeStateFileProvided_ContinuesFromNextIndex(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +118,7 @@ func TestRun_ResumeFromStateFile(t *testing.T) {
 	}
 }
 
-func TestRun_ResumeFallbackPathOnCancel(t *testing.T) {
+func TestRun_WhenCanceledWithoutResumePath_SavesFallbackResumeState(t *testing.T) {
 	tmp := t.TempDir()
 	cidrFile := filepath.Join(tmp, "cidr.csv")
 	portFile := filepath.Join(tmp, "ports.csv")
@@ -161,7 +161,7 @@ func TestRun_ResumeFallbackPathOnCancel(t *testing.T) {
 	}
 }
 
-func TestRun_PressureAPIFailsThreeTimes(t *testing.T) {
+func TestRun_WhenPressureAPIFailsThreeTimes_ReturnsFatalErrorAndSavesResumeState(t *testing.T) {
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "fail", http.StatusInternalServerError)
 	}))
@@ -211,7 +211,7 @@ func TestRun_PressureAPIFailsThreeTimes(t *testing.T) {
 	}
 }
 
-func TestFetchPressure(t *testing.T) {
+func TestFetchPressure_WhenResponseShapesVary_ReturnsParsedPressureOrError(t *testing.T) {
 	okAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprintln(w, `{"pressure":95}`)
 	}))
@@ -244,7 +244,7 @@ func TestFetchPressure(t *testing.T) {
 	}
 }
 
-func TestParsePortRows(t *testing.T) {
+func TestParsePortRows_WhenRowsContainTCPOnly_ReturnsPortsOrError(t *testing.T) {
 	ports, err := parsePortRows([]string{"80/tcp", "443/tcp"})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -258,7 +258,7 @@ func TestParsePortRows(t *testing.T) {
 	}
 }
 
-func TestBuildRuntime_DefaultPortsFromInput(t *testing.T) {
+func TestBuildRuntime_WhenChunkPortsEmpty_UsesDefaultInputPorts(t *testing.T) {
 	_, ipNet, _ := net.ParseCIDR("10.0.0.0/30")
 	records := []input.CIDRRecord{{
 		FabName:  "fab1",
@@ -289,7 +289,7 @@ func TestBuildRuntime_DefaultPortsFromInput(t *testing.T) {
 	}
 }
 
-func TestShouldSaveOnDispatchErr(t *testing.T) {
+func TestShouldSaveOnDispatchErr_WhenDispatchErrorVaries_ReturnsExpectedDecision(t *testing.T) {
 	if shouldSaveOnDispatchErr(nil) {
 		t.Fatal("expected false for nil err")
 	}
@@ -304,7 +304,7 @@ func TestShouldSaveOnDispatchErr(t *testing.T) {
 	}
 }
 
-func TestLogger_TextAndJSON(t *testing.T) {
+func TestScanLogger_WhenTextOrJSONEnabled_FormatsOutputByMode(t *testing.T) {
 	textOut := &bytes.Buffer{}
 	l := newLogger("debug", false, textOut)
 	l.debugf("x=%d", 1)
@@ -320,7 +320,7 @@ func TestLogger_TextAndJSON(t *testing.T) {
 	}
 }
 
-func TestPollPressureAPI_PauseResumeTransition(t *testing.T) {
+func TestPollPressureAPI_WhenPressureCrossesThreshold_TogglesPauseAndLogsTransition(t *testing.T) {
 	values := []int{95, 20}
 	var mu sync.Mutex
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -364,7 +364,7 @@ func TestPollPressureAPI_PauseResumeTransition(t *testing.T) {
 	}
 }
 
-func TestStartManualPauseMonitor_LogsStateChange(t *testing.T) {
+func TestStartManualPauseMonitor_WhenManualPauseChanges_LogsStateTransitions(t *testing.T) {
 	ctrl := speedctrl.NewController()
 	out := &lockedBuffer{}
 	logger := newLogger("info", false, out)
@@ -386,7 +386,7 @@ func TestStartManualPauseMonitor_LogsStateChange(t *testing.T) {
 	}
 }
 
-func TestRun_ScansOnlyIPsListedByIPColumn(t *testing.T) {
+func TestRun_WhenIPColumnListsSubset_ScansOnlyListedIPs(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -450,7 +450,7 @@ func TestRun_ScansOnlyIPsListedByIPColumn(t *testing.T) {
 	}
 }
 
-func TestRun_WritesOpenedResultsCSV(t *testing.T) {
+func TestRun_WhenScanCompletes_WritesOpenRecordsToOpenedResultsCSV(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
