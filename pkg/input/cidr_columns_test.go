@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLoadCIDRsWithColumns_NamedColumns(t *testing.T) {
+func TestLoadCIDRsWithColumns_WhenCustomColumnsExist_LoadsRows(t *testing.T) {
 	csv := "foo,source_ip,bar,source_cidr,cidr_name,fab_name\n" +
 		"x,10.0.0.1,y,10.0.0.0/24,dc,fab-a\n"
 	rows, err := LoadCIDRsWithColumns(strings.NewReader(csv), "source_ip", "source_cidr")
@@ -20,7 +20,7 @@ func TestLoadCIDRsWithColumns_NamedColumns(t *testing.T) {
 	}
 }
 
-func TestLoadCIDRsWithColumns_MissingColumns(t *testing.T) {
+func TestLoadCIDRsWithColumns_WhenRequiredColumnsMissing_ReturnsError(t *testing.T) {
 	csv := "a,b,c\n1,2,3\n"
 	_, err := LoadCIDRsWithColumns(strings.NewReader(csv), "ip", "ip_cidr")
 	if err == nil {

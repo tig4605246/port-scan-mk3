@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLoadCIDRs_DetectOverlap(t *testing.T) {
+func TestLoadCIDRs_WhenCIDRsOverlap_ReturnsError(t *testing.T) {
 	rows := "fab_name,ip,ip_cidr,cidr_name\n" +
 		"fab1,10.0.0.1,10.0.0.0/8,a\n" +
 		"fab2,10.1.0.1,10.1.0.0/16,b\n"

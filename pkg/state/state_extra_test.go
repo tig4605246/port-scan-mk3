@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestLoad_InvalidJSON(t *testing.T) {
+func TestLoad_WhenJSONIsInvalid_ReturnsError(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "bad.json")
 	if err := os.WriteFile(file, []byte("{"), 0o644); err != nil {
 		t.Fatal(err)
@@ -17,7 +17,7 @@ func TestLoad_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestWithSIGINTCancel_CancelFunc(t *testing.T) {
+func TestWithSIGINTCancel_WhenCancelInvoked_CancelsContext(t *testing.T) {
 	ctx, cancel := WithSIGINTCancel(context.Background())
 	cancel()
 	select {

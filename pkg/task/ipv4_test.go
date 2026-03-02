@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestIndexToIPv4Target(t *testing.T) {
+func TestIndexToIPv4Target_WhenIndexInRange_ReturnsTargetAndPort(t *testing.T) {
 	_, n, _ := net.ParseCIDR("10.0.0.0/30")
 	ip, port, err := IndexToIPv4Target(n, []int{80, 443}, 3)
 	if err != nil {
@@ -16,7 +16,7 @@ func TestIndexToIPv4Target(t *testing.T) {
 	}
 }
 
-func TestCountIPv4Hosts(t *testing.T) {
+func TestCountIPv4Hosts_WhenIPv4CIDRProvided_ReturnsHostCount(t *testing.T) {
 	_, n, _ := net.ParseCIDR("10.0.0.0/30")
 	count, err := CountIPv4Hosts(n)
 	if err != nil {

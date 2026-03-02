@@ -13,7 +13,7 @@ func (timeoutErr) Error() string   { return "timeout" }
 func (timeoutErr) Timeout() bool   { return true }
 func (timeoutErr) Temporary() bool { return false }
 
-func TestScanTCP_Timeout(t *testing.T) {
+func TestScanTCP_WhenDialTimeout_ReturnsCloseTimeoutStatus(t *testing.T) {
 	dial := func(string, string, time.Duration) (net.Conn, error) {
 		return nil, timeoutErr{}
 	}
@@ -23,7 +23,7 @@ func TestScanTCP_Timeout(t *testing.T) {
 	}
 }
 
-func TestScanTCP_Refused(t *testing.T) {
+func TestScanTCP_WhenConnectionRefused_ReturnsCloseStatus(t *testing.T) {
 	dial := func(string, string, time.Duration) (net.Conn, error) {
 		return nil, errors.New("connection refused")
 	}

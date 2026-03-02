@@ -12,7 +12,7 @@ func mustLoadRows(t *testing.T, rows []CIDRRecord) []CIDRRecord {
 	return rows
 }
 
-func TestValidateIPRows_DuplicateIPIPCidrPairFatal(t *testing.T) {
+func TestValidateIPRows_WhenDuplicateIPAndIPCidrPairExists_ReturnsError(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
@@ -22,7 +22,7 @@ func TestValidateIPRows_DuplicateIPIPCidrPairFatal(t *testing.T) {
 	}
 }
 
-func TestValidateIPRows_IPNotInsideIPCidrFatal(t *testing.T) {
+func TestValidateIPRows_WhenIPIsOutsideIPCidr_ReturnsError(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.1.0.1", IPCidrRaw: "10.0.0.0/24"},
 	})
@@ -31,7 +31,7 @@ func TestValidateIPRows_IPNotInsideIPCidrFatal(t *testing.T) {
 	}
 }
 
-func TestValidateIPRows_SelectorCIDROutsideIPCidrFatal(t *testing.T) {
+func TestValidateIPRows_WhenSelectorCIDRIsOutsideIPCidr_ReturnsError(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.1.0/24", IPCidrRaw: "10.0.0.0/24"},
 	})
@@ -40,7 +40,7 @@ func TestValidateIPRows_SelectorCIDROutsideIPCidrFatal(t *testing.T) {
 	}
 }
 
-func TestValidateIPRows_DifferentIPCidrOverlapFatal(t *testing.T) {
+func TestValidateIPRows_WhenDifferentIPCidrsOverlap_ReturnsError(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
 		{IPRaw: "10.0.1.1", IPCidrRaw: "10.0.0.0/16"},
@@ -50,7 +50,7 @@ func TestValidateIPRows_DifferentIPCidrOverlapFatal(t *testing.T) {
 	}
 }
 
-func TestValidateIPRows_SameIPCidrDifferentIPSelectorsOverlapFatal(t *testing.T) {
+func TestValidateIPRows_WhenSelectorsOverlapWithinSameIPCidr_ReturnsError(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
 		{IPRaw: "10.0.0.1/32", IPCidrRaw: "10.0.0.0/24"},
@@ -60,7 +60,7 @@ func TestValidateIPRows_SameIPCidrDifferentIPSelectorsOverlapFatal(t *testing.T)
 	}
 }
 
-func TestValidateIPRows_SameIPCidrWithDistinctSelectorsAllowed(t *testing.T) {
+func TestValidateIPRows_WhenSelectorsAreDistinctWithinSameIPCidr_ReturnsNil(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
 		{IPRaw: "10.0.0.2", IPCidrRaw: "10.0.0.0/24"},
@@ -71,7 +71,7 @@ func TestValidateIPRows_SameIPCidrWithDistinctSelectorsAllowed(t *testing.T) {
 	}
 }
 
-func TestValidateNoOverlap_Wrapper(t *testing.T) {
+func TestValidateNoOverlap_WhenNetworksDoNotOverlap_ReturnsNil(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
 		{IPRaw: "10.0.1.1", IPCidrRaw: "10.0.1.0/24"},

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCSVWriter_WritesHeaderAndRows(t *testing.T) {
+func TestCSVWriter_WhenWritingFirstRecord_WritesHeaderAndRow(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := NewCSVWriter(buf)
 

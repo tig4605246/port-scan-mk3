@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLoadPorts_ParseTCPOnly(t *testing.T) {
+func TestLoadPorts_WhenRowsUseTCP_ParsesPorts(t *testing.T) {
 	ports, err := LoadPorts(strings.NewReader("80/tcp\n443/tcp\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

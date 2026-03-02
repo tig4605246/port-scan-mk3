@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestLeakyBucket_AcquireBlocksUntilToken(t *testing.T) {
+func TestLeakyBucketAcquire_WhenNoTokenAvailable_BlocksUntilRefill(t *testing.T) {
 	b := NewLeakyBucket(2, 1)
 	defer b.Close()
 

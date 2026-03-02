@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestLogJSON_EmitsJSON(t *testing.T) {
+func TestLogJSON_WhenCalled_EmitsJSONPayload(t *testing.T) {
 	buf := &bytes.Buffer{}
 	LogJSON(buf, "info", "hello", map[string]any{"k": "v"})
 	out := buf.String()

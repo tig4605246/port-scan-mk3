@@ -10,7 +10,7 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
-func TestRunner_DispatchesAndStopsOnError(t *testing.T) {
+func TestRunner_WhenDispatchReturnsError_StopsAndReturnsError(t *testing.T) {
 	ctrl := speedctrl.NewController()
 	calls := 0
 	r := NewRunner(Options{
@@ -34,7 +34,7 @@ func TestRunner_DispatchesAndStopsOnError(t *testing.T) {
 	}
 }
 
-func TestRunner_ContextCanceled(t *testing.T) {
+func TestRunner_WhenContextCanceled_ReturnsContextError(t *testing.T) {
 	ctrl := speedctrl.NewController()
 	ctrl.SetManualPaused(true)
 	r := NewRunner(Options{Controller: ctrl})

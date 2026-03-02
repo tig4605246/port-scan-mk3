@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestOpenOnlyWriter_WritesOnlyOpenRows(t *testing.T) {
+func TestOpenOnlyWriter_WhenMixedStatusesProvided_WritesOnlyOpenRows(t *testing.T) {
 	buf := &bytes.Buffer{}
 	inner := NewCSVWriter(buf)
 	w := NewOpenOnlyWriter(inner)
@@ -27,7 +27,7 @@ func TestOpenOnlyWriter_WritesOnlyOpenRows(t *testing.T) {
 	}
 }
 
-func TestOpenOnlyWriter_WriteHeader(t *testing.T) {
+func TestOpenOnlyWriter_WhenWriteHeaderCalled_WritesCSVHeader(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := NewOpenOnlyWriter(NewCSVWriter(buf))
 	if err := w.WriteHeader(); err != nil {
@@ -38,7 +38,7 @@ func TestOpenOnlyWriter_WriteHeader(t *testing.T) {
 	}
 }
 
-func TestOpenOnlyWriter_NilSafe(t *testing.T) {
+func TestOpenOnlyWriter_WhenWriterIsNil_ReturnsNilError(t *testing.T) {
 	var w *OpenOnlyWriter
 	if err := w.WriteHeader(); err != nil {
 		t.Fatalf("expected nil-safe header write, got %v", err)

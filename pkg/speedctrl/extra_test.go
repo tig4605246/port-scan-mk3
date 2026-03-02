@@ -10,7 +10,7 @@ import (
 	"golang.org/x/term"
 )
 
-func TestGateAndKeyboardLoop(t *testing.T) {
+func TestControllerGate_WhenNotPaused_IsOpenAndKeyboardLoopStarts(t *testing.T) {
 	c := NewController()
 	select {
 	case <-c.Gate():
@@ -22,7 +22,7 @@ func TestGateAndKeyboardLoop(t *testing.T) {
 	}
 }
 
-func TestToggleManualPaused(t *testing.T) {
+func TestControllerToggleManualPaused_WhenCalled_TogglesState(t *testing.T) {
 	c := NewController()
 	if c.ManualPaused() {
 		t.Fatal("expected manual paused false initially")
@@ -35,7 +35,7 @@ func TestToggleManualPaused(t *testing.T) {
 	}
 }
 
-func TestStartKeyboardLoop_RawModeSpaceToggle(t *testing.T) {
+func TestStartKeyboardLoop_WhenSpacePressed_TogglesManualPause(t *testing.T) {
 	oldIsTerminal := keyboardIsTerminal
 	oldMakeRaw := keyboardMakeRaw
 	oldRestore := keyboardRestore
@@ -67,7 +67,7 @@ func TestStartKeyboardLoop_RawModeSpaceToggle(t *testing.T) {
 	}
 }
 
-func TestStartKeyboardLoop_MakeRawError(t *testing.T) {
+func TestStartKeyboardLoop_WhenMakeRawFails_ReturnsError(t *testing.T) {
 	oldIsTerminal := keyboardIsTerminal
 	oldMakeRaw := keyboardMakeRaw
 	oldFD := keyboardFD

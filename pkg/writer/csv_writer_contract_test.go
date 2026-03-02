@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestCSVWriter_Contract_HeaderOrderAndMetadataDefaults(t *testing.T) {
+func TestCSVWriter_WhenMetadataMissing_PreservesHeaderOrderAndEmptyMetadata(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := NewCSVWriter(buf)
 

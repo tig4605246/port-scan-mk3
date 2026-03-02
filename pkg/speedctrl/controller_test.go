@@ -2,7 +2,7 @@ package speedctrl
 
 import "testing"
 
-func TestController_ORGatePauseResume(t *testing.T) {
+func TestController_WhenPauseFlagsChange_UpdatesGateState(t *testing.T) {
 	c := NewController(WithAPIEnabled(false))
 
 	c.SetManualPaused(true)

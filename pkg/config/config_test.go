@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestParseConfig_Defaults(t *testing.T) {
+func TestParseConfig_WhenRequiredFlagsProvided_UsesDefaultValues(t *testing.T) {
 	cfg, err := Parse([]string{"-cidr-file", "cidr.csv", "-port-file", "ports.csv"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -18,14 +18,14 @@ func TestParseConfig_Defaults(t *testing.T) {
 	}
 }
 
-func TestParseConfig_InvalidFormat(t *testing.T) {
+func TestParseConfig_WhenFormatIsInvalid_ReturnsError(t *testing.T) {
 	_, err := Parse([]string{"-cidr-file", "cidr.csv", "-port-file", "ports.csv", "-format", "xml"})
 	if err == nil {
 		t.Fatal("expected error for invalid format")
 	}
 }
 
-func TestParseConfig_PressureIntervalSeconds(t *testing.T) {
+func TestParseConfig_WhenPressureIntervalProvidedInSeconds_ParsesDuration(t *testing.T) {
 	cfg, err := Parse([]string{
 		"-cidr-file", "cidr.csv",
 		"-port-file", "ports.csv",
@@ -39,7 +39,7 @@ func TestParseConfig_PressureIntervalSeconds(t *testing.T) {
 	}
 }
 
-func TestParseConfig_CIDRColumnFlags(t *testing.T) {
+func TestParseConfig_WhenCIDRColumnFlagsProvided_SetsColumnNames(t *testing.T) {
 	cfg, err := Parse([]string{
 		"-cidr-file", "cidr.csv",
 		"-port-file", "ports.csv",
@@ -54,7 +54,7 @@ func TestParseConfig_CIDRColumnFlags(t *testing.T) {
 	}
 }
 
-func TestParseConfig_CIDRColumnFlags_NonEmpty(t *testing.T) {
+func TestParseConfig_WhenCIDRIPColumnIsEmpty_ReturnsError(t *testing.T) {
 	_, err := Parse([]string{
 		"-cidr-file", "cidr.csv",
 		"-port-file", "ports.csv",
@@ -66,7 +66,7 @@ func TestParseConfig_CIDRColumnFlags_NonEmpty(t *testing.T) {
 	}
 }
 
-func TestParseConfig_OutputAndResumeFlags(t *testing.T) {
+func TestParseConfig_WhenOutputAndResumeFlagsProvided_SetsPaths(t *testing.T) {
 	cfg, err := Parse([]string{
 		"-cidr-file", "cidr.csv",
 		"-port-file", "ports.csv",

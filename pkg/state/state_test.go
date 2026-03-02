@@ -7,7 +7,7 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
-func TestSaveAndLoadResumeState(t *testing.T) {
+func TestSaveAndLoad_WhenStatePersisted_RestoresChunkFields(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "resume_state.json")
 

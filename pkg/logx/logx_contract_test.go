@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func Test_observability_contract_fields(t *testing.T) {
+func TestLogJSON_WhenEmittingScanResult_IncludesRequiredObservabilityFields(t *testing.T) {
 	buf := &bytes.Buffer{}
 	LogJSON(buf, "info", "scan_result", map[string]any{
 		"target":           "127.0.0.1",

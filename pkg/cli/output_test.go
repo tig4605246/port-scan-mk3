@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestWriteValidation_HumanAndJSON(t *testing.T) {
+func TestWriteValidation_WhenFormatIsHumanOrJSON_EmitsExpectedOutput(t *testing.T) {
 	out := &bytes.Buffer{}
 	if err := WriteValidation(out, "human", true, "ok"); err != nil {
 		t.Fatalf("human write failed: %v", err)

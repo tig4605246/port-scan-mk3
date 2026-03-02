@@ -2,7 +2,7 @@ package task
 
 import "testing"
 
-func TestExpandIPSelectors_OnlyListedTargets(t *testing.T) {
+func TestExpandIPSelectors_WhenSelectorsProvided_ReturnsExpandedListedTargets(t *testing.T) {
 	got, err := ExpandIPSelectors([]string{"10.0.0.1", "10.0.0.8/30"})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -15,7 +15,7 @@ func TestExpandIPSelectors_OnlyListedTargets(t *testing.T) {
 	}
 }
 
-func TestExpandIPSelectors_InvalidSelector(t *testing.T) {
+func TestExpandIPSelectors_WhenSelectorInvalid_ReturnsError(t *testing.T) {
 	if _, err := ExpandIPSelectors([]string{"bad"}); err == nil {
 		t.Fatal("expected error")
 	}

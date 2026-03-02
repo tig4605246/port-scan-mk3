@@ -9,7 +9,7 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
-func TestRunner_StopsDispatchWhenPaused(t *testing.T) {
+func TestRunner_WhenControllerPaused_DoesNotDispatchTasks(t *testing.T) {
 	ctrl := speedctrl.NewController(speedctrl.WithAPIEnabled(false))
 	ctrl.SetManualPaused(true)
 

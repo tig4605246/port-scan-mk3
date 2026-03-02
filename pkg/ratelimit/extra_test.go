@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAcquire_ContextCanceled(t *testing.T) {
+func TestLeakyBucketAcquire_WhenContextCanceled_ReturnsError(t *testing.T) {
 	b := NewLeakyBucket(1, 1)
 	defer b.Close()
 
