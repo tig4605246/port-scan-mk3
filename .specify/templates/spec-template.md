@@ -100,6 +100,25 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+## Constitution Alignment *(mandatory)*
+
+### Test Strategy
+
+- **TS-001**: Define the failing unit tests that will be written before implementation.
+- **TS-002**: Identify required integration test updates for changed contracts/boundaries.
+- **TS-003**: State whether Docker Compose e2e scenarios must be added or updated; if not,
+  provide explicit rationale.
+
+### Observability Strategy
+
+- **OS-001**: Define required log/progress/error outputs introduced or changed by this feature.
+- **OS-002**: Define how operators will verify runtime behavior from emitted outputs.
+
+### Release Strategy
+
+- **RS-001**: State expected product SemVer bump (`MAJOR`, `MINOR`, `PATCH`) with rationale.
+- **RS-002**: List release-note updates required in `docs/release-notes/`.
+
 ## Success Criteria *(mandatory)*
 
 <!--

@@ -31,7 +31,14 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] Library-first scope is explicit: core behavior lands in reusable packages before CLI wiring.
+- [ ] CLI contract impact is documented: commands/flags/output schema/default changes identified.
+- [ ] Test-first plan is explicit: failing tests are listed before implementation tasks.
+- [ ] Integration boundary coverage is defined for changed parser/task/pipeline/writer contracts.
+- [ ] e2e impact is evaluated: Docker Compose scenarios listed or a justified N/A is recorded.
+- [ ] Observability impact is defined: logging/progress/error evidence changes are identified.
+- [ ] Release impact is documented: SemVer bump expectation and release-note updates are planned.
+- [ ] Quality gates are planned: `go test ./...`, coverage gate, and e2e execution commands listed.
 
 ## Project Structure
 

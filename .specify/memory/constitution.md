@@ -1,75 +1,114 @@
+<!--
+Sync Impact Report
+- Version change: 1.0.0 -> 1.1.0
+- Modified principles:
+  - I. Library-First -> I. Library-First Design
+  - II. CLI Interface -> II. CLI Contract-First
+  - III. Test-First (NON-NEGOTIABLE) -> III. Test-First Delivery (NON-NEGOTIABLE)
+  - IV. Integration Testing -> IV. Integration Coverage for Contract Boundaries
+  - V. End-to-End Testing (e2e test) -> V. Isolated End-to-End Verification
+  - VI. Observability -> VI. Observability by Default
+  - VII. Versioning -> VII. Versioning and Release Evidence
+- Added sections:
+  - None
+- Removed sections:
+  - None
+- Templates requiring updates:
+  - ✅ .specify/templates/plan-template.md
+  - ✅ .specify/templates/spec-template.md
+  - ✅ .specify/templates/tasks-template.md
+  - ✅ .specify/templates/commands/*.md (directory not present, no update required)
+- Follow-up TODOs:
+  - None
+-->
 # Port Scan MKIII Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
 
 ## Core Principles
 
-### I. Library-First
-<!-- Example: I. Library-First -->
-- Every feature starts as a standalone library
-- Libraries must be self-contained, independently testable, documented
-- Clear purpose required - no organizational-only libraries
+### I. Library-First Design
+- New scanner behavior MUST be implemented in reusable packages under `pkg/` before CLI wiring.
+- Packages MUST expose deterministic APIs and include unit tests for success and failure paths.
+- Public package behavior MUST be documented with Go doc comments that describe inputs, outputs,
+  and failure modes.
 
-### II. CLI Interface
-<!-- Example: II. CLI Interface -->
-- Every library exposes functionality via CLI
-- Text in/out protocol: stdin/args → stdout, errors → stderr
-- Support JSON + human-readable formats
+Rationale: Isolating domain logic from CLI wiring keeps features reusable, testable, and easier
+to review.
 
-### III. Test-First (NON-NEGOTIABLE)
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-- TDD mandatory: Tests written → User approved → Tests fail → Then implement
-- Red-Green-Refactor cycle strictly enforced
+### II. CLI Contract-First
+- User-facing workflows MUST be accessible through `cmd/port-scan`.
+- CLI commands MUST support both `human` and `json` formats when output is user-consumable.
+- Any CLI contract change (flags, output schema, defaults) MUST include compatibility notes in
+  release notes.
 
-### IV. Integration Testing
-<!-- Example: IV. Integration Testing -->
-- Focus areas requiring integration tests:
-  - New library contract tests
-  - Contract changes
-  - Inter-service communication
-  - Shared schemas
+Rationale: The CLI is the product boundary; stable contracts protect automation and operators.
 
-### V. End-to-End Testing (e2e test)
+### III. Test-First Delivery (NON-NEGOTIABLE)
+- Production behavior changes MUST start with failing tests before implementation code is added.
+- Every feature or bug fix MUST include unit tests and update integration or e2e tests when
+  interfaces or runtime behavior change.
+- `go test ./...` MUST pass before merge; skipping or quarantining failing tests is prohibited.
 
-- Focus on using docker compose to create a test area that:
-  - has multiple mock server running, with opened TCP ports
-  - has isolated network that not scanning behavior will afftec real machines and environments
-  - the test area must capable of testing all functions and features that the Port Scan MKIII provieds
-  - Add any necessary services into test areas to ensure e2e test covers all scenarios
+Rationale: Red-green-refactor catches regressions early and keeps behavior changes intentional.
 
-### VI. Observability
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-- Text I/O ensures debuggability
-- Structured logging required 
+### IV. Integration Coverage for Contract Boundaries
+- Integration tests MUST cover parser, task expansion, pipeline orchestration, and writer
+  boundaries when their contracts change.
+- Schema or protocol updates MUST include compatibility regression cases.
+- Integration tests MUST run in pull request validation before merge.
 
-### VII. Versioning
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-- MAJOR.MINOR.BUILD format
-- Every release must have release note includes:
-  - New features
-  - Bug fixes
-  - Breaking changes (must have migration guideline)
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Rationale: Boundary failures are high-risk in scanning pipelines and need contract-level evidence.
 
-## Technology stack requirements
-<!-- Example Section: Additional Constraints, Security Requirements, Performance Standards, etc. -->
-<!-- Example content: Technology stack requirements, compliance standards, deployment policies, etc. -->
-<!-- Example Section: Development Workflow, Review Process, Quality Gates, etc. -->
-<!-- Example content: Code review requirements, testing gates, deployment approval process, etc. -->
-- Golang as main language
-  - use Golang built-in net package to implement TCP port scan
-    - use dial to try to establish tcp connection
+### V. Isolated End-to-End Verification
+- e2e tests MUST run in Docker Compose with isolated networks and mock services only.
+- e2e scenarios MUST cover open-port detection, closed or timeout behavior, and pressure-control
+  failure handling when the feature touches those paths.
+- e2e runs MUST produce report artifacts in `e2e/out/` for human and automated review.
+
+Rationale: Isolated e2e prevents accidental external scanning and validates production-like flows.
+
+### VI. Observability by Default
+- Runtime logs MUST be structured and include target, port, state transition, and error cause.
+- Retry, throttling, and fatal-exit events MUST be visible in stderr or structured logs.
+- Long-running scans MUST emit progress and completion summaries.
+
+Rationale: Port scanning requires reliable diagnostics to debug network variance and failures.
+
+### VII. Versioning and Release Evidence
+- Product releases MUST use semantic versioning `MAJOR.MINOR.PATCH`.
+- Every release MUST include `docs/release-notes/<version>.md` with features, fixes, breaking
+  changes, and migration guidance.
+- Breaking changes MUST increment `MAJOR` and document rollback or mitigation steps.
+
+Rationale: Explicit version semantics and release evidence reduce upgrade risk for users.
+
+## Technology Stack Requirements
+- Implementation MUST use Go 1.24.x as the primary language runtime.
+- TCP scanning MUST use Go standard library `net` primitives (for example, `net.DialTimeout`)
+  unless a deviation is approved in a complexity exception.
+- New third-party dependencies SHOULD be minimal and MUST include justification in the PR.
 
 ## Quality Gates
-<!-- Example content: testing gates -->
-- testing gates:
-  - unit test coverages > 85%
-  - e2e test must all passed
-  - integration tests must all passed
+- `go test ./...` MUST pass.
+- `bash scripts/coverage_gate.sh` MUST pass with total coverage >= 85%.
+- `bash e2e/run_e2e.sh` MUST pass when a change affects scan pipeline, writers, or pressure
+  control behavior.
+- Pull requests MUST include command output or CI links proving gate execution.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
-- All PRs/reviews must verify compliance
-- Complexity must be justified
-- Amendments require documentation, approval, migration plan
+- This constitution supersedes conflicting local practices for this repository.
+- Amendment procedure MUST follow all steps:
+  1. Submit a PR that explains changed principles, migration impact, and synchronized templates.
+  2. Obtain approval from at least one maintainer.
+  3. Update constitution version and `Last Amended` date in this file.
+- Constitution semantic versioning policy:
+  - MAJOR: remove or redefine a principle in a backward-incompatible way.
+  - MINOR: add a principle/section or materially expand mandatory guidance.
+  - PATCH: wording clarifications with no policy behavior change.
+- Compliance review expectations:
+  - Every plan, spec, and task artifact MUST include a constitution alignment check.
+  - Reviewers MUST block merges when MUST-level rules are unmet unless a dated exception is
+    recorded in the feature's complexity tracking.
+  - Template alignment under `.specify/templates/` MUST be reviewed on every constitution
+    amendment.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-01 | **Last Amended**: 2026-03-01
+**Version**: 1.1.0 | **Ratified**: 2026-03-01 | **Last Amended**: 2026-03-02
