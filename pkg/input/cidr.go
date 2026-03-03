@@ -32,6 +32,14 @@ func LoadCIDRsWithColumns(r io.Reader, ipCol, ipCidrCol string) ([]CIDRRecord, e
 		return nil, fmt.Errorf("ip and ip_cidr column names must be non-empty")
 	}
 
+	if richIdx, ok := detectRichHeaderIndices(rows[0]); ok {
+		records, _, err := ParseRichRows(rows, richIdx)
+		if err != nil {
+			return nil, err
+		}
+		return records, nil
+	}
+
 	header := normalizeHeader(rows[0])
 	ipIdx := headerIndex(header, ipCol)
 	if ipIdx < 0 {

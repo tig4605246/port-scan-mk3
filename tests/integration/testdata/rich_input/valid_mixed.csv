@@ -1,0 +1,4 @@
+src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason
+10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,https,tcp,443,accept,P-100,baseline
+10.0.0.11,10.0.0.0/24,192.168.1.11,192.168.1.0/24,https,tcp,443,deny,P-101,policy-check
+10.0.0.12,10.0.0.0/24,192.168.1.12,192.168.1.0/24,dns,udp,53,accept,P-102,invalid-protocol

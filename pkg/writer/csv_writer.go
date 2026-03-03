@@ -8,14 +8,21 @@ import (
 
 // Record is one scan output row written to CSV.
 type Record struct {
-	IP         string
-	IPCidr     string
-	Port       int
-	Status     string
-	ResponseMS int64
-	FabName    string
-	CIDR       string
-	CIDRName   string
+	IP                string
+	IPCidr            string
+	Port              int
+	Status            string
+	ResponseMS        int64
+	FabName           string
+	CIDR              string
+	CIDRName          string
+	ServiceLabel      string
+	Decision          string
+	PolicyID          string
+	Reason            string
+	ExecutionKey      string
+	SrcIP             string
+	SrcNetworkSegment string
 }
 
 // CSVWriter writes scan result rows with the fixed contract header.
@@ -47,6 +54,13 @@ func (cw *CSVWriter) Write(r Record) error {
 		strconv.FormatInt(r.ResponseMS, 10),
 		r.FabName,
 		r.CIDRName,
+		r.ServiceLabel,
+		r.Decision,
+		r.PolicyID,
+		r.Reason,
+		r.ExecutionKey,
+		r.SrcIP,
+		r.SrcNetworkSegment,
 	}
 	if err := cw.w.Write(row); err != nil {
 		return err
@@ -58,7 +72,22 @@ func (cw *CSVWriter) Write(r Record) error {
 // WriteHeader writes the fixed result header once.
 func (cw *CSVWriter) WriteHeader() error {
 	if !cw.wroteHeader {
-		if err := cw.w.Write([]string{"ip", "ip_cidr", "port", "status", "response_time_ms", "fab_name", "cidr_name"}); err != nil {
+		if err := cw.w.Write([]string{
+			"ip",
+			"ip_cidr",
+			"port",
+			"status",
+			"response_time_ms",
+			"fab_name",
+			"cidr_name",
+			"service_label",
+			"decision",
+			"policy_id",
+			"reason",
+			"execution_key",
+			"src_ip",
+			"src_network_segment",
+		}); err != nil {
 			return err
 		}
 		cw.wroteHeader = true
