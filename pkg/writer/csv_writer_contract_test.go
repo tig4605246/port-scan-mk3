@@ -31,14 +31,31 @@ func TestCSVWriter_WhenMetadataMissing_PreservesHeaderOrderAndEmptyMetadata(t *t
 		t.Fatalf("expected 2 rows, got %d", len(rows))
 	}
 
-	wantHeader := []string{"ip", "ip_cidr", "port", "status", "response_time_ms", "fab_name", "cidr_name"}
+	wantHeader := []string{
+		"ip",
+		"ip_cidr",
+		"port",
+		"status",
+		"response_time_ms",
+		"fab_name",
+		"cidr_name",
+		"service_label",
+		"decision",
+		"policy_id",
+		"reason",
+		"execution_key",
+		"src_ip",
+		"src_network_segment",
+	}
 	for i, col := range wantHeader {
 		if rows[0][i] != col {
 			t.Fatalf("header[%d] mismatch: got=%s want=%s", i, rows[0][i], col)
 		}
 	}
 
-	if rows[1][5] != "" || rows[1][6] != "" {
-		t.Fatalf("expected empty metadata fields, got fab_name=%q cidr_name=%q", rows[1][5], rows[1][6])
+	for i := 5; i < len(wantHeader); i++ {
+		if rows[1][i] != "" {
+			t.Fatalf("expected empty metadata field %s, got %q", wantHeader[i], rows[1][i])
+		}
 	}
 }

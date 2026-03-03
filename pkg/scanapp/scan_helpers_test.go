@@ -88,6 +88,97 @@ func TestBuildRuntime_WhenTotalCountMismatch_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestBuildRichGroups_WhenDuplicateExecutionKey_PreservesMergedContext(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "127.0.0.1:8080/tcp",
+			DstIP:             "127.0.0.1",
+			DstNetworkSegment: "127.0.0.0/24",
+			Port:              8080,
+			FabName:           "10.0.0.10",
+			CIDRName:          "web",
+			ServiceLabel:      "web",
+			Decision:          "accept",
+			PolicyID:          "P-1",
+			Reason:            "allow",
+			SrcIP:             "10.0.0.10",
+			SrcNetworkSegment: "10.0.0.0/24",
+		},
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "127.0.0.1:8080/tcp",
+			DstIP:             "127.0.0.1",
+			DstNetworkSegment: "127.0.0.0/24",
+			Port:              8080,
+			FabName:           "10.0.0.11",
+			CIDRName:          "web",
+			ServiceLabel:      "web",
+			Decision:          "deny",
+			PolicyID:          "P-2",
+			Reason:            "audit",
+			SrcIP:             "10.0.0.11",
+			SrcNetworkSegment: "10.0.0.0/24",
+		},
+	}
+	groups, err := buildRichGroups(rows)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	got := groups["127.0.0.1:8080/tcp"]
+	if got.port != 8080 {
+		t.Fatalf("unexpected group port: %d", got.port)
+	}
+	if len(got.targets) != 1 {
+		t.Fatalf("expected single runtime target, got %d", len(got.targets))
+	}
+	if got.targets[0].policyID != "P-1|P-2" {
+		t.Fatalf("unexpected merged policy id: %s", got.targets[0].policyID)
+	}
+	if got.targets[0].decision != "accept|deny" {
+		t.Fatalf("unexpected merged decision: %s", got.targets[0].decision)
+	}
+}
+
+func TestLoadOrBuildChunks_WhenRichRecordsProvided_BuildsExecutionKeyChunks(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{IsRich: true, IsValid: true, ExecutionKey: "127.0.0.1:8080/tcp", Port: 8080, CIDRName: "web", DstIP: "127.0.0.1", DstNetworkSegment: "127.0.0.0/24"},
+		{IsRich: true, IsValid: true, ExecutionKey: "127.0.0.1:8080/tcp", Port: 8080, CIDRName: "web", DstIP: "127.0.0.1", DstNetworkSegment: "127.0.0.0/24"},
+		{IsRich: true, IsValid: true, ExecutionKey: "127.0.0.1:1/tcp", Port: 1, CIDRName: "web", DstIP: "127.0.0.1", DstNetworkSegment: "127.0.0.0/24"},
+	}
+	chunks, err := loadOrBuildChunks(config.Config{}, rows, nil)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(chunks) != 2 {
+		t.Fatalf("expected 2 dedup chunks, got %d", len(chunks))
+	}
+	if chunks[0].TotalCount != 1 || chunks[1].TotalCount != 1 {
+		t.Fatalf("expected each rich chunk total_count=1, got %#v", chunks)
+	}
+}
+
+func TestBuildRichChunks_WhenNoUsableRows_ReturnsError(t *testing.T) {
+	_, err := buildRichChunks([]input.CIDRRecord{{IsRich: true, IsValid: false}})
+	if err == nil {
+		t.Fatal("expected no usable row error")
+	}
+}
+
+func TestDefaultString_WhenPrimaryEmpty_UsesFallback(t *testing.T) {
+	if got := defaultString("", "x"); got != "x" {
+		t.Fatalf("unexpected value: %s", got)
+	}
+	if got := defaultString(" y ", "x"); got != " y " {
+		t.Fatalf("unexpected primary-preserved value: %s", got)
+	}
+}
+
 func TestReadCIDRFileAndReadPortFile_WhenFileMissing_ReturnsError(t *testing.T) {
 	if _, err := readCIDRFile("/not-exist", "ip", "ip_cidr"); err == nil {
 		t.Fatal("expected read cidr file error")

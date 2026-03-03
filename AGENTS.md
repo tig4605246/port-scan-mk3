@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2026-03-02
 
 ## Active Technologies
+- Go 1.24.x (`go 1.24.0`, toolchain `go1.24.4`) + Go standard library (`encoding/csv`, `encoding/json`, `strings`, `net`, `strconv`, `context`, `time`, `os`), existing internal packages (`pkg/input`, `pkg/task`, `pkg/scanapp`, `pkg/writer`) (001-enhance-input-parser)
+- Local filesystem (input CSV, output CSV, resume JSON) (001-enhance-input-parser)
 
 - Go 1.24.x (`go 1.24.0`, toolchain `go1.24.4`) + Go standard library (`flag`, `net`, `encoding/csv`, `encoding/json`, `context`, `os`, `time`), `golang.org/x/term`, `golang.org/x/sys` (001-ip-aware-baseline-spec)
 
@@ -22,6 +24,7 @@ tests/
 Go 1.24.x (`go 1.24.0`, toolchain `go1.24.4`): Follow standard conventions
 
 ## Recent Changes
+- 001-enhance-input-parser: Added Go 1.24.x (`go 1.24.0`, toolchain `go1.24.4`) + Go standard library (`encoding/csv`, `encoding/json`, `strings`, `net`, `strconv`, `context`, `time`, `os`), existing internal packages (`pkg/input`, `pkg/task`, `pkg/scanapp`, `pkg/writer`)
 
 - 001-ip-aware-baseline-spec: Added Go 1.24.x (`go 1.24.0`, toolchain `go1.24.4`) + Go standard library (`flag`, `net`, `encoding/csv`, `encoding/json`, `context`, `os`, `time`), `golang.org/x/term`, `golang.org/x/sys`
 

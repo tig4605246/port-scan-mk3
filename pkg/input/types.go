@@ -15,6 +15,24 @@ type CIDRRecord struct {
 	RowNumber int
 	IPColName string
 	IPCidrCol string
+
+	// Rich input fields.
+	IsRich              bool
+	IsValid             bool
+	ValidationCode      string
+	ValidationError     string
+	SrcIP               string
+	SrcNetworkSegment   string
+	DstIP               string
+	DstNetworkSegment   string
+	ServiceLabel        string
+	Protocol            string
+	Port                int
+	Decision            string
+	PolicyID            string
+	Reason              string
+	ExecutionKey        string
+	RichInputIdentifier string
 }
 
 // PortSpec is one normalized TCP port row from the port input file.

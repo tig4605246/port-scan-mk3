@@ -55,18 +55,33 @@ type chunkRuntime struct {
 }
 
 type scanTarget struct {
-	ip       string
-	fabName  string
-	cidrName string
+	ip                string
+	ipCidr            string
+	fabName           string
+	cidrName          string
+	serviceLabel      string
+	decision          string
+	policyID          string
+	reason            string
+	executionKey      string
+	srcIP             string
+	srcNetworkSegment string
 }
 
 type scanTask struct {
-	chunkIdx int
-	fabName  string
-	ipCidr   string
-	cidrName string
-	ip       string
-	port     int
+	chunkIdx          int
+	fabName           string
+	ipCidr            string
+	cidrName          string
+	ip                string
+	port              int
+	serviceLabel      string
+	decision          string
+	policyID          string
+	reason            string
+	executionKey      string
+	srcIP             string
+	srcNetworkSegment string
 }
 
 type scanResult struct {
@@ -182,13 +197,20 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				resultCh <- scanResult{
 					chunkIdx: t.chunkIdx,
 					record: writer.Record{
-						IP:         res.IP,
-						IPCidr:     t.ipCidr,
-						Port:       res.Port,
-						Status:     res.Status,
-						ResponseMS: res.ResponseTimeMS,
-						FabName:    t.fabName,
-						CIDRName:   t.cidrName,
+						IP:                res.IP,
+						IPCidr:            t.ipCidr,
+						Port:              res.Port,
+						Status:            res.Status,
+						ResponseMS:        res.ResponseTimeMS,
+						FabName:           t.fabName,
+						CIDRName:          t.cidrName,
+						ServiceLabel:      t.serviceLabel,
+						Decision:          t.decision,
+						PolicyID:          t.policyID,
+						Reason:            t.reason,
+						ExecutionKey:      t.executionKey,
+						SrcIP:             t.srcIP,
+						SrcNetworkSegment: t.srcNetworkSegment,
 					},
 				}
 			}
@@ -378,12 +400,19 @@ func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Contr
 			case <-ctx.Done():
 				return ctx.Err()
 			case taskCh <- scanTask{
-				chunkIdx: idx,
-				fabName:  target.fabName,
-				ipCidr:   ch.CIDR,
-				cidrName: target.cidrName,
-				ip:       target.ip,
-				port:     port,
+				chunkIdx:          idx,
+				fabName:           target.fabName,
+				ipCidr:            defaultString(target.ipCidr, ch.CIDR),
+				cidrName:          target.cidrName,
+				ip:                target.ip,
+				port:              port,
+				serviceLabel:      target.serviceLabel,
+				decision:          target.decision,
+				policyID:          target.policyID,
+				reason:            target.reason,
+				executionKey:      target.executionKey,
+				srcIP:             target.srcIP,
+				srcNetworkSegment: target.srcNetworkSegment,
 			}:
 			}
 			ch.NextIndex = i + 1
@@ -417,6 +446,9 @@ func readPortFile(path string) ([]input.PortSpec, error) {
 func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error) {
 	if cfg.Resume != "" {
 		return state.Load(cfg.Resume)
+	}
+	if hasRichRecords(cidrRecords) {
+		return buildRichChunks(cidrRecords)
 	}
 	groups, err := buildCIDRGroups(cidrRecords)
 	if err != nil {
@@ -454,7 +486,15 @@ func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSp
 }
 
 func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error) {
-	groups, err := buildCIDRGroups(cidrRecords)
+	var (
+		groups map[string]cidrGroup
+		err    error
+	)
+	if hasRichRecords(cidrRecords) {
+		groups, err = buildRichGroups(cidrRecords)
+	} else {
+		groups, err = buildCIDRGroups(cidrRecords)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -469,9 +509,13 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 
 		portRows := ch.Ports
 		if len(portRows) == 0 {
-			portRows = make([]string, 0, len(defaultPorts))
-			for _, p := range defaultPorts {
-				portRows = append(portRows, p.Raw)
+			if group.port > 0 {
+				portRows = []string{fmt.Sprintf("%d/tcp", group.port)}
+			} else {
+				portRows = make([]string, 0, len(defaultPorts))
+				for _, p := range defaultPorts {
+					portRows = append(portRows, p.Raw)
+				}
 			}
 			ch.Ports = append(ch.Ports, portRows...)
 		}
@@ -506,6 +550,7 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 
 type cidrGroup struct {
 	targets []scanTarget
+	port    int
 }
 
 func buildCIDRGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error) {
@@ -556,6 +601,112 @@ func buildCIDRGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, erro
 	return out, nil
 }
 
+func hasRichRecords(cidrRecords []input.CIDRRecord) bool {
+	for _, rec := range cidrRecords {
+		if rec.IsRich {
+			return true
+		}
+	}
+	return false
+}
+
+func buildRichChunks(cidrRecords []input.CIDRRecord) ([]task.Chunk, error) {
+	groups, err := buildRichGroups(cidrRecords)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	out := make([]task.Chunk, 0, len(keys))
+	for _, key := range keys {
+		g := groups[key]
+		cidrName := ""
+		if len(g.targets) > 0 {
+			cidrName = g.targets[0].cidrName
+		}
+		out = append(out, task.Chunk{
+			CIDR:         key,
+			CIDRName:     cidrName,
+			Ports:        []string{fmt.Sprintf("%d/tcp", g.port)},
+			NextIndex:    0,
+			ScannedCount: 0,
+			TotalCount:   1,
+			Status:       "pending",
+		})
+	}
+	return out, nil
+}
+
+func buildRichGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error) {
+	out := make(map[string]cidrGroup)
+	for _, rec := range cidrRecords {
+		if !rec.IsRich || !rec.IsValid {
+			continue
+		}
+		key := strings.TrimSpace(rec.ExecutionKey)
+		if key == "" {
+			return nil, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
+		}
+		group := out[key]
+		if len(group.targets) == 0 {
+			group.port = rec.Port
+			group.targets = append(group.targets, scanTarget{
+				ip:                rec.DstIP,
+				ipCidr:            rec.DstNetworkSegment,
+				fabName:           rec.FabName,
+				cidrName:          rec.CIDRName,
+				serviceLabel:      rec.ServiceLabel,
+				decision:          rec.Decision,
+				policyID:          rec.PolicyID,
+				reason:            rec.Reason,
+				executionKey:      key,
+				srcIP:             rec.SrcIP,
+				srcNetworkSegment: rec.SrcNetworkSegment,
+			})
+			out[key] = group
+			continue
+		}
+		if group.port != rec.Port {
+			return nil, fmt.Errorf("execution key %s has inconsistent port", key)
+		}
+		t := &group.targets[0]
+		t.fabName = mergeFieldValue(t.fabName, rec.FabName)
+		t.cidrName = mergeFieldValue(t.cidrName, rec.CIDRName)
+		t.serviceLabel = mergeFieldValue(t.serviceLabel, rec.ServiceLabel)
+		t.decision = mergeFieldValue(t.decision, rec.Decision)
+		t.policyID = mergeFieldValue(t.policyID, rec.PolicyID)
+		t.reason = mergeFieldValue(t.reason, rec.Reason)
+		t.srcIP = mergeFieldValue(t.srcIP, rec.SrcIP)
+		t.srcNetworkSegment = mergeFieldValue(t.srcNetworkSegment, rec.SrcNetworkSegment)
+		out[key] = group
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no usable input rows")
+	}
+	return out, nil
+}
+
+func mergeFieldValue(existing, incoming string) string {
+	existing = strings.TrimSpace(existing)
+	incoming = strings.TrimSpace(incoming)
+	if incoming == "" || existing == incoming {
+		return existing
+	}
+	if existing == "" {
+		return incoming
+	}
+	parts := strings.Split(existing, "|")
+	for _, p := range parts {
+		if p == incoming {
+			return existing
+		}
+	}
+	return existing + "|" + incoming
+}
+
 func indexToRuntimeTarget(targets []scanTarget, ports []int, idx int) (scanTarget, int, error) {
 	if len(targets) == 0 {
 		return scanTarget{}, 0, fmt.Errorf("empty targets")
@@ -596,6 +747,13 @@ func parsePortRows(rows []string) ([]int, error) {
 		ports = append(ports, n)
 	}
 	return ports, nil
+}
+
+func defaultString(primary, fallback string) string {
+	if strings.TrimSpace(primary) != "" {
+		return primary
+	}
+	return fallback
 }
 
 func ensureFDLimit(workers int) error {

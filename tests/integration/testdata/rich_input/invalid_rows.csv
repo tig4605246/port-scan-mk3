@@ -1,0 +1,4 @@
+src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason
+10.0.1.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,https,tcp,443,accept,P-200,src-mismatch
+10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.2.0/24,https,tcp,443,accept,P-201,dst-mismatch
+10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,https,udp,443,accept,P-202,bad-protocol
