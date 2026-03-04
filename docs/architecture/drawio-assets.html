@@ -1,0 +1,1202 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>port-scan-mk3 Draw.io Compatible Assets</title>
+    <style>
+      :root {
+        --bg: #f5f8f7;
+        --panel: #ffffff;
+        --ink: #0f1720;
+        --muted: #4b5563;
+        --line: #d7dde3;
+        --accent: #0d9488;
+        --accent-2: #0369a1;
+        --process: #dff6f3;
+        --data: #e3eefc;
+        --control: #fff2d8;
+        --decision: #fde2e2;
+        --artifact: #eee5ff;
+        --boundary: #f4f4f5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+        color: var(--ink);
+        background: radial-gradient(circle at top right, #dffaf5 0%, var(--bg) 48%);
+        line-height: 1.6;
+      }
+      header {
+        padding: 24px 24px 12px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.65rem;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .usage {
+        margin-top: 14px;
+        padding: 12px;
+        background: #ecfeff;
+        border: 1px solid #99f6e4;
+        border-radius: 10px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+        padding: 0 24px 28px;
+      }
+      nav {
+        position: sticky;
+        top: 12px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        max-height: calc(100vh - 28px);
+        overflow: auto;
+      }
+      nav h2 {
+        margin: 4px 0 8px;
+        font-size: 1rem;
+      }
+      nav ol {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 4px;
+      }
+      nav a {
+        color: #0f3e5a;
+        text-decoration: none;
+      }
+      nav a:hover { text-decoration: underline; }
+      main {
+        display: grid;
+        gap: 14px;
+      }
+      .slide-block {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 2px 10px rgba(12, 20, 30, 0.04);
+      }
+      .slide-block h2 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.2rem;
+      }
+      .section-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+      .preview-flow {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        flex-wrap: wrap;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+      }
+      .node {
+        min-width: 170px;
+        max-width: 240px;
+        padding: 10px 10px;
+        border: 1px solid #9aa6b2;
+        font-size: 0.92rem;
+      }
+      .node-id {
+        display: block;
+        font-size: 0.75rem;
+        color: #334155;
+        margin-bottom: 4px;
+      }
+      .process { background: var(--process); border-radius: 12px; }
+      .data {
+        background: var(--data);
+        clip-path: polygon(9% 0, 100% 0, 91% 100%, 0% 100%);
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+      .control {
+        background: var(--control);
+        clip-path: polygon(15% 0, 85% 0, 100% 50%, 85% 100%, 15% 100%, 0% 50%);
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+      .decision {
+        background: var(--decision);
+        clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+        padding-top: 20px;
+        padding-bottom: 20px;
+      }
+      .artifact {
+        background: var(--artifact);
+        border-radius: 8px;
+        position: relative;
+      }
+      .artifact::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        border-width: 0 14px 14px 0;
+        border-style: solid;
+        border-color: transparent #d0b8ff transparent transparent;
+      }
+      .boundary {
+        background: var(--boundary);
+        border-style: dashed;
+        border-radius: 10px;
+      }
+      .arrow {
+        display: inline-flex;
+        align-items: center;
+        color: var(--accent-2);
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin: 0 2px;
+      }
+      .arrow-note {
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .xml-block {
+        width: 100%;
+        min-height: 260px;
+        max-height: 320px;
+        overflow: auto;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #0b1020;
+        color: #d4f9ee;
+        white-space: pre;
+      }
+      h3 {
+        margin: 14px 0 6px;
+        font-size: 1rem;
+      }
+      ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .checklist li {
+        list-style: none;
+      }
+      .checklist li::before {
+        content: "[ ] ";
+        color: #334155;
+      }
+      .top-link {
+        margin-top: 8px;
+        font-size: 0.85rem;
+      }
+      @media (max-width: 1060px) {
+        .layout { grid-template-columns: 1fr; }
+        nav { position: static; max-height: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header id="top">
+      <h1>port-scan-mk3 Draw.io Compatible Assets</h1>
+      <p class="subtitle">對應 19 頁專案簡報稿，提供可讀預覽 + draw.io 可匯入 mxGraph XML。</p>
+      <div class="usage">
+        <strong>Import to draw.io：</strong>複製每頁 <code>mxGraph XML</code> 文字內容，於 draw.io 使用 <code>Arrange -> Insert -> Advanced -> XML</code> 或建立 <code>.drawio</code> 檔後匯入。
+      </div>
+    </header>
+    <div class="layout">
+      <nav>
+        <h2>Slides 目錄</h2>
+        <ol>
+          <li><a href="#slide-01">Slide 01</a></li>
+          <li><a href="#slide-02">Slide 02</a></li>
+          <li><a href="#slide-03">Slide 03</a></li>
+          <li><a href="#slide-04">Slide 04</a></li>
+          <li><a href="#slide-05">Slide 05</a></li>
+          <li><a href="#slide-06">Slide 06</a></li>
+          <li><a href="#slide-07">Slide 07</a></li>
+          <li><a href="#slide-08">Slide 08</a></li>
+          <li><a href="#slide-09">Slide 09</a></li>
+          <li><a href="#slide-10">Slide 10</a></li>
+          <li><a href="#slide-11">Slide 11</a></li>
+          <li><a href="#slide-12">Slide 12</a></li>
+          <li><a href="#slide-13">Slide 13</a></li>
+          <li><a href="#slide-14">Slide 14</a></li>
+          <li><a href="#slide-15">Slide 15</a></li>
+          <li><a href="#slide-16">Slide 16</a></li>
+          <li><a href="#slide-17">Slide 17</a></li>
+          <li><a href="#slide-18">Slide 18</a></li>
+          <li><a href="#slide-19">Slide 19</a></li>
+        </ol>
+      </nav>
+      <main>
+        <section id="slide-01" class="slide-block">
+          <h2>Slide 01｜封面：port-scan-mk3 專案介紹</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S01-N01</span>專案目標</div>
+              <div class="arrow">→<span class="arrow-note">S01-E01</span></div>
+              <div class="node process"><span class="node-id">S01-N02</span>整體架構</div>
+              <div class="arrow">→<span class="arrow-note">S01-E02</span></div>
+              <div class="node artifact"><span class="node-id">S01-N03</span>實作功能與使用</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S01-N01" value="專案目標" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S01-N02" value="整體架構" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S01-N03" value="實作功能與使用" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S01-E01" value="S01-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S01-N01" target="S01-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S01-E02" value="S01-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S01-N02" target="S01-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 1 頁封面與簡報主題導覽。</li>
+            <li>此圖用來提示觀眾今日四大段落。</li>
+            <li>後續每頁內容都可回扣這三個主節點。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-02" class="slide-block">
+          <h2>Slide 02｜專案目標與要解決的問題</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node decision"><span class="node-id">S02-N01</span>現場痛點：輸入不穩/中斷難續</div>
+              <div class="arrow">→<span class="arrow-note">S02-E01</span></div>
+              <div class="node control"><span class="node-id">S02-N02</span>策略：fail-fast + pressure-aware</div>
+              <div class="arrow">→<span class="arrow-note">S02-E02</span></div>
+              <div class="node artifact"><span class="node-id">S02-N03</span>結果：可驗證、可恢復、可控速</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S02-N01" value="現場痛點：輸入不穩/中斷難續" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S02-N02" value="策略：fail-fast + pressure-aware" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S02-N03" value="結果：可驗證、可恢復、可控速" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S02-E01" value="S02-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S02-N01" target="S02-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S02-E02" value="S02-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S02-N02" target="S02-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 2 頁問題到策略的轉換。</li>
+            <li>將技術功能綁定到工程實務痛點。</li>
+            <li>可直接在 draw.io 補入更多場景節點。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-03" class="slide-block">
+          <h2>Slide 03｜核心價值與成功指標</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node data"><span class="node-id">S03-N01</span>資料品質前置把關</div>
+              <div class="arrow">→<span class="arrow-note">S03-E01</span></div>
+              <div class="node control"><span class="node-id">S03-N02</span>執行可控與可觀測</div>
+              <div class="arrow">→<span class="arrow-note">S03-E02</span></div>
+              <div class="node artifact"><span class="node-id">S03-N03</span>失敗可恢復且可回歸</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S03-N01" value="資料品質前置把關" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S03-N02" value="執行可控與可觀測" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S03-N03" value="失敗可恢復且可回歸" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S03-E01" value="S03-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S03-N01" target="S03-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S03-E02" value="S03-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S03-N02" target="S03-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 3 頁三層價值主張。</li>
+            <li>節點代表可量測能力，不是單純口號。</li>
+            <li>可在 N03 後追加 KPI 節點。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-04" class="slide-block">
+          <h2>Slide 04｜端到端架構總覽（Pipeline）</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S04-N01</span>CLI/config</div>
+              <div class="arrow">→<span class="arrow-note">S04-E01</span></div>
+              <div class="node process"><span class="node-id">S04-N02</span>input -> task -> scanapp</div>
+              <div class="arrow">→<span class="arrow-note">S04-E02</span></div>
+              <div class="node artifact"><span class="node-id">S04-N03</span>writer/state + artifacts</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S04-N01" value="CLI/config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S04-N02" value="input -> task -> scanapp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S04-N03" value="writer/state + artifacts" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S04-E01" value="S04-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S04-N01" target="S04-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S04-E02" value="S04-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S04-N02" target="S04-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 4 頁主 pipeline。</li>
+            <li>可在 draw.io 拆成分層泳道圖。</li>
+            <li>S04-E01/S04-E02 為主流程箭頭。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-05" class="slide-block">
+          <h2>Slide 05｜CLI 與設定層</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S05-N01</span>validate / scan</div>
+              <div class="arrow">→<span class="arrow-note">S05-E01</span></div>
+              <div class="node data"><span class="node-id">S05-N02</span>共用 flags 解析</div>
+              <div class="arrow">→<span class="arrow-note">S05-E02</span></div>
+              <div class="node control"><span class="node-id">S05-N03</span>scan 才進入網路探測</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S05-N01" value="validate / scan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S05-N02" value="共用 flags 解析" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S05-N03" value="scan 才進入網路探測" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S05-E01" value="S05-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S05-N01" target="S05-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S05-E02" value="S05-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S05-N02" target="S05-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 5 頁 CLI 語意差異。</li>
+            <li>保留 flags 共用但行為分流重點。</li>
+            <li>可在 N02 擴展旗標分類子圖。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-06" class="slide-block">
+          <h2>Slide 06｜Input 模組：驗證與資料契約</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node data"><span class="node-id">S06-N01</span>載入 CIDR/Port 檔</div>
+              <div class="arrow">→<span class="arrow-note">S06-E01</span></div>
+              <div class="node decision"><span class="node-id">S06-N02</span>fail-fast 驗證</div>
+              <div class="arrow">→<span class="arrow-note">S06-E02</span></div>
+              <div class="node boundary"><span class="node-id">S06-N03</span>canonical 欄位契約</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S06-N01" value="載入 CIDR/Port 檔" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S06-N02" value="fail-fast 驗證" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S06-N03" value="canonical 欄位契約" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f4f5;strokeColor=#52525b;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S06-E01" value="S06-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S06-N01" target="S06-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S06-E02" value="S06-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S06-N02" target="S06-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 6 頁輸入品質把關。</li>
+            <li>N02 表示驗證 gate，非通過即終止。</li>
+            <li>N03 可加入 rich input 欄位清單。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-07" class="slide-block">
+          <h2>Slide 07｜Task 模組：展開與去重</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S07-N01</span>selector 展開</div>
+              <div class="arrow">→<span class="arrow-note">S07-E01</span></div>
+              <div class="node control"><span class="node-id">S07-N02</span>execution-key 去重</div>
+              <div class="arrow">→<span class="arrow-note">S07-E02</span></div>
+              <div class="node artifact"><span class="node-id">S07-N03</span>輸出 target x port 任務</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S07-N01" value="selector 展開" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S07-N02" value="execution-key 去重" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S07-N03" value="輸出 target x port 任務" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S07-E01" value="S07-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S07-N01" target="S07-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S07-E02" value="S07-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S07-N02" target="S07-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 7 頁任務建模。</li>
+            <li>N02 對應 dst_ip:port/protocol 去重。</li>
+            <li>可在 draw.io 追加去重前後任務數。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-08" class="slide-block">
+          <h2>Slide 08｜Scan Runtime：協調與並行模型</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S08-N01</span>worker pool + channels</div>
+              <div class="arrow">→<span class="arrow-note">S08-E01</span></div>
+              <div class="node control"><span class="node-id">S08-N02</span>rate limit / pause gate</div>
+              <div class="arrow">→<span class="arrow-note">S08-E02</span></div>
+              <div class="node artifact"><span class="node-id">S08-N03</span>穩定吞吐 + 可預測行為</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S08-N01" value="worker pool + channels" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S08-N02" value="rate limit / pause gate" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S08-N03" value="穩定吞吐 + 可預測行為" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S08-E01" value="S08-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S08-N01" target="S08-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S08-E02" value="S08-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S08-N02" target="S08-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 8 頁 runtime 協調層。</li>
+            <li>N02 表示 speedctrl/ratelimit 組件。</li>
+            <li>箭頭展示 runtime 主控制路徑。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-09" class="slide-block">
+          <h2>Slide 09｜TCP 探測模型（必講）</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S09-N01</span>DialTimeout(tcp,target,timeout)</div>
+              <div class="arrow">→<span class="arrow-note">S09-E01</span></div>
+              <div class="node process"><span class="node-id">S09-N02</span>連線成功後 conn.Close()</div>
+              <div class="arrow">→<span class="arrow-note">S09-E02</span></div>
+              <div class="node boundary"><span class="node-id">S09-N03</span>非 SYN/RST raw packet 掃描、非 RST 強制斷線</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S09-N01" value="DialTimeout(tcp,target,timeout)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="140" width="270" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="S09-N02" value="Connected -> conn.Close()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="410" y="140" width="270" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="S09-N03" value="Boundary: 非 SYN/RST raw packet 掃描、非 RST 強制斷線" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f4f5;strokeColor=#52525b;" vertex="1" parent="1">
+      <mxGeometry x="760" y="140" width="320" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="S09-E01" value="S09-E01" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="S09-N01" target="S09-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S09-E02" value="S09-E02" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="S09-N02" target="S09-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應簡報稿第 9 頁：必須明確說明 Go net.DialTimeout TCP 連線探測模型。</li>
+            <li>連線成功後走 conn.Close() 正常關閉流程，並非封包級強制中斷。</li>
+            <li>邊界聲明：非 SYN/RST raw packet 掃描、非主動 RST 強制斷線。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-10" class="slide-block">
+          <h2>Slide 10｜輸出與 Resume 機制</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node artifact"><span class="node-id">S10-N01</span>scan_results/opened_results</div>
+              <div class="arrow">→<span class="arrow-note">S10-E01</span></div>
+              <div class="node control"><span class="node-id">S10-N02</span>中斷或失敗保存 resume_state</div>
+              <div class="arrow">→<span class="arrow-note">S10-E02</span></div>
+              <div class="node process"><span class="node-id">S10-N03</span>下次 run 續跑</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S10-N01" value="scan_results/opened_results" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S10-N02" value="中斷或失敗保存 resume_state" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S10-N03" value="下次 run 續跑" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S10-E01" value="S10-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S10-N01" target="S10-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S10-E02" value="S10-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S10-N02" target="S10-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 10 頁輸出與恢復。</li>
+            <li>N01/N02 對應雙輸出與狀態落地。</li>
+            <li>可在 draw.io 擴展到檔案命名規則。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-11" class="slide-block">
+          <h2>Slide 11｜功能一：Fail-Fast 驗證</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S11-N01</span>先 validate</div>
+              <div class="arrow">→<span class="arrow-note">S11-E01</span></div>
+              <div class="node decision"><span class="node-id">S11-N02</span>壞資料立即中止</div>
+              <div class="arrow">→<span class="arrow-note">S11-E02</span></div>
+              <div class="node artifact"><span class="node-id">S11-N03</span>降低掃描成本</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S11-N01" value="先 validate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S11-N02" value="壞資料立即中止" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S11-N03" value="降低掃描成本" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S11-E01" value="S11-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S11-N01" target="S11-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S11-E02" value="S11-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S11-N02" target="S11-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 11 頁 fail-fast 功能。</li>
+            <li>N02 是 fail gate。</li>
+            <li>可加入錯誤碼分類節點。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-12" class="slide-block">
+          <h2>Slide 12｜功能二：Rich Input Parser</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node data"><span class="node-id">S12-N01</span>canonical 欄位讀取</div>
+              <div class="arrow">→<span class="arrow-note">S12-E01</span></div>
+              <div class="node decision"><span class="node-id">S12-N02</span>row-level 驗證</div>
+              <div class="arrow">→<span class="arrow-note">S12-E02</span></div>
+              <div class="node artifact"><span class="node-id">S12-N03</span>保留 policy/reason 語境</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S12-N01" value="canonical 欄位讀取" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S12-N02" value="row-level 驗證" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S12-N03" value="保留 policy/reason 語境" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S12-E01" value="S12-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S12-N01" target="S12-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S12-E02" value="S12-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S12-N02" target="S12-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 12 頁 rich parser。</li>
+            <li>保留治理語意以利追溯。</li>
+            <li>可加入 mixed valid/invalid 分流。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-13" class="slide-block">
+          <h2>Slide 13｜功能三：Pressure-Aware 控制</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node control"><span class="node-id">S13-N01</span>輪詢 pressure API</div>
+              <div class="arrow">→<span class="arrow-note">S13-E01</span></div>
+              <div class="node decision"><span class="node-id">S13-N02</span>高壓暫停/低壓恢復</div>
+              <div class="arrow">→<span class="arrow-note">S13-E02</span></div>
+              <div class="node boundary"><span class="node-id">S13-N03</span>連續失敗升級終止</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S13-N01" value="輪詢 pressure API" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S13-N02" value="高壓暫停/低壓恢復" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S13-N03" value="連續失敗升級終止" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f4f5;strokeColor=#52525b;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S13-E01" value="S13-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S13-N01" target="S13-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S13-E02" value="S13-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S13-N02" target="S13-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 13 頁壓力控制。</li>
+            <li>N03 表示 escalation 邊界。</li>
+            <li>可擴展失敗計數與門檻參數。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-14" class="slide-block">
+          <h2>Slide 14｜功能四：可觀測性與輸出契約</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node artifact"><span class="node-id">S14-N01</span>structured runtime events</div>
+              <div class="arrow">→<span class="arrow-note">S14-E01</span></div>
+              <div class="node data"><span class="node-id">S14-N02</span>結果欄位契約</div>
+              <div class="arrow">→<span class="arrow-note">S14-E02</span></div>
+              <div class="node process"><span class="node-id">S14-N03</span>報表與稽核整合</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S14-N01" value="structured runtime events" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S14-N02" value="結果欄位契約" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S14-N03" value="報表與稽核整合" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S14-E01" value="S14-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S14-N01" target="S14-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S14-E02" value="S14-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S14-N02" target="S14-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 14 頁觀測與契約。</li>
+            <li>N02 對應固定欄位 schema。</li>
+            <li>可在 draw.io 擴展到報表 pipeline。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-15" class="slide-block">
+          <h2>Slide 15｜如何使用：最小可用流程</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S15-N01</span>Step1: validate</div>
+              <div class="arrow">→<span class="arrow-note">S15-E01</span></div>
+              <div class="node process"><span class="node-id">S15-N02</span>Step2: scan</div>
+              <div class="arrow">→<span class="arrow-note">S15-E02</span></div>
+              <div class="node artifact"><span class="node-id">S15-N03</span>Step3: 檢查輸出與 resume</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S15-N01" value="Step1: validate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S15-N02" value="Step2: scan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S15-N03" value="Step3: 檢查輸出與 resume" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S15-E01" value="S15-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S15-N01" target="S15-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S15-E02" value="S15-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S15-N02" target="S15-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 15 頁標準操作順序。</li>
+            <li>流程簡單但必須固定化。</li>
+            <li>可加上團隊 SOP 節點。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-16" class="slide-block">
+          <h2>Slide 16｜如何使用：常用命令與參數</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node data"><span class="node-id">S16-N01</span>基本命令模板</div>
+              <div class="arrow">→<span class="arrow-note">S16-E01</span></div>
+              <div class="node control"><span class="node-id">S16-N02</span>workers/timeout/delay 調校</div>
+              <div class="arrow">→<span class="arrow-note">S16-E02</span></div>
+              <div class="node control"><span class="node-id">S16-N03</span>pressure/resume 參數策略</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S16-N01" value="基本命令模板" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S16-N02" value="workers/timeout/delay 調校" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S16-N03" value="pressure/resume 參數策略" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S16-E01" value="S16-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S16-N01" target="S16-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S16-E02" value="S16-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S16-N02" target="S16-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 16 頁 flags 運用。</li>
+            <li>N02/N03 可再分為效能與穩定兩類。</li>
+            <li>適合在 draw.io 拆兩條調校路徑。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-17" class="slide-block">
+          <h2>Slide 17｜如何使用：情境排障</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node decision"><span class="node-id">S17-N01</span>API 不穩 -> 隔離測試</div>
+              <div class="arrow">→<span class="arrow-note">S17-E01</span></div>
+              <div class="node process"><span class="node-id">S17-N02</span>中斷 -> resume 續跑</div>
+              <div class="arrow">→<span class="arrow-note">S17-E02</span></div>
+              <div class="node artifact"><span class="node-id">S17-N03</span>檔名碰撞 -> -n 後綴</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S17-N01" value="API 不穩 -> 隔離測試" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S17-N02" value="中斷 -> resume 續跑" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S17-N03" value="檔名碰撞 -> -n 後綴" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S17-E01" value="S17-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S17-N01" target="S17-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S17-E02" value="S17-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S17-N02" target="S17-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 17 頁 troubleshooting。</li>
+            <li>以決策圖幫助快速判斷處置。</li>
+            <li>可追加更多 incident pattern。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-18" class="slide-block">
+          <h2>Slide 18｜品質門檻與驗證證據</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S18-N01</span>go test ./...</div>
+              <div class="arrow">→<span class="arrow-note">S18-E01</span></div>
+              <div class="node process"><span class="node-id">S18-N02</span>scripts/coverage_gate.sh</div>
+              <div class="arrow">→<span class="arrow-note">S18-E02</span></div>
+              <div class="node artifact"><span class="node-id">S18-N03</span>e2e/run_e2e.sh + artifacts</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S18-N01" value="go test ./..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="60" y="160" width="240" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S18-N02" value="scripts/coverage_gate.sh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="380" y="160" width="260" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S18-N03" value="e2e/run_e2e.sh + artifacts" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+      <mxGeometry x="730" y="160" width="280" height="72" as="geometry"/>
+    </mxCell>
+    <mxCell id="S18-E01" value="S18-E01" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S18-N01" target="S18-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S18-E02" value="S18-E02" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369a1;" edge="1" parent="1" source="S18-N02" target="S18-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應第 18 頁三層品質門檻。</li>
+            <li>N01-N03 形成完整 gate pipeline。</li>
+            <li>可在 draw.io 加入 PASS/FAIL 分支。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+        <section id="slide-19" class="slide-block">
+          <h2>Slide 19｜邊界、非目標、Roadmap</h2>
+          <h3>Diagram Preview</h3>
+          <div class="section-grid">
+            <div class="preview-flow">
+              <div class="node process"><span class="node-id">S19-N01</span>Scope: TCP connect 探測</div>
+              <div class="arrow">→<span class="arrow-note">S19-E01</span></div>
+              <div class="node boundary"><span class="node-id">S19-N02</span>非 SYN/RST raw packet 掃描、非 RST 強制斷線</div>
+              <div class="arrow">→<span class="arrow-note">S19-E02</span></div>
+              <div class="node control"><span class="node-id">S19-N03</span>Roadmap: IPv6 / UDP / 分散式掃描</div>
+            </div>
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml-block" readonly>
+<mxGraphModel dx="1260" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="S19-N01" value="Scope: TCP connect probe" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;" vertex="1" parent="1">
+      <mxGeometry x="70" y="150" width="250" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="S19-N02" value="Non-goals: 非 SYN/RST raw packet 掃描、非 RST 強制斷線" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f4f5;strokeColor=#52525b;" vertex="1" parent="1">
+      <mxGeometry x="400" y="150" width="330" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="S19-N03" value="Roadmap: IPv6 / UDP / Distributed Scan" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;" vertex="1" parent="1">
+      <mxGeometry x="810" y="150" width="280" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="S19-E01" value="S19-E01" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="S19-N01" target="S19-N02">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="S19-E02" value="S19-E02" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="S19-N02" target="S19-N03">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>對應簡報稿第 19 頁：清楚界定現在能做與不能做的範圍。</li>
+            <li>強調非目標：非 SYN/RST raw packet 掃描、非主動 RST 強制斷線。</li>
+            <li>Roadmap 作為可擴充方向，不改變目前 TCP connect 主定位。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Preview 與該頁講稿重點一致</li>
+            <li>mxGraph XML 可在 draw.io 匯入</li>
+            <li>節點與邊 ID 符合 Sxx-Nyy / Sxx-Eyy</li>
+          </ul>
+          <p class="top-link"><a href="#top">回到目錄</a></p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
