@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>port-scan-mk3 Detailed Architecture (draw.io compatible)</title>
+    <style>
+      :root {
+        --bg: #f4f7f7;
+        --panel: #ffffff;
+        --text: #0f1720;
+        --muted: #475569;
+        --line: #d1d5db;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at top right, #e6fff8 0%, var(--bg) 45%);
+      }
+      header {
+        padding: 20px 24px 10px;
+      }
+      h1 { margin: 0; font-size: 1.55rem; }
+      .subtitle { margin-top: 6px; color: var(--muted); }
+      .usage {
+        margin-top: 10px;
+        border: 1px solid #99f6e4;
+        background: #ecfeff;
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 14px;
+        padding: 0 24px 24px;
+      }
+      nav {
+        position: sticky;
+        top: 10px;
+        align-self: start;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      nav ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+      nav a { color: #0f3e5a; text-decoration: none; }
+      nav a:hover { text-decoration: underline; }
+      main { display: grid; gap: 12px; }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      h2 { margin: 0 0 8px; }
+      h3 { margin: 12px 0 6px; font-size: 1rem; }
+      .preview {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fafafa;
+      }
+      .xml {
+        width: 100%;
+        min-height: 280px;
+        max-height: 340px;
+        overflow: auto;
+        border: 1px solid #0b1020;
+        border-radius: 10px;
+        background: #0b1020;
+        color: #d4f9ee;
+        font-family: Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        padding: 10px;
+        white-space: pre;
+      }
+      .checklist li { list-style: none; }
+      .checklist li::before { content: "[ ] "; }
+      .top { margin-top: 8px; font-size: 0.86rem; }
+      @media (max-width: 1024px) {
+        .layout { grid-template-columns: 1fr; }
+        nav { position: static; }
+      }
+    </style>
+  </head>
+  <body>
+    <header id="top">
+      <h1>port-scan-mk3 Detailed Architecture (draw.io compatible)</h1>
+      <p class="subtitle">四頁圖集：System Overview、Happy Path、Sad Path、Component Contracts。</p>
+      <div class="usage">
+        <strong>Import to draw.io:</strong> 複製任一頁的 <code>mxGraph XML</code>，到 draw.io 以 <code>Arrange -&gt; Insert -&gt; Advanced -&gt; XML</code> 匯入。
+      </div>
+    </header>
+    <div class="layout">
+      <nav>
+        <ol>
+          <li><a href="#p01">P01-System-Overview</a></li>
+          <li><a href="#p02">P02-Happy-Path-Dataflow</a></li>
+          <li><a href="#p03">P03-Sad-Path-Error-Recovery</a></li>
+          <li><a href="#p04">P04-Component-Contracts</a></li>
+        </ol>
+      </nav>
+      <main>
+        <section id="p01">
+          <h2>P01-System-Overview</h2>
+          <h3>Diagram Preview</h3>
+          <div class="preview">
+            主線：<code>CLI/config -> input -> task -> scanapp -> scanner -> writer/state/logx</code><br/>
+            控制線：<code>pressure API -> speedctrl -> scanapp</code>、<code>SIGINT -> scanapp</code><br/>
+            輸入：CIDR CSV、Port Input；輸出：scan/opened CSV、resume_state、runtime events。
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml" readonly>
+<mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="P01-N10" value="CIDR CSV&#xa;Input: selector, ip_cidr" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="40" y="40" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N11" value="Port Input&#xa;Input: &lt;port&gt;/tcp lines" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="250" y="40" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N18" value="OS Signal&#xa;SIGINT / cancel" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="460" y="40" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N12" value="pressure API&#xa;Input: pressure status" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="670" y="40" width="190" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N13" value="Scan Targets&#xa;TCP endpoints" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="930" y="40" width="180" height="80" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="P01-N01" value="CLI/config&#xa;Process: parse flags" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="40" y="220" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N02" value="input&#xa;Process: load + validate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="250" y="220" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N03" value="task&#xa;Process: expand + dedup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="460" y="220" width="190" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N04" value="scanapp&#xa;Process: dispatch + orchestration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="680" y="220" width="220" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N05" value="scanner&#xa;Process: TCP probe" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="930" y="220" width="180" height="80" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="P01-N09" value="speedctrl&#xa;Process: pause/resume gate" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="680" y="340" width="220" height="90" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N08" value="logx&#xa;Output: runtime events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="930" y="340" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N06" value="writer&#xa;Output: batch CSV files" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1140" y="160" width="210" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N07" value="state&#xa;Output: resume checkpoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1140" y="280" width="210" height="80" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="P01-N14" value="scan_results-*.csv" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1380" y="120" width="220" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N15" value="opened_results-*.csv" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1380" y="205" width="220" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N16" value="resume_state.json / -resume" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1380" y="290" width="220" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="P01-N17" value="runtime event logs" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1140" y="375" width="210" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="P01-E01" value="cfg flags" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N01" target="P01-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E02" value="CIDRRecord[]" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N10" target="P01-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E03" value="PortSpec[]" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N11" target="P01-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E04" value="validated rows" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N02" target="P01-N03"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E05" value="scanTask[]" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N03" target="P01-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E06" value="dial request" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N04" target="P01-N05"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E07" value="status result" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N05" target="P01-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E08" value="TCP probe" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N05" target="P01-N13"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P01-E09" value="writer.Record" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N04" target="P01-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E10" value="chunk state" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N04" target="P01-N07"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E11" value="runtime event" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P01-N04" target="P01-N08"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P01-E12" value="scan results" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;dashPattern=1 4;fontSize=10;" edge="1" parent="1" source="P01-N06" target="P01-N14"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E13" value="open-only" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;dashPattern=1 4;fontSize=10;" edge="1" parent="1" source="P01-N06" target="P01-N15"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E14" value="resume snapshot" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;dashPattern=1 4;fontSize=10;" edge="1" parent="1" source="P01-N07" target="P01-N16"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E15" value="event stream" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;dashPattern=1 4;fontSize=10;" edge="1" parent="1" source="P01-N08" target="P01-N17"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P01-E16" value="pressure sample" style="endArrow=classic;html=1;strokeColor=#92400e;dashed=1;fontSize=10;" edge="1" parent="1" source="P01-N12" target="P01-N09"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E17" value="pause/resume gate" style="endArrow=classic;html=1;strokeColor=#92400e;dashed=1;fontSize=10;" edge="1" parent="1" source="P01-N09" target="P01-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P01-E18" value="cancel signal" style="endArrow=classic;html=1;strokeColor=#92400e;dashed=1;fontSize=10;" edge="1" parent="1" source="P01-N18" target="P01-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>展示所有核心 component 與外部依賴。</li>
+            <li>每條邊標示主資料結構（如 CIDRRecord[]、writer.Record）。</li>
+            <li>可用於 architecture review 的責任邊界討論。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Component interaction 完整</li>
+            <li>Input/Output artifact 清楚</li>
+            <li>控制流與資料流分離</li>
+          </ul>
+          <p class="top"><a href="#top">回到頂部</a></p>
+        </section>
+
+        <section id="p02">
+          <h2>P02-Happy-Path-Dataflow</h2>
+          <h3>Diagram Preview</h3>
+          <div class="preview">
+            成功路徑：validate pass -> expand/dedup -> dispatch -> TCP dial -> write outputs -> exit 0。<br/>
+            含 TCP 邊界聲明：<code>net.DialTimeout</code>、<code>conn.Close()</code>、非 SYN/RST raw packet 掃描。
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml" readonly>
+<mxGraphModel dx="1900" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="1600" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="P02-N01" value="CLI: run validate or scan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="220" width="180" height="70" as="geometry"/></mxCell>
+    <mxCell id="P02-N02" value="Parse and normalize config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="250" y="220" width="190" height="70" as="geometry"/></mxCell>
+    <mxCell id="P02-N03" value="Read CIDR and Port inputs" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="470" y="220" width="200" height="70" as="geometry"/></mxCell>
+    <mxCell id="P02-N04" value="Validation PASS&#xa;schema + overlap + containment" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=11;" vertex="1" parent="1"><mxGeometry x="710" y="210" width="170" height="90" as="geometry"/></mxCell>
+    <mxCell id="P02-N05" value="Expand selectors to IPv4 targets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="920" y="220" width="210" height="70" as="geometry"/></mxCell>
+    <mxCell id="P02-N06" value="Build execution-key dedup tasks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1160" y="220" width="220" height="70" as="geometry"/></mxCell>
+    <mxCell id="P02-N07" value="Dispatch workers + leaky bucket" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1410" y="220" width="220" height="80" as="geometry"/></mxCell>
+    <mxCell id="P02-N08" value="Pressure gate = RUN" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1660" y="220" width="180" height="80" as="geometry"/></mxCell>
+
+    <mxCell id="P02-N09" value="scanner: net.DialTimeout(&quot;tcp&quot;, target, timeout)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1660" y="420" width="240" height="80" as="geometry"/></mxCell>
+    <mxCell id="P02-N10" value="Connected then conn.Close()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1390" y="420" width="230" height="80" as="geometry"/></mxCell>
+    <mxCell id="P02-N11" value="Result map: open | close | close(timeout)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1120" y="420" width="240" height="80" as="geometry"/></mxCell>
+    <mxCell id="P02-N12" value="writer.Record aggregation" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=11;" vertex="1" parent="1"><mxGeometry x="860" y="420" width="230" height="80" as="geometry"/></mxCell>
+    <mxCell id="P02-N13" value="Write scan_results and opened_results" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=11;" vertex="1" parent="1"><mxGeometry x="600" y="420" width="230" height="80" as="geometry"/></mxCell>
+    <mxCell id="P02-N14" value="Completion summary and exit code 0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="340" y="420" width="230" height="80" as="geometry"/></mxCell>
+
+    <mxCell id="P02-N15" value="Input structure&#xa;Config{cidr-file, port-file, workers, timeout, delay, pressure-api}&#xa;CIDRRecord[] + PortSpec[]" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=10;" vertex="1" parent="1"><mxGeometry x="470" y="40" width="330" height="120" as="geometry"/></mxCell>
+    <mxCell id="P02-N16" value="Output structure&#xa;writer.Record{ip, ip_cidr, port, status, response_time_ms, ...}&#xa;Artifacts: scan_results-* and opened_results-*" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=10;" vertex="1" parent="1"><mxGeometry x="600" y="560" width="420" height="120" as="geometry"/></mxCell>
+    <mxCell id="P02-N17" value="Boundary&#xa;Not SYN/RST raw packet scan&#xa;No active RST forced teardown" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f4f5;strokeColor=#52525b;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1660" y="40" width="260" height="110" as="geometry"/></mxCell>
+
+    <mxCell id="P02-E01" value="flags" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N01" target="P02-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E02" value="config" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N02" target="P02-N03"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E03" value="rows" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N03" target="P02-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E04" value="pass" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N04" target="P02-N05"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E05" value="targets" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N05" target="P02-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E06" value="scanTask[]" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N06" target="P02-N07"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E07" value="dispatch" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N07" target="P02-N08"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E08" value="allow run" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N08" target="P02-N09"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E09" value="connect ok" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N09" target="P02-N10"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E10" value="status" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N10" target="P02-N11"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E11" value="writer.Record" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N11" target="P02-N12"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E12" value="persist" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N12" target="P02-N13"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E13" value="summary" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P02-N13" target="P02-N14"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P02-E14" value="input contract" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;dashPattern=1 4;fontSize=10;" edge="1" parent="1" source="P02-N15" target="P02-N03"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E15" value="output contract" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;dashPattern=1 4;fontSize=10;" edge="1" parent="1" source="P02-N13" target="P02-N16"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P02-E16" value="boundary applies" style="endArrow=classic;html=1;strokeColor=#52525b;dashed=1;fontSize=10;" edge="1" parent="1" source="P02-N17" target="P02-N09"><mxGeometry relative="1" as="geometry"/></mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>節點標示各步 Input/Output 轉換。</li>
+            <li>顯示 output schema（writer.Record 與兩種 batch 檔）。</li>
+            <li>可直接拿來對齊 e2e happy scenario 期待行為。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>Happy path 連續可追蹤</li>
+            <li>DialTimeout / conn.Close 邊界清楚</li>
+            <li>結果輸出結構明確</li>
+          </ul>
+          <p class="top"><a href="#top">回到頂部</a></p>
+        </section>
+
+        <section id="p03">
+          <h2>P03-Sad-Path-Error-Recovery</h2>
+          <h3>Diagram Preview</h3>
+          <div class="preview">
+            三條失敗路徑：<br/>
+            A. validation fail -> early exit<br/>
+            B. pressure API repeated failure -> escalation -> save resume -> non-zero exit<br/>
+            C. cancel/signal -> save resume -> rerun with -resume -> recovered completion
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml" readonly>
+<mxGraphModel dx="2200" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3600" pageHeight="1800" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="P03-N01" value="Start scan command&#xa;Parse config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="60" y="120" width="180" height="80" as="geometry"/></mxCell>
+    <mxCell id="P03-N02" value="Load CIDR and Port inputs" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="280" y="120" width="220" height="80" as="geometry"/></mxCell>
+    <mxCell id="P03-N03" value="Input valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=11;" vertex="1" parent="1"><mxGeometry x="540" y="115" width="170" height="90" as="geometry"/></mxCell>
+
+    <mxCell id="P03-N04" value="Sad Path A&#xa;Trigger: validation fail&#xa;Effect: early exit (code 1)" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=11;" vertex="1" parent="1"><mxGeometry x="760" y="40" width="250" height="110" as="geometry"/></mxCell>
+
+    <mxCell id="P03-N05" value="Build runtime chunks and queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="760" y="220" width="250" height="80" as="geometry"/></mxCell>
+    <mxCell id="P03-N06" value="Run dispatch + poll pressure API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1050" y="220" width="250" height="80" as="geometry"/></mxCell>
+    <mxCell id="P03-N07" value="Consecutive API failures &gt;= 3?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1340" y="215" width="200" height="90" as="geometry"/></mxCell>
+
+    <mxCell id="P03-N09" value="Sad Path B&#xa;Action: save resume_state" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1590" y="150" width="220" height="90" as="geometry"/></mxCell>
+    <mxCell id="P03-N10" value="Effect: non-zero exit&#xa;(pressure escalation)" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#92400e;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1850" y="150" width="220" height="90" as="geometry"/></mxCell>
+
+    <mxCell id="P03-N08" value="Continue scan tasks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1590" y="290" width="220" height="80" as="geometry"/></mxCell>
+    <mxCell id="P03-N11" value="Cancelled or signal received?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1850" y="285" width="220" height="90" as="geometry"/></mxCell>
+    <mxCell id="P03-N12" value="No cancel: normal completion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d1fae5;strokeColor=#047857;fontSize=11;" vertex="1" parent="1"><mxGeometry x="2120" y="220" width="220" height="90" as="geometry"/></mxCell>
+
+    <mxCell id="P03-N13" value="Sad Path C&#xa;Action: save resume_state" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=11;" vertex="1" parent="1"><mxGeometry x="2120" y="350" width="220" height="90" as="geometry"/></mxCell>
+    <mxCell id="P03-N14" value="Recovery: rerun with -resume" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="2380" y="350" width="220" height="90" as="geometry"/></mxCell>
+    <mxCell id="P03-N15" value="Load saved chunk states" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="2640" y="350" width="220" height="90" as="geometry"/></mxCell>
+    <mxCell id="P03-N16" value="Resume dispatch from checkpoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="2900" y="350" width="240" height="90" as="geometry"/></mxCell>
+    <mxCell id="P03-N17" value="Recovered completion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d1fae5;strokeColor=#047857;fontSize=11;" vertex="1" parent="1"><mxGeometry x="3180" y="350" width="190" height="90" as="geometry"/></mxCell>
+
+    <mxCell id="P03-N18" value="TCP boundary&#xa;Dial via net.DialTimeout and close via conn.Close()&#xa;Not SYN/RST raw scan and no active RST forced teardown" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f4f5;strokeColor=#52525b;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1050" y="40" width="460" height="120" as="geometry"/></mxCell>
+
+    <mxCell id="P03-E01" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="P03-N01" target="P03-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E02" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="P03-N02" target="P03-N03"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E03" value="No" style="endArrow=classic;html=1;strokeColor=#b91c1c;fontSize=10;" edge="1" parent="1" source="P03-N03" target="P03-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E04" value="Yes" style="endArrow=classic;html=1;strokeColor=#047857;fontSize=10;" edge="1" parent="1" source="P03-N03" target="P03-N05"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P03-E05" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="P03-N05" target="P03-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E06" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="P03-N06" target="P03-N07"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E07" value="Yes" style="endArrow=classic;html=1;strokeColor=#b91c1c;fontSize=10;" edge="1" parent="1" source="P03-N07" target="P03-N09"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E08" value="" style="endArrow=classic;html=1;strokeColor=#b91c1c;" edge="1" parent="1" source="P03-N09" target="P03-N10"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P03-E09" value="No" style="endArrow=classic;html=1;strokeColor=#047857;fontSize=10;" edge="1" parent="1" source="P03-N07" target="P03-N08"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E10" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="P03-N08" target="P03-N11"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E11" value="No" style="endArrow=classic;html=1;strokeColor=#047857;fontSize=10;" edge="1" parent="1" source="P03-N11" target="P03-N12"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E12" value="Yes" style="endArrow=classic;html=1;strokeColor=#b91c1c;fontSize=10;" edge="1" parent="1" source="P03-N11" target="P03-N13"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P03-E13" value="" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="P03-N13" target="P03-N14"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E14" value="" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="P03-N14" target="P03-N15"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E15" value="" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="P03-N15" target="P03-N16"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P03-E16" value="" style="endArrow=classic;html=1;strokeColor=#0369a1;" edge="1" parent="1" source="P03-N16" target="P03-N17"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P03-E17" value="boundary applies" style="endArrow=classic;html=1;strokeColor=#52525b;dashed=1;fontSize=10;" edge="1" parent="1" source="P03-N18" target="P03-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>每條分支包含 trigger、effect、recovery。</li>
+            <li>Sad path B 與 C 都要求落地 resume_state。</li>
+            <li>同頁保留 TCP 探測邊界語意，避免誤解為 RST 強制策略。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>三類 sad path 全部存在</li>
+            <li>resume recovery 流程完整</li>
+            <li>非 RST 強制斷線聲明存在</li>
+          </ul>
+          <p class="top"><a href="#top">回到頂部</a></p>
+        </section>
+
+        <section id="p04">
+          <h2>P04-Component-Contracts</h2>
+          <h3>Diagram Preview</h3>
+          <div class="preview">
+            逐 component 契約卡：<code>Input</code>、<code>Process</code>、<code>Output</code>。<br/>
+            含 input/task/scanapp/scanner/writer/state/speedctrl/logx 互動與責任邊界。
+          </div>
+          <h3>mxGraph XML</h3>
+          <textarea class="xml" readonly>
+<mxGraphModel dx="1900" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="1600" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="P04-N01" value="&lt;b&gt;CLI/config&lt;/b&gt;&lt;br&gt;Input: flags and CLI command&lt;br&gt;Process: parse and normalize config&lt;br&gt;Output: config.Config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="40" y="80" width="320" height="170" as="geometry"/></mxCell>
+    <mxCell id="P04-N02" value="&lt;b&gt;input&lt;/b&gt;&lt;br&gt;Input: CIDR CSV, Port lines&lt;br&gt;Process: schema/containment/overlap validate + rich parse&lt;br&gt;Output: []CIDRRecord and []PortSpec" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="400" y="80" width="330" height="170" as="geometry"/></mxCell>
+    <mxCell id="P04-N03" value="&lt;b&gt;task&lt;/b&gt;&lt;br&gt;Input: validated CIDR and ports&lt;br&gt;Process: expand selectors and build execution-key dedup&lt;br&gt;Output: chunk/task descriptors" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="760" y="80" width="330" height="170" as="geometry"/></mxCell>
+    <mxCell id="P04-N04" value="&lt;b&gt;scanapp&lt;/b&gt;&lt;br&gt;Input: tasks, config, control gate&lt;br&gt;Process: dispatch workers, orchestrate runtime, aggregate status&lt;br&gt;Output: writer.Record stream and chunk states" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="1120" y="80" width="340" height="170" as="geometry"/></mxCell>
+    <mxCell id="P04-N05" value="&lt;b&gt;scanner&lt;/b&gt;&lt;br&gt;Input: ip, port, timeout&lt;br&gt;Process: net.DialTimeout and conn.Close on success&lt;br&gt;Output: status and response_time_ms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="1490" y="80" width="320" height="170" as="geometry"/></mxCell>
+
+    <mxCell id="P04-N06" value="&lt;b&gt;writer&lt;/b&gt;&lt;br&gt;Input: writer.Record&lt;br&gt;Process: write full and open-only CSV&lt;br&gt;Output: scan_results-* and opened_results-*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="400" y="320" width="330" height="170" as="geometry"/></mxCell>
+    <mxCell id="P04-N07" value="&lt;b&gt;state&lt;/b&gt;&lt;br&gt;Input: chunk states&lt;br&gt;Process: save/load resume snapshots&lt;br&gt;Output: resume_state.json and restored checkpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="760" y="320" width="330" height="170" as="geometry"/></mxCell>
+    <mxCell id="P04-N08" value="&lt;b&gt;speedctrl&lt;/b&gt;&lt;br&gt;Input: pressure API polling and manual pause&lt;br&gt;Process: compute pause/resume gate state&lt;br&gt;Output: control signal to scanapp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="1120" y="320" width="340" height="170" as="geometry"/></mxCell>
+    <mxCell id="P04-N09" value="&lt;b&gt;logx&lt;/b&gt;&lt;br&gt;Input: runtime events and status changes&lt;br&gt;Process: format human/json logs&lt;br&gt;Output: diagnostics and progress events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#334155;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="1490" y="320" width="320" height="170" as="geometry"/></mxCell>
+
+    <mxCell id="P04-N10" value="Boundary: scanner uses TCP connect semantics; not SYN/RST raw packet scan and no active RST forced teardown." style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f4f4f5;strokeColor=#52525b;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="320" width="320" height="170" as="geometry"/></mxCell>
+
+    <mxCell id="P04-E01" value="cfg" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N01" target="P04-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E02" value="validated records" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N02" target="P04-N03"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E03" value="tasks" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N03" target="P04-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E04" value="dial inputs" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N04" target="P04-N05"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E05" value="result" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N05" target="P04-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <mxCell id="P04-E06" value="records" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N04" target="P04-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E07" value="checkpoints" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N04" target="P04-N07"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E08" value="events" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=10;" edge="1" parent="1" source="P04-N04" target="P04-N09"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E09" value="pressure/control" style="endArrow=classic;html=1;strokeColor=#92400e;dashed=1;fontSize=10;" edge="1" parent="1" source="P04-N08" target="P04-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="P04-E10" value="boundary" style="endArrow=classic;html=1;strokeColor=#52525b;dashed=1;fontSize=10;" edge="1" parent="1" source="P04-N10" target="P04-N05"><mxGeometry relative="1" as="geometry"/></mxCell>
+  </root>
+</mxGraphModel>
+          </textarea>
+          <h3>Mapping Notes</h3>
+          <ul>
+            <li>面向工程實作：快速確認模組責任。</li>
+            <li>面向評審：觀察依賴方向與 coupling。</li>
+            <li>保留 scanner TCP 邊界聲明，避免能力誤讀。</li>
+          </ul>
+          <h3>Validation Checklist</h3>
+          <ul class="checklist">
+            <li>每個核心元件都有 Input/Process/Output</li>
+            <li>依賴方向與資料流一致</li>
+            <li>可直接作為後續擴充基準圖</li>
+          </ul>
+          <p class="top"><a href="#top">回到頂部</a></p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
