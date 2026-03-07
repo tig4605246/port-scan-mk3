@@ -34,7 +34,7 @@ const (
 )
 
 // DialFunc abstracts TCP dialing for tests and runtime customization.
-type DialFunc func(network, address string, timeout time.Duration) (net.Conn, error)
+type DialFunc func(context.Context, string, string) (net.Conn, error)
 
 // RunOptions customizes runtime behaviors that are not exposed as CLI flags.
 type RunOptions struct {
@@ -181,7 +181,8 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 
 	dial := opts.Dial
 	if dial == nil {
-		dial = net.DialTimeout
+		dialer := &net.Dialer{LocalAddr: &net.TCPAddr{Port: 0}}
+		dial = dialer.DialContext
 	}
 
 	var workerWG sync.WaitGroup

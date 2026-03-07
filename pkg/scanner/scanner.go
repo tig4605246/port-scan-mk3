@@ -1,6 +1,8 @@
 package scanner
 
 import (
+	"context"
+	"errors"
 	"net"
 	"strconv"
 	"time"
@@ -14,10 +16,13 @@ type Result struct {
 	Error          string
 }
 
-func ScanTCP(dial func(string, string, time.Duration) (net.Conn, error), ip string, port int, timeout time.Duration) Result {
+func ScanTCP(dial func(context.Context, string, string) (net.Conn, error), ip string, port int, timeout time.Duration) Result {
 	target := net.JoinHostPort(ip, strconv.Itoa(port))
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	start := time.Now()
-	conn, err := dial("tcp", target, timeout)
+	conn, err := dial(ctx, "tcp", target)
 	if err == nil {
 		_ = conn.Close()
 		return Result{
@@ -29,6 +34,15 @@ func ScanTCP(dial func(string, string, time.Duration) (net.Conn, error), ip stri
 	}
 
 	if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		return Result{
+			IP:             ip,
+			Port:           port,
+			Status:         "close(timeout)",
+			ResponseTimeMS: 0,
+			Error:          err.Error(),
+		}
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
 		return Result{
 			IP:             ip,
 			Port:           port,

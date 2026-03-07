@@ -26,7 +26,7 @@ func TestScanTCP_WhenPortIsOpen_ReturnsOpenStatus(t *testing.T) {
 	host, portStr, _ := net.SplitHostPort(ln.Addr().String())
 	port, _ := strconv.Atoi(portStr)
 
-	res := ScanTCP(net.DialTimeout, host, port, 200*time.Millisecond)
+	res := ScanTCP((&net.Dialer{}).DialContext, host, port, 200*time.Millisecond)
 	if res.Status != "open" {
 		t.Fatalf("expected open, got %s", res.Status)
 	}
