@@ -43,15 +43,58 @@ Expected:
 
 ## US1 Verification
 
-Record for each increment:
+### Increment 1: Extract command handlers from `cmd/port-scan/main.go`
 
 - Red command:
+  - `go test ./cmd/port-scan -run 'TestHandleValidateCommand_WhenJSONValidationSucceeds_ReturnsExit0|TestHandleValidateCommand_WhenConfigParseFails_ReturnsExit2AndWritesStderr' -count=1`
 - Red observation:
+  - build failed with `undefined: handleValidateCommand`
 - Green command:
+  - `go test ./cmd/port-scan -run 'TestHandleValidateCommand_WhenJSONValidationSucceeds_ReturnsExit0|TestHandleValidateCommand_WhenConfigParseFails_ReturnsExit2AndWritesStderr' -count=1`
 - Green observation:
+  - helper-based validate tests passed
 - Refactor note:
+  - introduced `cmd/port-scan/command_handlers.go` and reduced `runMain` to command routing glue
 - Post-refactor command:
+  - `go test ./cmd/port-scan -count=1`
 - Post-refactor observation:
+  - all `cmd/port-scan` tests passed
+
+### Increment 2: Define and extract scanapp preparation seams
+
+- Red command:
+  - `go test ./pkg/scanapp -run 'TestLoadRunInputs_WhenDependenciesInjected_UsesConfigPathsAndColumns|TestPrepareRunPlan_WhenDependenciesInjected_BuildsChunksRuntimesAndOutputPaths' -count=1`
+- Red observation:
+  - build failed with `undefined: runDependencies`, `undefined: loadRunInputs`, and `undefined: prepareRunPlan`
+- Green command:
+  - `go test ./pkg/scanapp -run 'TestLoadRunInputs_WhenDependenciesInjected_UsesConfigPathsAndColumns|TestPrepareRunPlan_WhenDependenciesInjected_BuildsChunksRuntimesAndOutputPaths' -count=1`
+- Green observation:
+  - seam tests passed after introducing preparation helpers
+- Refactor note:
+  - extracted input-loading and runtime-preparation seams into `pkg/scanapp/input_loader.go` and `pkg/scanapp/runtime_builder.go`
+- Post-refactor command:
+  - `go test ./pkg/scanapp ./cmd/port-scan ./tests/integration -count=1`
+- Post-refactor observation:
+  - all scanapp, command, and integration tests passed
+
+### Increment 3: Strengthen US1 runtime and pipeline regressions
+
+- Red command:
+  - `go test ./pkg/scanapp -run TestRun_WhenCIDRColumnNamesBlank_UsesDefaultInputColumns -count=1`
+  - `go test ./tests/integration -run TestScanPipeline_DefaultScenarioCompletesWithoutLoss -count=1`
+- Red observation:
+  - new tests were added to lock default-column behavior and baseline pipeline completion
+- Green command:
+  - `go test ./pkg/scanapp -run TestRun_WhenCIDRColumnNamesBlank_UsesDefaultInputColumns -count=1`
+  - `go test ./tests/integration -run TestScanPipeline_DefaultScenarioCompletesWithoutLoss -count=1`
+- Green observation:
+  - both targeted regressions passed
+- Refactor note:
+  - no extra production change was needed beyond the extracted seams; the tests now guard the new boundary
+- Post-refactor command:
+  - `go test ./pkg/scanapp ./cmd/port-scan ./tests/integration -count=1`
+- Post-refactor observation:
+  - the full US1 protection set remained green
 
 ## US2 Verification
 

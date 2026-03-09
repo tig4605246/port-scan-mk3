@@ -89,72 +89,6 @@ type scanResult struct {
 	record   writer.Record
 }
 
-type runInputs struct {
-	cidrRecords []input.CIDRRecord
-	portSpecs   []input.PortSpec
-}
-
-type runPlan struct {
-	chunks         []task.Chunk
-	runtimes       []*chunkRuntime
-	scanOutputPath string
-	openOnlyPath   string
-}
-
-type runDependencies struct {
-	loadCIDRRecords       func(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error)
-	loadPortSpecs         func(path string) ([]input.PortSpec, error)
-	loadOrBuildRuntimeChunks func(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error)
-	buildChunkRuntime     func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error)
-	resolveOutputPaths    func(output string, now time.Time) (string, string, error)
-}
-
-func defaultRunDependencies() runDependencies {
-	return runDependencies{
-		loadCIDRRecords:          readCIDRFile,
-		loadPortSpecs:            readPortFile,
-		loadOrBuildRuntimeChunks: loadOrBuildChunks,
-		buildChunkRuntime:        buildRuntime,
-		resolveOutputPaths:       resolveBatchOutputPaths,
-	}
-}
-
-func loadRunInputs(cfg config.Config, deps runDependencies) (runInputs, error) {
-	cidrRecords, err := deps.loadCIDRRecords(cfg.CIDRFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol)
-	if err != nil {
-		return runInputs{}, err
-	}
-	portSpecs, err := deps.loadPortSpecs(cfg.PortFile)
-	if err != nil {
-		return runInputs{}, err
-	}
-	return runInputs{
-		cidrRecords: cidrRecords,
-		portSpecs:   portSpecs,
-	}, nil
-}
-
-func prepareRunPlan(cfg config.Config, inputs runInputs, deps runDependencies, now time.Time) (runPlan, error) {
-	chunks, err := deps.loadOrBuildRuntimeChunks(cfg, inputs.cidrRecords, inputs.portSpecs)
-	if err != nil {
-		return runPlan{}, err
-	}
-	runtimes, err := deps.buildChunkRuntime(chunks, inputs.cidrRecords, inputs.portSpecs, cfg)
-	if err != nil {
-		return runPlan{}, err
-	}
-	scanOutputPath, openOnlyPath, err := deps.resolveOutputPaths(cfg.Output, now)
-	if err != nil {
-		return runPlan{}, err
-	}
-	return runPlan{
-		chunks:         chunks,
-		runtimes:       runtimes,
-		scanOutputPath: scanOutputPath,
-		openOnlyPath:   openOnlyPath,
-	}, nil
-}
-
 // Run executes a full scan flow: load inputs, dispatch scan tasks, write batch
 // outputs, and persist resume state on interruption/failure.
 func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts RunOptions) error {
@@ -477,24 +411,6 @@ func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Contr
 		}
 	}
 	return nil
-}
-
-func readCIDRFile(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return input.LoadCIDRsWithColumns(f, ipCol, ipCidrCol)
-}
-
-func readPortFile(path string) ([]input.PortSpec, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return input.LoadPorts(f)
 }
 
 func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error) {

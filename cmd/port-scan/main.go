@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/xuxiping/port-scan-mk3/pkg/cli"
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/input"
 	"github.com/xuxiping/port-scan-mk3/pkg/scanapp"
@@ -20,28 +19,14 @@ func main() {
 
 func runMain(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		usage(stdout)
-		return 0
+		return handleHelpCommand(stdout)
 	}
 
 	switch args[0] {
 	case "validate":
-		cfg, err := config.Parse(args[1:])
-		if err != nil {
-			fmt.Fprintln(stderr, err)
-			return 2
-		}
-		valid, detail := validateInputs(cfg)
-		if err := cli.WriteValidation(stdout, cfg.Format, valid, detail); err != nil {
-			fmt.Fprintln(stderr, err)
-			return 2
-		}
-		if !valid {
-			return 1
-		}
-		return 0
+		return handleValidateCommand(args[1:], stdout, stderr)
 	case "scan":
-		return runScan(args[1:], stdout, stderr)
+		return handleScanCommand(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command: %s\n", args[0])
 		return 2
