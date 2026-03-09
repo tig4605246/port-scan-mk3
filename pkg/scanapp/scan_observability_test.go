@@ -72,9 +72,14 @@ func TestRun_WhenObservabilityJSONEnabled_EmitsProgressAndCompletionEvents(t *te
 		"\"error_cause\"",
 		"\"state_transition\":\"progress\"",
 		"\"state_transition\":\"completion_summary\"",
+		"\"success\":true",
 	} {
 		if !strings.Contains(logs, required) {
 			t.Fatalf("missing observability marker %s in logs: %s", required, logs)
 		}
+	}
+
+	if !strings.Contains(stdout.String(), "progress cidr=") {
+		t.Fatalf("expected progress output on stdout, got %s", stdout.String())
 	}
 }

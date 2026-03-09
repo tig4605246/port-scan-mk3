@@ -215,6 +215,33 @@ func TestResumePath_WhenMultipleSourcesProvided_UsesPriorityOrder(t *testing.T) 
 	}
 }
 
+func TestChunkStateHelpers_WhenRuntimesMixed_ReturnExpectedSnapshots(t *testing.T) {
+	runtimes := []*chunkRuntime{
+		{state: &task.Chunk{CIDR: "10.0.0.0/24", ScannedCount: 1, TotalCount: 2}},
+		{state: &task.Chunk{CIDR: "10.0.1.0/24", ScannedCount: 2, TotalCount: 2}},
+	}
+
+	if !hasIncomplete(runtimes) {
+		t.Fatal("expected incomplete runtimes")
+	}
+
+	states := collectChunkStates(runtimes)
+	if len(states) != 2 {
+		t.Fatalf("expected 2 states, got %d", len(states))
+	}
+	if states[0].CIDR != "10.0.0.0/24" || states[1].CIDR != "10.0.1.0/24" {
+		t.Fatalf("unexpected states: %#v", states)
+	}
+	if states[0].ScannedCount != 1 || states[1].ScannedCount != 2 {
+		t.Fatalf("unexpected scanned counts: %#v", states)
+	}
+
+	runtimes[0].state.ScannedCount = runtimes[0].state.TotalCount
+	if hasIncomplete(runtimes) {
+		t.Fatal("expected all runtimes complete")
+	}
+}
+
 func TestEnsureFDLimit_WhenWorkersExceedLimit_ReturnsError(t *testing.T) {
 	err := ensureFDLimit(1_000_000_000)
 	if err == nil {

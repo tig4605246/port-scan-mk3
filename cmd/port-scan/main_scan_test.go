@@ -189,6 +189,23 @@ func TestRunMain_ScanWritesOpenedResultsCSV(t *testing.T) {
 	}
 }
 
+func TestRunMain_WhenScanConfigParseFails_ReturnsExit2AndWritesStderr(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	code := runMain([]string{"scan", "-cidr-file", "", "-port-file", ""}, stdout, stderr)
+
+	if code != 2 {
+		t.Fatalf("expected exit code 2, got %d stderr=%s", code, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("expected empty stdout, got %s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "-cidr-file and -port-file are required") {
+		t.Fatalf("expected parse error on stderr, got %s", stderr.String())
+	}
+}
+
 func mustFindOneMain(t *testing.T, pattern string) string {
 	t.Helper()
 	matches, err := filepath.Glob(pattern)
