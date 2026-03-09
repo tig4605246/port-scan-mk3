@@ -122,6 +122,18 @@ The first extraction wave is expected to land in:
 - `pkg/scanapp/result_aggregator.go`
 - `pkg/scanapp/resume_manager.go`
 
+Current landing status:
+
+- extracted:
+  - `cmd/port-scan/command_handlers.go`
+  - `pkg/scanapp/input_loader.go`
+  - `pkg/scanapp/runtime_builder.go`
+  - `pkg/scanapp/task_dispatcher.go`
+  - `pkg/scanapp/pressure_monitor.go`
+- pending:
+  - `pkg/scanapp/result_aggregator.go`
+  - `pkg/scanapp/resume_manager.go`
+
 ## Review Questions
 
 - Did the change reduce the set of reasons a file can change?

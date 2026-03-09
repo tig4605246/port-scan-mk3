@@ -19,6 +19,7 @@ import (
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/input"
+	"github.com/xuxiping/port-scan-mk3/pkg/ratelimit"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 	"github.com/xuxiping/port-scan-mk3/pkg/state"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
@@ -361,6 +362,40 @@ func TestPollPressureAPI_WhenPressureCrossesThreshold_TogglesPauseAndLogsTransit
 	}
 	if !strings.Contains(logOut.String(), "掃描已自動暫停") || !strings.Contains(logOut.String(), "掃描已自動恢復") {
 		t.Fatalf("expected pause/resume logs, got: %s", logOut.String())
+	}
+}
+
+func TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex(t *testing.T) {
+	ctrl := speedctrl.NewController()
+	logOut := &lockedBuffer{}
+	logger := newLogger("debug", false, logOut)
+	bucket := ratelimit.NewLeakyBucket(100, 100)
+	defer bucket.Close()
+
+	rt := &chunkRuntime{
+		ipCidr: "10.0.0.0/24",
+		ports:  []int{80, 443},
+		targets: []scanTarget{
+			{ip: "10.0.0.1", ipCidr: "10.0.0.0/24"},
+			{ip: "10.0.0.2", ipCidr: "10.0.0.0/24"},
+		},
+		state: &task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 4, Status: "pending"},
+		bkt:   bucket,
+	}
+	taskCh := make(chan scanTask, 8)
+
+	err := dispatchTasks(context.Background(), config.Config{Delay: 0}, ctrl, logger, []*chunkRuntime{rt}, taskCh)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rt.state.NextIndex != 4 {
+		t.Fatalf("expected next index 4, got %d", rt.state.NextIndex)
+	}
+	if rt.state.Status != "scanning" {
+		t.Fatalf("expected scanning status during dispatch, got %s", rt.state.Status)
+	}
+	if len(taskCh) != 4 {
+		t.Fatalf("expected 4 queued tasks, got %d", len(taskCh))
 	}
 }
 

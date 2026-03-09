@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
+	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 )
 
 func TestRun_WhenObservabilityJSONEnabled_EmitsProgressAndCompletionEvents(t *testing.T) {
@@ -81,5 +84,49 @@ func TestRun_WhenObservabilityJSONEnabled_EmitsProgressAndCompletionEvents(t *te
 
 	if !strings.Contains(stdout.String(), "progress cidr=") {
 		t.Fatalf("expected progress output on stdout, got %s", stdout.String())
+	}
+}
+
+func TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages(t *testing.T) {
+	values := []int{95, 20}
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		v := values[0]
+		if len(values) > 1 {
+			values = values[1:]
+		}
+		_, _ = w.Write([]byte(`{"pressure":` + strconv.Itoa(v) + `}`))
+	}))
+	defer api.Close()
+
+	ctrl := speedctrl.NewController()
+	logOut := &lockedBuffer{}
+	logger := newLogger("info", true, logOut)
+	errCh := make(chan error, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go pollPressureAPI(ctx, config.Config{
+		PressureAPI:      api.URL,
+		PressureInterval: 5 * time.Millisecond,
+	}, RunOptions{
+		PressureLimit: 90,
+		PressureHTTP:  &http.Client{Timeout: time.Second},
+	}, ctrl, logger, errCh)
+
+	time.Sleep(40 * time.Millisecond)
+	cancel()
+	time.Sleep(10 * time.Millisecond)
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("unexpected err: %v", err)
+	default:
+	}
+
+	logs := logOut.String()
+	if !strings.Contains(logs, `"level":"info"`) {
+		t.Fatalf("expected json info logs, got %s", logs)
+	}
+	if !strings.Contains(logs, "掃描已自動暫停") || !strings.Contains(logs, "掃描已自動恢復") {
+		t.Fatalf("expected pause/resume messages, got %s", logs)
 	}
 }

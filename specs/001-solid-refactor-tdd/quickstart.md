@@ -98,15 +98,39 @@ Expected:
 
 ## US2 Verification
 
-Record for each increment:
+### Increment 1: Protect dispatcher and pressure-monitor seams
 
 - Red command:
+  - `go test ./pkg/scanapp -run 'TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex|TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages' -count=1`
 - Red observation:
+  - first run failed at compile time because the new seam-protection tests introduced a missing `ratelimit` import
 - Green command:
+  - `go test ./pkg/scanapp -run 'TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex|TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages' -count=1`
 - Green observation:
+  - targeted dispatcher and pressure-monitor regression tests passed
 - Refactor note:
+  - baseline tests now guard queue emission, next-index advancement, and pause/resume log behavior before function extraction
 - Post-refactor command:
+  - `go test ./pkg/scanapp -run 'TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex|TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages|TestPollPressureAPI_WhenPressureCrossesThreshold_TogglesPauseAndLogsTransition|TestStartManualPauseMonitor_WhenManualPauseChanges_LogsStateTransitions' -count=1`
 - Post-refactor observation:
+  - dispatcher and monitor protections remained green
+
+### Increment 2: Extract dispatcher and pressure monitor files
+
+- Red command:
+  - `go test ./pkg/scanapp -run 'TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex|TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages|TestPollPressureAPI_WhenPressureCrossesThreshold_TogglesPauseAndLogsTransition|TestStartManualPauseMonitor_WhenManualPauseChanges_LogsStateTransitions' -count=1`
+- Red observation:
+  - after file movement, compile failed because `scan.go` still referenced removed imports for `http` and `strconv`
+- Green command:
+  - `go test ./pkg/scanapp -run 'TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex|TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages|TestPollPressureAPI_WhenPressureCrossesThreshold_TogglesPauseAndLogsTransition|TestStartManualPauseMonitor_WhenManualPauseChanges_LogsStateTransitions' -count=1`
+- Green observation:
+  - all targeted dispatcher and monitor tests passed after import cleanup
+- Refactor note:
+  - moved dispatch logic to `pkg/scanapp/task_dispatcher.go` and pause/pressure logic to `pkg/scanapp/pressure_monitor.go`
+- Post-refactor command:
+  - `go test ./pkg/scanapp ./cmd/port-scan ./tests/integration -count=1`
+- Post-refactor observation:
+  - scanapp, command, and integration suites all remained green
 
 ## US3 Verification
 
