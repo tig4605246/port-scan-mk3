@@ -89,9 +89,76 @@ type scanResult struct {
 	record   writer.Record
 }
 
+type runInputs struct {
+	cidrRecords []input.CIDRRecord
+	portSpecs   []input.PortSpec
+}
+
+type runPlan struct {
+	chunks         []task.Chunk
+	runtimes       []*chunkRuntime
+	scanOutputPath string
+	openOnlyPath   string
+}
+
+type runDependencies struct {
+	loadCIDRRecords       func(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error)
+	loadPortSpecs         func(path string) ([]input.PortSpec, error)
+	loadOrBuildRuntimeChunks func(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error)
+	buildChunkRuntime     func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error)
+	resolveOutputPaths    func(output string, now time.Time) (string, string, error)
+}
+
+func defaultRunDependencies() runDependencies {
+	return runDependencies{
+		loadCIDRRecords:          readCIDRFile,
+		loadPortSpecs:            readPortFile,
+		loadOrBuildRuntimeChunks: loadOrBuildChunks,
+		buildChunkRuntime:        buildRuntime,
+		resolveOutputPaths:       resolveBatchOutputPaths,
+	}
+}
+
+func loadRunInputs(cfg config.Config, deps runDependencies) (runInputs, error) {
+	cidrRecords, err := deps.loadCIDRRecords(cfg.CIDRFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol)
+	if err != nil {
+		return runInputs{}, err
+	}
+	portSpecs, err := deps.loadPortSpecs(cfg.PortFile)
+	if err != nil {
+		return runInputs{}, err
+	}
+	return runInputs{
+		cidrRecords: cidrRecords,
+		portSpecs:   portSpecs,
+	}, nil
+}
+
+func prepareRunPlan(cfg config.Config, inputs runInputs, deps runDependencies, now time.Time) (runPlan, error) {
+	chunks, err := deps.loadOrBuildRuntimeChunks(cfg, inputs.cidrRecords, inputs.portSpecs)
+	if err != nil {
+		return runPlan{}, err
+	}
+	runtimes, err := deps.buildChunkRuntime(chunks, inputs.cidrRecords, inputs.portSpecs, cfg)
+	if err != nil {
+		return runPlan{}, err
+	}
+	scanOutputPath, openOnlyPath, err := deps.resolveOutputPaths(cfg.Output, now)
+	if err != nil {
+		return runPlan{}, err
+	}
+	return runPlan{
+		chunks:         chunks,
+		runtimes:       runtimes,
+		scanOutputPath: scanOutputPath,
+		openOnlyPath:   openOnlyPath,
+	}, nil
+}
+
 // Run executes a full scan flow: load inputs, dispatch scan tasks, write batch
 // outputs, and persist resume state on interruption/failure.
 func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts RunOptions) error {
+	deps := defaultRunDependencies()
 	logger := newLogger(cfg.LogLevel, cfg.Format == "json", stderr)
 	if strings.TrimSpace(cfg.CIDRIPCol) == "" {
 		cfg.CIDRIPCol = "ip"
@@ -104,30 +171,16 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	cidrRecords, err := readCIDRFile(cfg.CIDRFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol)
+	inputs, err := loadRunInputs(cfg, deps)
 	if err != nil {
 		return err
 	}
-	portSpecs, err := readPortFile(cfg.PortFile)
-	if err != nil {
-		return err
-	}
-
-	chunks, err := loadOrBuildChunks(cfg, cidrRecords, portSpecs)
-	if err != nil {
-		return err
-	}
-	runtimes, err := buildRuntime(chunks, cidrRecords, portSpecs, cfg)
+	plan, err := prepareRunPlan(cfg, inputs, deps, time.Now())
 	if err != nil {
 		return err
 	}
 
-	scanOutputPath, openOnlyPath, err := resolveBatchOutputPaths(cfg.Output, time.Now())
-	if err != nil {
-		return err
-	}
-
-	outFile, err := os.Create(scanOutputPath)
+	outFile, err := os.Create(plan.scanOutputPath)
 	if err != nil {
 		return err
 	}
@@ -137,7 +190,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	openOnlyFile, err := os.Create(openOnlyPath)
+	openOnlyFile, err := os.Create(plan.openOnlyPath)
 	if err != nil {
 		return err
 	}
@@ -225,7 +278,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 
 	dispatchErrCh := make(chan error, 1)
 	go func() {
-		dispatchErrCh <- dispatchTasks(runCtx, cfg, ctrl, logger, runtimes, taskCh)
+		dispatchErrCh <- dispatchTasks(runCtx, cfg, ctrl, logger, plan.runtimes, taskCh)
 		close(taskCh)
 	}()
 
@@ -263,7 +316,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				runErr = err
 				cancel()
 			}
-			ch := runtimes[res.chunkIdx].state
+			ch := plan.runtimes[res.chunkIdx].state
 			ch.ScannedCount++
 			if ch.ScannedCount >= ch.TotalCount {
 				ch.Status = "completed"
@@ -301,16 +354,16 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		}
 	}
 
-	for _, rt := range runtimes {
+	for _, rt := range plan.runtimes {
 		if rt.bkt != nil {
 			rt.bkt.Close()
 		}
 	}
 
-	incomplete := hasIncomplete(runtimes)
+	incomplete := hasIncomplete(plan.runtimes)
 	if incomplete || runErr != nil || shouldSaveOnDispatchErr(dispatchErr) {
 		savePath := resumePath(cfg, opts)
-		if err := state.Save(savePath, collectChunkStates(runtimes)); err != nil {
+		if err := state.Save(savePath, collectChunkStates(plan.runtimes)); err != nil {
 			return err
 		}
 		logger.infof("resume state saved to %s", savePath)

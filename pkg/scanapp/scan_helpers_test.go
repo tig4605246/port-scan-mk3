@@ -19,6 +19,97 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
+func TestLoadRunInputs_WhenDependenciesInjected_UsesConfigPathsAndColumns(t *testing.T) {
+	var gotCIDRPath, gotIPCol, gotCIDRCol, gotPortPath string
+	wantCIDRs := []input.CIDRRecord{{CIDR: "10.0.0.0/24"}}
+	wantPorts := []input.PortSpec{{Number: 80, Proto: "tcp", Raw: "80/tcp"}}
+
+	deps := runDependencies{
+		loadCIDRRecords: func(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error) {
+			gotCIDRPath, gotIPCol, gotCIDRCol = path, ipCol, ipCidrCol
+			return wantCIDRs, nil
+		},
+		loadPortSpecs: func(path string) ([]input.PortSpec, error) {
+			gotPortPath = path
+			return wantPorts, nil
+		},
+	}
+
+	cfg := config.Config{
+		CIDRFile:      "cidr.csv",
+		PortFile:      "ports.csv",
+		CIDRIPCol:     "source_ip",
+		CIDRIPCidrCol: "source_cidr",
+	}
+
+	got, err := loadRunInputs(cfg, deps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotCIDRPath != "cidr.csv" || gotIPCol != "source_ip" || gotCIDRCol != "source_cidr" {
+		t.Fatalf("unexpected cidr loader args: path=%s ip=%s cidr=%s", gotCIDRPath, gotIPCol, gotCIDRCol)
+	}
+	if gotPortPath != "ports.csv" {
+		t.Fatalf("unexpected port loader path: %s", gotPortPath)
+	}
+	if len(got.cidrRecords) != 1 || got.cidrRecords[0].CIDR != wantCIDRs[0].CIDR {
+		t.Fatalf("unexpected cidr records: %#v", got.cidrRecords)
+	}
+	if len(got.portSpecs) != 1 || got.portSpecs[0].Raw != wantPorts[0].Raw {
+		t.Fatalf("unexpected port specs: %#v", got.portSpecs)
+	}
+}
+
+func TestPrepareRunPlan_WhenDependenciesInjected_BuildsChunksRuntimesAndOutputPaths(t *testing.T) {
+	wantChunks := []task.Chunk{{CIDR: "10.0.0.0/24", TotalCount: 1}}
+	wantRuntimes := []*chunkRuntime{{state: &task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 1}}}
+	wantNow := time.Date(2026, 3, 9, 12, 0, 0, 0, time.UTC)
+
+	deps := runDependencies{
+		loadOrBuildRuntimeChunks: func(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error) {
+			if cfg.Output != "scan_results.csv" {
+				t.Fatalf("unexpected cfg output: %s", cfg.Output)
+			}
+			if len(cidrRecords) != 1 || len(portSpecs) != 1 {
+				t.Fatalf("unexpected inputs: %#v %#v", cidrRecords, portSpecs)
+			}
+			return wantChunks, nil
+		},
+		buildChunkRuntime: func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error) {
+			if len(chunks) != 1 || chunks[0].CIDR != wantChunks[0].CIDR {
+				t.Fatalf("unexpected chunks: %#v", chunks)
+			}
+			return wantRuntimes, nil
+		},
+		resolveOutputPaths: func(output string, now time.Time) (string, string, error) {
+			if output != "scan_results.csv" {
+				t.Fatalf("unexpected output path: %s", output)
+			}
+			if !now.Equal(wantNow) {
+				t.Fatalf("unexpected time: %s", now)
+			}
+			return "scan_results-20260309T120000Z.csv", "opened_results-20260309T120000Z.csv", nil
+		},
+	}
+
+	plan, err := prepareRunPlan(config.Config{Output: "scan_results.csv"}, runInputs{
+		cidrRecords: []input.CIDRRecord{{CIDR: "10.0.0.0/24"}},
+		portSpecs:   []input.PortSpec{{Raw: "80/tcp"}},
+	}, deps, wantNow)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(plan.chunks) != 1 || plan.chunks[0].CIDR != "10.0.0.0/24" {
+		t.Fatalf("unexpected chunks in plan: %#v", plan.chunks)
+	}
+	if len(plan.runtimes) != 1 || plan.runtimes[0].state.CIDR != "10.0.0.0/24" {
+		t.Fatalf("unexpected runtimes in plan: %#v", plan.runtimes)
+	}
+	if plan.scanOutputPath != "scan_results-20260309T120000Z.csv" || plan.openOnlyPath != "opened_results-20260309T120000Z.csv" {
+		t.Fatalf("unexpected output paths: %#v", plan)
+	}
+}
+
 func TestIndexToRuntimeTarget_WhenInputsInvalid_ReturnsErrors(t *testing.T) {
 	targets := []scanTarget{{ip: "10.0.0.1"}}
 	ports := []int{80}
