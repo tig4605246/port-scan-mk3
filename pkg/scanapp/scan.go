@@ -219,10 +219,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		dispatchDone bool
 		dispatchErr  error
 		runErr       error
-		written      int
-		openCount    int
-		closeCount   int
-		timeoutCount int
+		summary      resultSummary
 	)
 	startedAt := time.Now()
 	for !dispatchDone || resultCh != nil {
@@ -241,49 +238,12 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				resultCh = nil
 				continue
 			}
-			if err := csvWriter.Write(res.record); err != nil && runErr == nil {
+			if err := writeScanRecord(csvWriter, openOnlyWriter, res.record); err != nil && runErr == nil {
 				runErr = err
 				cancel()
 			}
-			if err := openOnlyWriter.Write(res.record); err != nil && runErr == nil {
-				runErr = err
-				cancel()
-			}
-			ch := plan.runtimes[res.chunkIdx].state
-			ch.ScannedCount++
-			if ch.ScannedCount >= ch.TotalCount {
-				ch.Status = "completed"
-			} else {
-				ch.Status = "scanning"
-			}
-			written++
-			switch {
-			case strings.EqualFold(res.record.Status, "open"):
-				openCount++
-			case strings.Contains(strings.ToLower(res.record.Status), "timeout"):
-				timeoutCount++
-			default:
-				closeCount++
-			}
-			logger.eventf("scan_result", res.record.IP, res.record.Port, "scanned", statusErrorCause(res.record.Status), map[string]any{
-				"status":           res.record.Status,
-				"response_time_ms": res.record.ResponseMS,
-				"cidr":             res.record.IPCidr,
-			})
-			if written%progressStep == 0 {
-				_, _ = fmt.Fprintf(stdout, "progress cidr=%s scanned=%d/%d paused=%t\n", ch.CIDR, ch.ScannedCount, ch.TotalCount, ctrl.IsPaused())
-				completionRate := 0.0
-				if ch.TotalCount > 0 {
-					completionRate = float64(ch.ScannedCount) / float64(ch.TotalCount)
-				}
-				logger.eventf("scan_progress", "", 0, "progress", "none", map[string]any{
-					"cidr":            ch.CIDR,
-					"scanned_count":   ch.ScannedCount,
-					"total_count":     ch.TotalCount,
-					"completion_rate": completionRate,
-					"paused":          ctrl.IsPaused(),
-				})
-			}
+			applyScanResult(plan.runtimes, res, &summary)
+			emitScanResultEvents(stdout, logger, ctrl, progressStep, plan.runtimes, res, &summary)
 		}
 	}
 
@@ -293,45 +253,19 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		}
 	}
 
-	incomplete := hasIncomplete(plan.runtimes)
-	if incomplete || runErr != nil || shouldSaveOnDispatchErr(dispatchErr) {
-		savePath := resumePath(cfg, opts)
-		if err := state.Save(savePath, collectChunkStates(plan.runtimes)); err != nil {
-			return err
-		}
-		logger.infof("resume state saved to %s", savePath)
+	if err := persistResumeState(cfg, opts, logger, plan.runtimes, dispatchErr, runErr); err != nil {
+		return err
 	}
 
 	if runErr != nil {
-		logger.eventf("scan_completion", "", 0, "completion_summary", errorCause(runErr), map[string]any{
-			"total_tasks":   written,
-			"open_count":    openCount,
-			"close_count":   closeCount,
-			"timeout_count": timeoutCount,
-			"duration_ms":   time.Since(startedAt).Milliseconds(),
-			"success":       false,
-		})
+		emitCompletionSummary(logger, summary, startedAt, runErr)
 		return runErr
 	}
 	if dispatchErr != nil {
-		logger.eventf("scan_completion", "", 0, "completion_summary", errorCause(dispatchErr), map[string]any{
-			"total_tasks":   written,
-			"open_count":    openCount,
-			"close_count":   closeCount,
-			"timeout_count": timeoutCount,
-			"duration_ms":   time.Since(startedAt).Milliseconds(),
-			"success":       false,
-		})
+		emitCompletionSummary(logger, summary, startedAt, dispatchErr)
 		return dispatchErr
 	}
-	logger.eventf("scan_completion", "", 0, "completion_summary", "none", map[string]any{
-		"total_tasks":   written,
-		"open_count":    openCount,
-		"close_count":   closeCount,
-		"timeout_count": timeoutCount,
-		"duration_ms":   time.Since(startedAt).Milliseconds(),
-		"success":       true,
-	})
+	emitCompletionSummary(logger, summary, startedAt, nil)
 	return nil
 }
 

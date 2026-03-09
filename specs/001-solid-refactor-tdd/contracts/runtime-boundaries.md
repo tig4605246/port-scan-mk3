@@ -130,7 +130,6 @@ Current landing status:
   - `pkg/scanapp/runtime_builder.go`
   - `pkg/scanapp/task_dispatcher.go`
   - `pkg/scanapp/pressure_monitor.go`
-- pending:
   - `pkg/scanapp/result_aggregator.go`
   - `pkg/scanapp/resume_manager.go`
 

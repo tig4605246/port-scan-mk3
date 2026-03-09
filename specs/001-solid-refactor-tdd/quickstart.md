@@ -134,15 +134,24 @@ Expected:
 
 ## US3 Verification
 
-Record for each increment:
+### Increment 1: Protect result aggregation and resume persistence seams
 
 - Red command:
+  - `go test ./pkg/scanapp -run 'TestEmitScanResultEvents_WhenProgressStepReached_EmitsProgressSnapshot|TestEmitCompletionSummary_WhenResultsMixed_EmitsOutcomeBreakdown|TestPersistResumeState_WhenRuntimeIncomplete_SavesResumeSnapshot|TestPersistResumeState_WhenRunCompletesCleanly_SkipsWrite' -count=1`
+  - `go test ./tests/integration -run TestResumeFlow_WhenEnabled_PreservesOperatorVisibleOutcomes -count=1`
 - Red observation:
+  - the first `pkg/scanapp` run failed because the new completion-summary assertion assumed `error_cause=context_deadline_exceeded`, while the current observability contract emits `error_cause=deadline_exceeded`
 - Green command:
+  - `go test ./pkg/scanapp -run 'TestEmitScanResultEvents_WhenProgressStepReached_EmitsProgressSnapshot|TestEmitCompletionSummary_WhenResultsMixed_EmitsOutcomeBreakdown|TestPersistResumeState_WhenRuntimeIncomplete_SavesResumeSnapshot|TestPersistResumeState_WhenRunCompletesCleanly_SkipsWrite' -count=1`
+  - `go test ./tests/integration -run TestResumeFlow_WhenEnabled_PreservesOperatorVisibleOutcomes -count=1`
 - Green observation:
+  - helper-focused observability and resume tests passed, and the resume integration outcome stayed duplicate-free and missing-free
 - Refactor note:
+  - extracted result writing, progress/completion emission, and resume persistence into `pkg/scanapp/result_aggregator.go` and `pkg/scanapp/resume_manager.go`, leaving `scan.go` as orchestration glue
 - Post-refactor command:
+  - `go test ./pkg/scanapp ./cmd/port-scan ./tests/integration -count=1`
 - Post-refactor observation:
+  - scanapp, command, and integration suites all remained green after the US3 extraction
 
 ## Final Gates
 

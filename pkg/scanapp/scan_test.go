@@ -305,6 +305,58 @@ func TestShouldSaveOnDispatchErr_WhenDispatchErrorVaries_ReturnsExpectedDecision
 	}
 }
 
+func TestPersistResumeState_WhenRuntimeIncomplete_SavesResumeSnapshot(t *testing.T) {
+	tmp := t.TempDir()
+	resumeFile := filepath.Join(tmp, "resume.json")
+	logger := newLogger("error", false, &bytes.Buffer{})
+	runtimes := []*chunkRuntime{{
+		state: &task.Chunk{
+			CIDR:         "10.0.0.0/24",
+			NextIndex:    2,
+			ScannedCount: 2,
+			TotalCount:   4,
+			Status:       "scanning",
+		},
+	}}
+
+	if err := persistResumeState(config.Config{}, RunOptions{ResumeStatePath: resumeFile}, logger, runtimes, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	chunks, err := state.Load(resumeFile)
+	if err != nil {
+		t.Fatalf("expected saved resume state, got %v", err)
+	}
+	if len(chunks) != 1 {
+		t.Fatalf("expected 1 saved chunk, got %d", len(chunks))
+	}
+	if chunks[0].NextIndex != 2 || chunks[0].ScannedCount != 2 || chunks[0].Status != "scanning" {
+		t.Fatalf("unexpected saved chunk state: %+v", chunks[0])
+	}
+}
+
+func TestPersistResumeState_WhenRunCompletesCleanly_SkipsWrite(t *testing.T) {
+	tmp := t.TempDir()
+	resumeFile := filepath.Join(tmp, "resume.json")
+	logger := newLogger("error", false, &bytes.Buffer{})
+	runtimes := []*chunkRuntime{{
+		state: &task.Chunk{
+			CIDR:         "10.0.0.0/24",
+			NextIndex:    4,
+			ScannedCount: 4,
+			TotalCount:   4,
+			Status:       "completed",
+		},
+	}}
+
+	if err := persistResumeState(config.Config{}, RunOptions{ResumeStatePath: resumeFile}, logger, runtimes, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := os.Stat(resumeFile); !os.IsNotExist(err) {
+		t.Fatalf("expected no resume file on clean completion, got err=%v", err)
+	}
+}
+
 func TestScanLogger_WhenTextOrJSONEnabled_FormatsOutputByMode(t *testing.T) {
 	textOut := &bytes.Buffer{}
 	l := newLogger("debug", false, textOut)

@@ -41,6 +41,7 @@ The refactor must preserve the currently observable exit-code behavior:
 - keeps `scan_results-*.csv` and `opened_results-*.csv` behavior intact
 - maps cancellation to `scan canceled` on stderr and exit code `130`
 - preserves structured runtime visibility when JSON format is enabled
+- preserves progress snapshots on stdout when progress reporting is enabled
 
 ### Help
 
@@ -55,6 +56,7 @@ The refactor must not break these operator-facing expectations:
 - successful scans still emit usable main and open-only CSV artifacts
 - canceled scans still produce resume state when the runtime conditions require it
 - progress and completion visibility remain available for long-running scans
+- `pkg/cli/output.go` continues to emit the existing `validate` human and JSON payload shapes
 
 ## Allowed Internal Changes
 
@@ -86,3 +88,7 @@ The following changes require explicit spec and release-note treatment, not a si
   protects pause/resume operator flow
 - `tests/integration/resume_flow_test.go`
   protects resume correctness
+- `pkg/scanapp/scan_observability_test.go`
+  protects progress and completion observability payloads
+- `pkg/scanapp/scan_test.go`
+  protects resume save/skip decisions for interrupted vs. completed runs
