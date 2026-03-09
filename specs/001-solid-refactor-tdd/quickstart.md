@@ -164,5 +164,15 @@ bash e2e/run_e2e.sh
 Record:
 
 - `go test ./...` result:
+  - PASS on 2026-03-09; `cmd/port-scan`, `pkg/scanapp`, and `tests/integration` all remained green in the full-repo run
 - `bash scripts/coverage_gate.sh` result:
+  - PASS on 2026-03-09; coverage gate reported `86.8%`
 - `bash e2e/run_e2e.sh` result:
+  - PASS on 2026-03-09; e2e integration suite passed and report output was generated under `e2e/out`
+
+## Quickstart Validation
+
+- Verified on 2026-03-09 that every command recorded in this quickstart maps to an existing test or
+  executable gate in the branch
+- Replayed the current branch gates (`go test ./...`, coverage gate, and e2e gate) after the final
+  polish cleanup to confirm the recorded evidence still reflects the checked-in code

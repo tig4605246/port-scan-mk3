@@ -67,6 +67,21 @@ E2E uses Docker Compose and mock services to verify real scan behavior and artif
 - Validate changes with `go test ./...`, `bash scripts/coverage_gate.sh`, and
   `bash e2e/run_e2e.sh` when pipeline behavior changes.
 
+## Refactor Workflow
+
+When changing orchestration or CLI behavior:
+
+1. Add or extend the failing test first for the exact contract you are about to protect.
+2. Keep `cmd/port-scan/main.go` as the composition root only; route behavior into focused
+   handlers or package collaborators.
+3. Keep `pkg/scanapp/scan.go` as orchestration glue; extract input loading, runtime building,
+   dispatch, monitoring, aggregation, and resume logic into narrowly scoped files instead of
+   regrowing a monolith.
+4. Preserve `pkg/cli/output.go` payload shapes and scan artifact naming unless the spec and
+   release notes explicitly call out a contract change.
+5. Record the actual red/green/refactor commands in
+   `specs/001-solid-refactor-tdd/quickstart.md` before considering the work complete.
+
 ## Architecture Diagram
 
 Static HTML + CSS architecture diagram:

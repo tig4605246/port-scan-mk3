@@ -80,6 +80,27 @@ The first wave stays intentionally narrow.
 5. Extract dispatch and pressure seams only after baseline protection is in place (`US2`)
 6. Extract result aggregation and resume persistence after the orchestration seams exist (`US3`)
 
+## Current Landing Status
+
+The first-wave seams are now landed:
+
+- `cmd/port-scan/command_handlers.go`
+- `pkg/scanapp/input_loader.go`
+- `pkg/scanapp/runtime_builder.go`
+- `pkg/scanapp/task_dispatcher.go`
+- `pkg/scanapp/pressure_monitor.go`
+- `pkg/scanapp/result_aggregator.go`
+- `pkg/scanapp/resume_manager.go`
+
+Residual responsibility review:
+
+- `cmd/port-scan/main.go` is now limited to process entry and top-level command routing
+- `pkg/scanapp/scan.go` still coordinates worker lifecycle and orchestration timing, but no
+  longer owns input loading, runtime preparation, dispatch pacing, pressure monitoring, result
+  aggregation, or resume persistence directly
+- `pkg/cli/output.go` remains intentionally stable because validate output is an operator contract,
+  not a refactor target
+
 ## Deferred Areas
 
 These are intentionally out of the first refactor wave unless a direct seam requires them.
@@ -109,3 +130,5 @@ Use these checks during each refactor increment:
 - Did the increment protect a known contract before restructuring code?
 - Did the refactor add a seam that reduced coupling, or just move complexity around?
 - Can a reviewer understand the change without mentally simulating the entire scan flow?
+- Did `cmd/port-scan/main.go` stay as composition root glue instead of growing new logic?
+- Did `pkg/scanapp/scan.go` delegate to collaborators instead of reclaiming extracted behavior?
