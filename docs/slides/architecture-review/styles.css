@@ -1,0 +1,141 @@
+:root {
+  --slidev-theme-primary: #0f766e;
+  --ps-ink: #112132;
+  --ps-muted: #506277;
+  --ps-sand: #f7f1e8;
+  --ps-mint: #d8efe6;
+  --ps-amber: #e9bb56;
+  --ps-red: #c4544f;
+  --ps-navy: #173857;
+}
+
+.slidev-layout {
+  background:
+    radial-gradient(circle at top right, rgba(233, 187, 86, 0.14), transparent 28%),
+    linear-gradient(135deg, #fffaf4 0%, #f5efe5 52%, #e8efe9 100%);
+  color: var(--ps-ink);
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  color: var(--ps-navy);
+}
+
+p,
+li {
+  color: var(--ps-ink);
+}
+
+.muted,
+.caption,
+.small {
+  color: var(--ps-muted);
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.review-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(23, 56, 87, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 16px 36px rgba(17, 33, 50, 0.08);
+}
+
+.review-card h3 {
+  margin-top: 0;
+  margin-bottom: 0.4rem;
+  font-size: 1rem;
+}
+
+.review-card p,
+.review-card li {
+  font-size: 0.92rem;
+}
+
+.signal-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.signal {
+  padding: 0.85rem;
+  border-radius: 16px;
+  background: rgba(23, 56, 87, 0.92);
+  color: #f8fafc;
+}
+
+.signal strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #fde68a;
+}
+
+.figure-frame {
+  padding: 0.8rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(23, 56, 87, 0.12);
+  box-shadow: 0 18px 40px rgba(17, 33, 50, 0.1);
+}
+
+.figure-frame img {
+  width: 100%;
+  border-radius: 16px;
+}
+
+.rationale {
+  margin-top: 0.6rem;
+  padding-left: 0.85rem;
+  border-left: 4px solid var(--ps-amber);
+  color: var(--ps-muted);
+  font-size: 0.88rem;
+}
+
+.score-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.score-box {
+  padding: 0.8rem;
+  border-radius: 14px;
+  background: rgba(216, 239, 230, 0.78);
+  border: 1px solid rgba(15, 118, 110, 0.16);
+}
+
+.score-box strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #115e59;
+}
+
+.tight li {
+  margin-bottom: 0.35rem;
+}

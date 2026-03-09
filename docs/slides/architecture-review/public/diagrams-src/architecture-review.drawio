@@ -1,0 +1,178 @@
+<mxfile host="app.diagrams.net" modified="2026-03-09T09:30:00.000Z" agent="Codex GPT-5" version="26.0.0" type="device" compressed="false">
+  <diagram id="r01" name="Requirement-Decision-Map">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="R01-N01" value="Input quality is uneven&#xa;Need early rejection" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=14;" vertex="1" parent="1"><mxGeometry x="50" y="80" width="260" height="110" as="geometry"/></mxCell>
+        <mxCell id="R01-N02" value="Target volume expands quickly&#xa;Need deterministic task units" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=14;" vertex="1" parent="1"><mxGeometry x="50" y="240" width="260" height="110" as="geometry"/></mxCell>
+        <mxCell id="R01-N03" value="Runtime pressure can change&#xa;Need explicit pacing control" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=14;" vertex="1" parent="1"><mxGeometry x="50" y="400" width="260" height="110" as="geometry"/></mxCell>
+        <mxCell id="R01-N04" value="Cancellation and failure happen&#xa;Need resumable execution" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=14;" vertex="1" parent="1"><mxGeometry x="50" y="560" width="260" height="110" as="geometry"/></mxCell>
+
+        <mxCell id="R01-N11" value="Fail-fast validation&#xa;input package owns data quality gate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="460" y="80" width="320" height="110" as="geometry"/></mxCell>
+        <mxCell id="R01-N12" value="Selector expansion + execution key&#xa;task package owns deterministic work units" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="460" y="240" width="320" height="110" as="geometry"/></mxCell>
+        <mxCell id="R01-N13" value="speedctrl + scanapp orchestration&#xa;pause / resume becomes a first-class control point" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="460" y="400" width="320" height="110" as="geometry"/></mxCell>
+        <mxCell id="R01-N14" value="writer + state artifacts&#xa;runtime outputs and resume state stay inspectable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="460" y="560" width="320" height="110" as="geometry"/></mxCell>
+
+        <mxCell id="R01-N21" value="Review impact&#xa;Bad rows never reach runtime" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="940" y="80" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="R01-N22" value="Review impact&#xa;Task count and dedup remain explainable" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="940" y="240" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="R01-N23" value="Review impact&#xa;Throughput throttling is visible and testable" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="940" y="400" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="R01-N24" value="Review impact&#xa;Recovery is part of architecture, not shell glue" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="940" y="560" width="250" height="100" as="geometry"/></mxCell>
+
+        <mxCell id="R01-N31" value="Design thesis&#xa;Each operational pressure forces one explicit architecture decision." style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#475569;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1320" y="280" width="420" height="200" as="geometry"/></mxCell>
+
+        <mxCell id="R01-E01" value="drives" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R01-N01" target="R01-N11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R01-E02" value="drives" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R01-N02" target="R01-N12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R01-E03" value="drives" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R01-N03" target="R01-N13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R01-E04" value="drives" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R01-N04" target="R01-N14"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="R01-E05" value="justifies" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R01-N11" target="R01-N21"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R01-E06" value="justifies" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R01-N12" target="R01-N22"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R01-E07" value="justifies" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R01-N13" target="R01-N23"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R01-E08" value="justifies" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R01-N14" target="R01-N24"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="r02" name="Architecture-Overview">
+    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="R02-N01" value="Operator / CLI&#xa;validate | scan" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=14;" vertex="1" parent="1"><mxGeometry x="60" y="90" width="220" height="90" as="geometry"/></mxCell>
+        <mxCell id="R02-N02" value="cmd/port-scan&#xa;composition root only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="340" y="90" width="240" height="90" as="geometry"/></mxCell>
+        <mxCell id="R02-N03" value="pkg/config&#xa;normalize runtime options" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=13;" vertex="1" parent="1"><mxGeometry x="660" y="70" width="230" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N04" value="pkg/input&#xa;load + validate input data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=13;" vertex="1" parent="1"><mxGeometry x="660" y="190" width="230" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N05" value="pkg/task&#xa;expand selectors + dedup tasks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=13;" vertex="1" parent="1"><mxGeometry x="970" y="190" width="250" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N06" value="pkg/scanapp&#xa;runtime orchestration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1290" y="190" width="250" height="90" as="geometry"/></mxCell>
+        <mxCell id="R02-N07" value="pkg/scanner&#xa;TCP probe only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=13;" vertex="1" parent="1"><mxGeometry x="1600" y="80" width="220" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N08" value="pkg/speedctrl&#xa;pause / resume gate" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=13;" vertex="1" parent="1"><mxGeometry x="1600" y="200" width="220" height="90" as="geometry"/></mxCell>
+        <mxCell id="R02-N09" value="pkg/writer&#xa;result artifacts" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=13;" vertex="1" parent="1"><mxGeometry x="1600" y="340" width="220" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N10" value="pkg/state&#xa;resume checkpoint" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=13;" vertex="1" parent="1"><mxGeometry x="1600" y="450" width="220" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N11" value="pkg/logx&#xa;runtime evidence" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=13;" vertex="1" parent="1"><mxGeometry x="1600" y="560" width="220" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="R02-N12" value="Pressure API" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="1290" y="450" width="210" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N13" value="CIDR CSV / Port CSV" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="340" y="320" width="240" height="80" as="geometry"/></mxCell>
+        <mxCell id="R02-N14" value="Targets" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="1910" y="80" width="180" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="R02-N21" value="Boundary rule&#xa;Keep CLI stable, let pkg collaborators evolve." style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#475569;fontSize=14;" vertex="1" parent="1"><mxGeometry x="60" y="520" width="480" height="120" as="geometry"/></mxCell>
+        <mxCell id="R02-N22" value="Boundary rule&#xa;scanapp coordinates collaborators; it should not absorb their responsibilities again." style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#475569;fontSize=14;" vertex="1" parent="1"><mxGeometry x="660" y="520" width="600" height="120" as="geometry"/></mxCell>
+
+        <mxCell id="R02-E01" value="entry" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R02-N01" target="R02-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E02" value="wires" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R02-N02" target="R02-N03"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E03" value="input config" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R02-N03" target="R02-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E04" value="validated rows" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R02-N04" target="R02-N05"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E05" value="scan tasks" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R02-N05" target="R02-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E06" value="probe" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R02-N06" target="R02-N07"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E07" value="TCP connect" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R02-N07" target="R02-N14"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E08" value="pressure signal" style="endArrow=classic;html=1;strokeColor=#92400e;fontSize=12;dashed=1;" edge="1" parent="1" source="R02-N12" target="R02-N08"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E09" value="gate control" style="endArrow=classic;html=1;strokeColor=#92400e;fontSize=12;dashed=1;" edge="1" parent="1" source="R02-N08" target="R02-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E10" value="results" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R02-N06" target="R02-N09"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E11" value="checkpoints" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R02-N06" target="R02-N10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E12" value="events" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R02-N06" target="R02-N11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R02-E13" value="CSV sources" style="endArrow=classic;html=1;strokeColor=#0369a1;fontSize=12;" edge="1" parent="1" source="R02-N13" target="R02-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="r03" name="Happy-Path">
+    <mxGraphModel dx="1900" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="R03-N01" value="CLI: scan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="60" y="280" width="170" height="80" as="geometry"/></mxCell>
+        <mxCell id="R03-N02" value="Parse flags + normalize config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="290" y="280" width="250" height="80" as="geometry"/></mxCell>
+        <mxCell id="R03-N03" value="Load CIDR / port inputs" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=14;" vertex="1" parent="1"><mxGeometry x="600" y="280" width="240" height="80" as="geometry"/></mxCell>
+        <mxCell id="R03-N04" value="Validation pass" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="910" y="270" width="170" height="100" as="geometry"/></mxCell>
+        <mxCell id="R03-N05" value="Expand selectors to IPv4 targets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1160" y="280" width="250" height="80" as="geometry"/></mxCell>
+        <mxCell id="R03-N06" value="Build execution-key tasks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1470" y="280" width="240" height="80" as="geometry"/></mxCell>
+        <mxCell id="R03-N07" value="Dispatch through worker pool" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1780" y="270" width="240" height="100" as="geometry"/></mxCell>
+        <mxCell id="R03-N08" value="speedctrl gate = run" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=14;" vertex="1" parent="1"><mxGeometry x="2060" y="270" width="210" height="100" as="geometry"/></mxCell>
+        <mxCell id="R03-N09" value="net.DialTimeout(&quot;tcp&quot;, target, timeout)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="2280" y="430" width="290" height="90" as="geometry"/></mxCell>
+        <mxCell id="R03-N10" value="Connected&#xa;then conn.Close()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1950" y="430" width="250" height="90" as="geometry"/></mxCell>
+        <mxCell id="R03-N11" value="Map to status&#xa;open | close | close(timeout)" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1610" y="430" width="280" height="90" as="geometry"/></mxCell>
+        <mxCell id="R03-N12" value="Aggregate writer.Record" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1290" y="430" width="250" height="90" as="geometry"/></mxCell>
+        <mxCell id="R03-N13" value="Write scan_results-* and opened_results-*" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="910" y="430" width="320" height="90" as="geometry"/></mxCell>
+        <mxCell id="R03-N14" value="Exit 0 with completion summary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="560" y="430" width="280" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="R03-N21" value="Boundary&#xa;Regular Go TCP connect / close&#xa;Not SYN scan, not active RST teardown" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#475569;fontSize=14;" vertex="1" parent="1"><mxGeometry x="2240" y="90" width="360" height="140" as="geometry"/></mxCell>
+
+        <mxCell id="R03-E01" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="R03-N01" target="R03-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E02" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="R03-N02" target="R03-N03"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E03" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="R03-N03" target="R03-N04"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E04" value="pass" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R03-N04" target="R03-N05"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E05" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="R03-N05" target="R03-N06"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E06" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="R03-N06" target="R03-N07"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E07" value="run" style="endArrow=classic;html=1;strokeColor=#92400e;fontSize=12;dashed=1;" edge="1" parent="1" source="R03-N08" target="R03-N07"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E08" value="probe" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R03-N07" target="R03-N09"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E09" value="success" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=12;" edge="1" parent="1" source="R03-N09" target="R03-N10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E10" value="record" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R03-N10" target="R03-N11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E11" value="" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;" edge="1" parent="1" source="R03-N11" target="R03-N12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E12" value="" style="endArrow=classic;html=1;strokeColor=#7c3aed;dashed=1;" edge="1" parent="1" source="R03-N12" target="R03-N13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R03-E13" value="" style="endArrow=classic;html=1;strokeColor=#334155;" edge="1" parent="1" source="R03-N13" target="R03-N14"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="r04" name="Failure-Recovery">
+    <mxGraphModel dx="1800" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2800" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="R04-N01" value="Failure branch A&#xa;Input validation fails" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="100" y="170" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="R04-N02" value="Stop before runtime dispatch&#xa;Return non-zero exit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="390" y="180" width="280" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="R04-N11" value="Failure branch B&#xa;Pressure API keeps failing or pressure escalates" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="100" y="430" width="250" height="120" as="geometry"/></mxCell>
+        <mxCell id="R04-N12" value="speedctrl moves gate to stop" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=14;" vertex="1" parent="1"><mxGeometry x="420" y="440" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="R04-N13" value="scanapp persists resume snapshot" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="740" y="445" width="270" height="90" as="geometry"/></mxCell>
+        <mxCell id="R04-N14" value="Operator reruns with -resume" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1080" y="445" width="240" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="R04-N21" value="Failure branch C&#xa;SIGINT / cancellation" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fde2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="100" y="730" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="R04-N22" value="Graceful stop boundary&#xa;drain, checkpoint, exit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="390" y="740" width="280" height="90" as="geometry"/></mxCell>
+        <mxCell id="R04-N23" value="resume_state.json or explicit -resume path" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="740" y="745" width="320" height="90" as="geometry"/></mxCell>
+        <mxCell id="R04-N24" value="Next run restores progress deterministically" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1130" y="745" width="300" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="R04-N31" value="Review takeaway&#xa;Failure modes are explicit, resumable, and externally inspectable." style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#475569;fontSize=14;" vertex="1" parent="1"><mxGeometry x="1640" y="410" width="520" height="230" as="geometry"/></mxCell>
+
+        <mxCell id="R04-E01" value="fail fast" style="endArrow=classic;html=1;strokeColor=#b91c1c;fontSize=12;" edge="1" parent="1" source="R04-N01" target="R04-N02"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R04-E02" value="escalate" style="endArrow=classic;html=1;strokeColor=#b91c1c;fontSize=12;" edge="1" parent="1" source="R04-N11" target="R04-N12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R04-E03" value="checkpoint" style="endArrow=classic;html=1;strokeColor=#92400e;fontSize=12;dashed=1;" edge="1" parent="1" source="R04-N12" target="R04-N13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R04-E04" value="recover" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R04-N13" target="R04-N14"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R04-E05" value="signal" style="endArrow=classic;html=1;strokeColor=#b91c1c;fontSize=12;" edge="1" parent="1" source="R04-N21" target="R04-N22"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R04-E06" value="persist" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R04-N22" target="R04-N23"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R04-E07" value="resume" style="endArrow=classic;html=1;strokeColor=#7c3aed;fontSize=12;dashed=1;" edge="1" parent="1" source="R04-N23" target="R04-N24"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="r05" name="Trade-Off-Comparison">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="R05-N01" value="Current choice&#xa;Deterministic in-process pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=15;" vertex="1" parent="1"><mxGeometry x="120" y="120" width="380" height="120" as="geometry"/></mxCell>
+        <mxCell id="R05-N02" value="Alternative&#xa;Distributed queue / scheduler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#c2410c;fontSize=15;" vertex="1" parent="1"><mxGeometry x="120" y="320" width="380" height="120" as="geometry"/></mxCell>
+        <mxCell id="R05-N03" value="Alternative&#xa;Raw packet / SYN scan model" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#c2410c;fontSize=15;" vertex="1" parent="1"><mxGeometry x="120" y="520" width="380" height="120" as="geometry"/></mxCell>
+
+        <mxCell id="R05-N11" value="Strengths&#xa;- clear contracts&#xa;- simple deployment&#xa;- inspectable artifacts&#xa;- fits current scale" style="shape=document;whiteSpace=wrap;html=1;fillColor=#eee5ff;strokeColor=#7c3aed;fontSize=14;" vertex="1" parent="1"><mxGeometry x="620" y="110" width="300" height="160" as="geometry"/></mxCell>
+        <mxCell id="R05-N12" value="Costs&#xa;- throughput ceiling stays local&#xa;- one process owns pacing logic" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="980" y="110" width="300" height="160" as="geometry"/></mxCell>
+
+        <mxCell id="R05-N21" value="Benefits if adopted&#xa;- elastic scaling&#xa;- separated scheduling" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#c2410c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="620" y="320" width="300" height="120" as="geometry"/></mxCell>
+        <mxCell id="R05-N22" value="Why rejected now&#xa;- higher operational burden&#xa;- more moving parts than requirements justify" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="980" y="300" width="340" height="160" as="geometry"/></mxCell>
+
+        <mxCell id="R05-N31" value="Benefits if adopted&#xa;- lower-level packet control&#xa;- potentially different performance profile" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#c2410c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="620" y="520" width="300" height="140" as="geometry"/></mxCell>
+        <mxCell id="R05-N32" value="Why rejected now&#xa;- diverges from current Go net model&#xa;- harder to validate and operate safely" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontSize=14;" vertex="1" parent="1"><mxGeometry x="980" y="500" width="340" height="180" as="geometry"/></mxCell>
+
+        <mxCell id="R05-N41" value="Review thesis&#xa;The design intentionally favors reviewability, stability, and operational clarity over speculative capability." style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#475569;fontSize=15;" vertex="1" parent="1"><mxGeometry x="1510" y="240" width="560" height="250" as="geometry"/></mxCell>
+
+        <mxCell id="R05-E01" value="" style="endArrow=classic;html=1;strokeColor=#0d9488;" edge="1" parent="1" source="R05-N01" target="R05-N11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R05-E02" value="" style="endArrow=classic;html=1;strokeColor=#0d9488;" edge="1" parent="1" source="R05-N01" target="R05-N12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R05-E03" value="" style="endArrow=classic;html=1;strokeColor=#c2410c;" edge="1" parent="1" source="R05-N02" target="R05-N21"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R05-E04" value="" style="endArrow=classic;html=1;strokeColor=#c2410c;" edge="1" parent="1" source="R05-N02" target="R05-N22"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R05-E05" value="" style="endArrow=classic;html=1;strokeColor=#c2410c;" edge="1" parent="1" source="R05-N03" target="R05-N31"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="R05-E06" value="" style="endArrow=classic;html=1;strokeColor=#c2410c;" edge="1" parent="1" source="R05-N03" target="R05-N32"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
