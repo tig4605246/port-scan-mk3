@@ -514,6 +514,64 @@ func TestRun_WhenScanCompletes_WritesOpenRecordsToOpenedResultsCSV(t *testing.T)
 	}
 }
 
+func TestRun_WhenScanCompletes_DoesNotWriteResumeState(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	resumeFile := filepath.Join(tmp, "resume_state.json")
+
+	if err := os.WriteFile(cidrFile, []byte(
+		"fab_name,ip,ip_cidr,cidr_name\n"+
+			"fab1,127.0.0.1,127.0.0.1/32,loopback\n",
+	), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          100 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+	}
+	if err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
+		DisableKeyboard: true,
+		ResumeStatePath: resumeFile,
+	}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if _, statErr := os.Stat(resumeFile); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no resume file on successful completion, got err=%v", statErr)
+	}
+}
+
 func mustFindOne(t *testing.T, pattern string) string {
 	t.Helper()
 	matches, err := filepath.Glob(pattern)

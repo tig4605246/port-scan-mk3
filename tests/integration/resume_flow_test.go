@@ -17,3 +17,16 @@ func TestResumeFlow_CompletesAllTargets(t *testing.T) {
 		t.Fatalf("resume missed results: %d", result.MissingCount)
 	}
 }
+
+func TestResumeFlow_WhenEnabled_PreservesExpectedTargetCount(t *testing.T) {
+	result, err := RunIntegrationScenario(Scenario{Resume: true})
+	if err != nil {
+		t.Fatalf("scenario failed: %v", err)
+	}
+	if result.TotalTargets != 4 {
+		t.Fatalf("expected 4 total targets, got %d", result.TotalTargets)
+	}
+	if result.TotalScanned != 4 {
+		t.Fatalf("expected 4 scanned targets, got %d", result.TotalScanned)
+	}
+}

@@ -25,3 +25,32 @@ func TestScanPipeline_PausesOnPressureAndResumes(t *testing.T) {
 		t.Fatalf("scan incomplete: %d/%d", result.TotalScanned, result.TotalTargets)
 	}
 }
+
+func TestScanPipeline_WithoutPressureAPICompletesWithoutPause(t *testing.T) {
+	result, err := RunIntegrationScenario(Scenario{DisableAPI: true})
+	if err != nil {
+		t.Fatalf("scenario failed: %v", err)
+	}
+	if result.PauseCount != 0 {
+		t.Fatalf("expected no pause events, got %d", result.PauseCount)
+	}
+	if result.TotalScanned != result.TotalTargets {
+		t.Fatalf("scan incomplete: %d/%d", result.TotalScanned, result.TotalTargets)
+	}
+}
+
+func TestScanPipeline_UsesDefaultThresholdWhenUnset(t *testing.T) {
+	api := testkit.NewMockPressureAPI([]int{20, 89, 90, 30})
+	defer api.Close()
+
+	result, err := RunIntegrationScenario(Scenario{
+		PressureAPI: api.URL(),
+		DisableAPI:  false,
+	})
+	if err != nil {
+		t.Fatalf("scenario failed: %v", err)
+	}
+	if result.PauseCount != 1 {
+		t.Fatalf("expected exactly one pause at default threshold, got %d", result.PauseCount)
+	}
+}
