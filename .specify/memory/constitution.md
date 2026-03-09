@@ -1,16 +1,10 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 1.1.0
+- Version change: 1.1.0 -> 1.2.0
 - Modified principles:
-  - I. Library-First -> I. Library-First Design
-  - II. CLI Interface -> II. CLI Contract-First
-  - III. Test-First (NON-NEGOTIABLE) -> III. Test-First Delivery (NON-NEGOTIABLE)
-  - IV. Integration Testing -> IV. Integration Coverage for Contract Boundaries
-  - V. End-to-End Testing (e2e test) -> V. Isolated End-to-End Verification
-  - VI. Observability -> VI. Observability by Default
-  - VII. Versioning -> VII. Versioning and Release Evidence
-- Added sections:
   - None
+- Added sections:
+  - VIII. SOLID Structural Boundaries
 - Removed sections:
   - None
 - Templates requiring updates:
@@ -81,11 +75,26 @@ Rationale: Port scanning requires reliable diagnostics to debug network variance
 
 Rationale: Explicit version semantics and release evidence reduce upgrade risk for users.
 
+### VIII. SOLID Structural Boundaries
+- Code structure MUST comply with SOLID: each package, type, and function MUST have one
+  clear responsibility and one primary reason to change.
+- High-level workflows MUST depend on narrow abstractions owned by the consuming package;
+  domain packages MUST NOT depend on CLI glue, concrete writers, or transport details.
+- Interfaces MUST be minimal and purpose-specific; "god" structs, "god" interfaces, and
+  cyclic dependencies are prohibited.
+- Feature growth MUST prefer composition or new implementations over modifying stable
+  contracts unless a breaking change is intentionally approved and documented.
+
+Rationale: SOLID boundaries keep scanner behavior modular, testable, and safe to extend
+without coupling orchestration, I/O, and domain logic together.
+
 ## Technology Stack Requirements
 - Implementation MUST use Go 1.24.x as the primary language runtime.
 - TCP scanning MUST use Go standard library `net` primitives (for example, `net.DialTimeout`)
   unless a deviation is approved in a complexity exception.
 - New third-party dependencies SHOULD be minimal and MUST include justification in the PR.
+- Code organization MUST keep reusable domain logic in `pkg/` and limit `cmd/port-scan` to
+  CLI composition, argument handling, and user-facing I/O.
 
 ## Quality Gates
 - `go test ./...` MUST pass.
@@ -93,6 +102,8 @@ Rationale: Explicit version semantics and release evidence reduce upgrade risk f
 - `bash e2e/run_e2e.sh` MUST pass when a change affects scan pipeline, writers, or pressure
   control behavior.
 - Pull requests MUST include command output or CI links proving gate execution.
+- Changes that add or reshape packages, interfaces, or adapters MUST document SOLID boundary
+  decisions in the relevant spec, plan, or pull request.
 
 ## Governance
 - This constitution supersedes conflicting local practices for this repository.
@@ -106,9 +117,11 @@ Rationale: Explicit version semantics and release evidence reduce upgrade risk f
   - PATCH: wording clarifications with no policy behavior change.
 - Compliance review expectations:
   - Every plan, spec, and task artifact MUST include a constitution alignment check.
+  - Architecture reviews MUST confirm responsibility boundaries, interface ownership, and
+    dependency direction for new or changed packages.
   - Reviewers MUST block merges when MUST-level rules are unmet unless a dated exception is
     recorded in the feature's complexity tracking.
   - Template alignment under `.specify/templates/` MUST be reviewed on every constitution
     amendment.
 
-**Version**: 1.1.0 | **Ratified**: 2026-03-01 | **Last Amended**: 2026-03-02
+**Version**: 1.2.0 | **Ratified**: 2026-03-01 | **Last Amended**: 2026-03-07

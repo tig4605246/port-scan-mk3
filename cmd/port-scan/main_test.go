@@ -60,3 +60,89 @@ func TestMainValidate_CustomCIDRColumnNames(t *testing.T) {
 		t.Fatalf("expected json output, got %s", out.String())
 	}
 }
+
+func TestMainValidate_WhenValidationFails_ReturnsExit1AndJSONDetail(t *testing.T) {
+	tmp := t.TempDir()
+	cidr := filepath.Join(tmp, "cidr.csv")
+	port := filepath.Join(tmp, "ports.csv")
+	if err := os.WriteFile(cidr, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,10.0.1.1,10.0.0.0/24,a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(port, []byte("80/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	code := runMain([]string{"validate", "-cidr-file", cidr, "-port-file", port, "-format", "json"}, out, errOut)
+
+	if code != 1 {
+		t.Fatalf("expected exit code 1, got %d stderr=%s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), `"valid":false`) {
+		t.Fatalf("expected invalid json output, got %s", out.String())
+	}
+	if !strings.Contains(out.String(), `detail`) {
+		t.Fatalf("expected detail in json output, got %s", out.String())
+	}
+	if errOut.Len() != 0 {
+		t.Fatalf("expected empty stderr for validation failure, got %s", errOut.String())
+	}
+}
+
+func TestMainValidate_WhenConfigParseFails_ReturnsExit2AndWritesStderr(t *testing.T) {
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+
+	code := runMain([]string{"validate", "-cidr-file", "", "-port-file", ""}, out, errOut)
+
+	if code != 2 {
+		t.Fatalf("expected exit code 2, got %d stderr=%s", code, errOut.String())
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected empty stdout on config parse failure, got %s", out.String())
+	}
+	if !strings.Contains(errOut.String(), "-cidr-file and -port-file are required") {
+		t.Fatalf("expected parse error on stderr, got %s", errOut.String())
+	}
+}
+
+func TestHandleValidateCommand_WhenJSONValidationSucceeds_ReturnsExit0(t *testing.T) {
+	tmp := t.TempDir()
+	cidr := filepath.Join(tmp, "cidr.csv")
+	port := filepath.Join(tmp, "ports.csv")
+	if err := os.WriteFile(cidr, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,10.0.0.0/30,10.0.0.0/30,a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(port, []byte("80/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	code := handleValidateCommand([]string{"-cidr-file", cidr, "-port-file", port, "-format", "json"}, out, errOut)
+
+	if code != 0 {
+		t.Fatalf("exit code=%d stderr=%s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), `"valid":true`) {
+		t.Fatalf("expected json output, got %s", out.String())
+	}
+}
+
+func TestHandleValidateCommand_WhenConfigParseFails_ReturnsExit2AndWritesStderr(t *testing.T) {
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+
+	code := handleValidateCommand([]string{"-cidr-file", "", "-port-file", ""}, out, errOut)
+
+	if code != 2 {
+		t.Fatalf("expected exit code 2, got %d stderr=%s", code, errOut.String())
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected empty stdout on config parse failure, got %s", out.String())
+	}
+	if !strings.Contains(errOut.String(), "-cidr-file and -port-file are required") {
+		t.Fatalf("expected parse error on stderr, got %s", errOut.String())
+	}
+}

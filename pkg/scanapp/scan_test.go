@@ -19,6 +19,7 @@ import (
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/input"
+	"github.com/xuxiping/port-scan-mk3/pkg/ratelimit"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 	"github.com/xuxiping/port-scan-mk3/pkg/state"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
@@ -304,6 +305,58 @@ func TestShouldSaveOnDispatchErr_WhenDispatchErrorVaries_ReturnsExpectedDecision
 	}
 }
 
+func TestPersistResumeState_WhenRuntimeIncomplete_SavesResumeSnapshot(t *testing.T) {
+	tmp := t.TempDir()
+	resumeFile := filepath.Join(tmp, "resume.json")
+	logger := newLogger("error", false, &bytes.Buffer{})
+	runtimes := []*chunkRuntime{{
+		state: &task.Chunk{
+			CIDR:         "10.0.0.0/24",
+			NextIndex:    2,
+			ScannedCount: 2,
+			TotalCount:   4,
+			Status:       "scanning",
+		},
+	}}
+
+	if err := persistResumeState(config.Config{}, RunOptions{ResumeStatePath: resumeFile}, logger, runtimes, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	chunks, err := state.Load(resumeFile)
+	if err != nil {
+		t.Fatalf("expected saved resume state, got %v", err)
+	}
+	if len(chunks) != 1 {
+		t.Fatalf("expected 1 saved chunk, got %d", len(chunks))
+	}
+	if chunks[0].NextIndex != 2 || chunks[0].ScannedCount != 2 || chunks[0].Status != "scanning" {
+		t.Fatalf("unexpected saved chunk state: %+v", chunks[0])
+	}
+}
+
+func TestPersistResumeState_WhenRunCompletesCleanly_SkipsWrite(t *testing.T) {
+	tmp := t.TempDir()
+	resumeFile := filepath.Join(tmp, "resume.json")
+	logger := newLogger("error", false, &bytes.Buffer{})
+	runtimes := []*chunkRuntime{{
+		state: &task.Chunk{
+			CIDR:         "10.0.0.0/24",
+			NextIndex:    4,
+			ScannedCount: 4,
+			TotalCount:   4,
+			Status:       "completed",
+		},
+	}}
+
+	if err := persistResumeState(config.Config{}, RunOptions{ResumeStatePath: resumeFile}, logger, runtimes, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := os.Stat(resumeFile); !os.IsNotExist(err) {
+		t.Fatalf("expected no resume file on clean completion, got err=%v", err)
+	}
+}
+
 func TestScanLogger_WhenTextOrJSONEnabled_FormatsOutputByMode(t *testing.T) {
 	textOut := &bytes.Buffer{}
 	l := newLogger("debug", false, textOut)
@@ -361,6 +414,40 @@ func TestPollPressureAPI_WhenPressureCrossesThreshold_TogglesPauseAndLogsTransit
 	}
 	if !strings.Contains(logOut.String(), "掃描已自動暫停") || !strings.Contains(logOut.String(), "掃描已自動恢復") {
 		t.Fatalf("expected pause/resume logs, got: %s", logOut.String())
+	}
+}
+
+func TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex(t *testing.T) {
+	ctrl := speedctrl.NewController()
+	logOut := &lockedBuffer{}
+	logger := newLogger("debug", false, logOut)
+	bucket := ratelimit.NewLeakyBucket(100, 100)
+	defer bucket.Close()
+
+	rt := &chunkRuntime{
+		ipCidr: "10.0.0.0/24",
+		ports:  []int{80, 443},
+		targets: []scanTarget{
+			{ip: "10.0.0.1", ipCidr: "10.0.0.0/24"},
+			{ip: "10.0.0.2", ipCidr: "10.0.0.0/24"},
+		},
+		state: &task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 4, Status: "pending"},
+		bkt:   bucket,
+	}
+	taskCh := make(chan scanTask, 8)
+
+	err := dispatchTasks(context.Background(), config.Config{Delay: 0}, ctrl, logger, []*chunkRuntime{rt}, taskCh)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rt.state.NextIndex != 4 {
+		t.Fatalf("expected next index 4, got %d", rt.state.NextIndex)
+	}
+	if rt.state.Status != "scanning" {
+		t.Fatalf("expected scanning status during dispatch, got %s", rt.state.Status)
+	}
+	if len(taskCh) != 4 {
+		t.Fatalf("expected 4 queued tasks, got %d", len(taskCh))
 	}
 }
 
@@ -450,6 +537,68 @@ func TestRun_WhenIPColumnListsSubset_ScansOnlyListedIPs(t *testing.T) {
 	}
 }
 
+func TestRun_WhenCIDRColumnNamesBlank_UsesDefaultInputColumns(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+
+	if err := os.WriteFile(cidrFile, []byte(
+		"fab_name,ip,ip_cidr,cidr_name\n"+
+			"fab1,127.0.0.1,127.0.0.1/32,loopback\n",
+	), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          100 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+		CIDRIPCol:        "",
+		CIDRIPCidrCol:    "",
+	}
+	if err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{DisableKeyboard: true}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	scanOutputPath := mustFindOne(t, filepath.Join(tmp, "scan_results-*.csv"))
+	outBytes, err := os.ReadFile(scanOutputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(outBytes), "127.0.0.1,127.0.0.1/32,"+strconv.Itoa(openPort)+",open") {
+		t.Fatalf("expected open row using default input columns, got: %s", string(outBytes))
+	}
+}
+
 func TestRun_WhenScanCompletes_WritesOpenRecordsToOpenedResultsCSV(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -511,6 +660,64 @@ func TestRun_WhenScanCompletes_WritesOpenRecordsToOpenedResultsCSV(t *testing.T)
 	}
 	if strings.Contains(openOnly, ",close,") || strings.Contains(openOnly, "close(timeout)") {
 		t.Fatalf("opened_results.csv must include open records only, got: %s", openOnly)
+	}
+}
+
+func TestRun_WhenScanCompletes_DoesNotWriteResumeState(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	resumeFile := filepath.Join(tmp, "resume_state.json")
+
+	if err := os.WriteFile(cidrFile, []byte(
+		"fab_name,ip,ip_cidr,cidr_name\n"+
+			"fab1,127.0.0.1,127.0.0.1/32,loopback\n",
+	), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          100 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+	}
+	if err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
+		DisableKeyboard: true,
+		ResumeStatePath: resumeFile,
+	}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if _, statErr := os.Stat(resumeFile); !os.IsNotExist(statErr) {
+		t.Fatalf("expected no resume file on successful completion, got err=%v", statErr)
 	}
 }
 

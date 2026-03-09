@@ -3,7 +3,6 @@ package scanapp
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -92,6 +91,7 @@ type scanResult struct {
 // Run executes a full scan flow: load inputs, dispatch scan tasks, write batch
 // outputs, and persist resume state on interruption/failure.
 func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts RunOptions) error {
+	deps := defaultRunDependencies()
 	logger := newLogger(cfg.LogLevel, cfg.Format == "json", stderr)
 	if strings.TrimSpace(cfg.CIDRIPCol) == "" {
 		cfg.CIDRIPCol = "ip"
@@ -104,30 +104,16 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	cidrRecords, err := readCIDRFile(cfg.CIDRFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol)
+	inputs, err := loadRunInputs(cfg, deps)
 	if err != nil {
 		return err
 	}
-	portSpecs, err := readPortFile(cfg.PortFile)
-	if err != nil {
-		return err
-	}
-
-	chunks, err := loadOrBuildChunks(cfg, cidrRecords, portSpecs)
-	if err != nil {
-		return err
-	}
-	runtimes, err := buildRuntime(chunks, cidrRecords, portSpecs, cfg)
+	plan, err := prepareRunPlan(cfg, inputs, deps, time.Now())
 	if err != nil {
 		return err
 	}
 
-	scanOutputPath, openOnlyPath, err := resolveBatchOutputPaths(cfg.Output, time.Now())
-	if err != nil {
-		return err
-	}
-
-	outFile, err := os.Create(scanOutputPath)
+	outFile, err := os.Create(plan.scanOutputPath)
 	if err != nil {
 		return err
 	}
@@ -137,7 +123,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	openOnlyFile, err := os.Create(openOnlyPath)
+	openOnlyFile, err := os.Create(plan.openOnlyPath)
 	if err != nil {
 		return err
 	}
@@ -225,7 +211,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 
 	dispatchErrCh := make(chan error, 1)
 	go func() {
-		dispatchErrCh <- dispatchTasks(runCtx, cfg, ctrl, logger, runtimes, taskCh)
+		dispatchErrCh <- dispatchTasks(runCtx, cfg, ctrl, logger, plan.runtimes, taskCh)
 		close(taskCh)
 	}()
 
@@ -233,10 +219,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		dispatchDone bool
 		dispatchErr  error
 		runErr       error
-		written      int
-		openCount    int
-		closeCount   int
-		timeoutCount int
+		summary      resultSummary
 	)
 	startedAt := time.Now()
 	for !dispatchDone || resultCh != nil {
@@ -255,97 +238,34 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				resultCh = nil
 				continue
 			}
-			if err := csvWriter.Write(res.record); err != nil && runErr == nil {
+			if err := writeScanRecord(csvWriter, openOnlyWriter, res.record); err != nil && runErr == nil {
 				runErr = err
 				cancel()
 			}
-			if err := openOnlyWriter.Write(res.record); err != nil && runErr == nil {
-				runErr = err
-				cancel()
-			}
-			ch := runtimes[res.chunkIdx].state
-			ch.ScannedCount++
-			if ch.ScannedCount >= ch.TotalCount {
-				ch.Status = "completed"
-			} else {
-				ch.Status = "scanning"
-			}
-			written++
-			switch {
-			case strings.EqualFold(res.record.Status, "open"):
-				openCount++
-			case strings.Contains(strings.ToLower(res.record.Status), "timeout"):
-				timeoutCount++
-			default:
-				closeCount++
-			}
-			logger.eventf("scan_result", res.record.IP, res.record.Port, "scanned", statusErrorCause(res.record.Status), map[string]any{
-				"status":           res.record.Status,
-				"response_time_ms": res.record.ResponseMS,
-				"cidr":             res.record.IPCidr,
-			})
-			if written%progressStep == 0 {
-				_, _ = fmt.Fprintf(stdout, "progress cidr=%s scanned=%d/%d paused=%t\n", ch.CIDR, ch.ScannedCount, ch.TotalCount, ctrl.IsPaused())
-				completionRate := 0.0
-				if ch.TotalCount > 0 {
-					completionRate = float64(ch.ScannedCount) / float64(ch.TotalCount)
-				}
-				logger.eventf("scan_progress", "", 0, "progress", "none", map[string]any{
-					"cidr":            ch.CIDR,
-					"scanned_count":   ch.ScannedCount,
-					"total_count":     ch.TotalCount,
-					"completion_rate": completionRate,
-					"paused":          ctrl.IsPaused(),
-				})
-			}
+			applyScanResult(plan.runtimes, res, &summary)
+			emitScanResultEvents(stdout, logger, ctrl, progressStep, plan.runtimes, res, &summary)
 		}
 	}
 
-	for _, rt := range runtimes {
+	for _, rt := range plan.runtimes {
 		if rt.bkt != nil {
 			rt.bkt.Close()
 		}
 	}
 
-	incomplete := hasIncomplete(runtimes)
-	if incomplete || runErr != nil || shouldSaveOnDispatchErr(dispatchErr) {
-		savePath := resumePath(cfg, opts)
-		if err := state.Save(savePath, collectChunkStates(runtimes)); err != nil {
-			return err
-		}
-		logger.infof("resume state saved to %s", savePath)
+	if err := persistResumeState(cfg, opts, logger, plan.runtimes, dispatchErr, runErr); err != nil {
+		return err
 	}
 
 	if runErr != nil {
-		logger.eventf("scan_completion", "", 0, "completion_summary", errorCause(runErr), map[string]any{
-			"total_tasks":   written,
-			"open_count":    openCount,
-			"close_count":   closeCount,
-			"timeout_count": timeoutCount,
-			"duration_ms":   time.Since(startedAt).Milliseconds(),
-			"success":       false,
-		})
+		emitCompletionSummary(logger, summary, startedAt, runErr)
 		return runErr
 	}
 	if dispatchErr != nil {
-		logger.eventf("scan_completion", "", 0, "completion_summary", errorCause(dispatchErr), map[string]any{
-			"total_tasks":   written,
-			"open_count":    openCount,
-			"close_count":   closeCount,
-			"timeout_count": timeoutCount,
-			"duration_ms":   time.Since(startedAt).Milliseconds(),
-			"success":       false,
-		})
+		emitCompletionSummary(logger, summary, startedAt, dispatchErr)
 		return dispatchErr
 	}
-	logger.eventf("scan_completion", "", 0, "completion_summary", "none", map[string]any{
-		"total_tasks":   written,
-		"open_count":    openCount,
-		"close_count":   closeCount,
-		"timeout_count": timeoutCount,
-		"duration_ms":   time.Since(startedAt).Milliseconds(),
-		"success":       true,
-	})
+	emitCompletionSummary(logger, summary, startedAt, nil)
 	return nil
 }
 
@@ -371,77 +291,6 @@ func collectChunkStates(runtimes []*chunkRuntime) []task.Chunk {
 		out = append(out, *rt.state)
 	}
 	return out
-}
-
-func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Controller, logger *scanLogger, runtimes []*chunkRuntime, taskCh chan<- scanTask) error {
-	for idx := range runtimes {
-		rt := runtimes[idx]
-		ch := rt.state
-		if ch.NextIndex >= ch.TotalCount {
-			ch.Status = "completed"
-			continue
-		}
-		ch.Status = "scanning"
-		for i := ch.NextIndex; i < ch.TotalCount; i++ {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ctrl.Gate():
-			}
-
-			if err := rt.bkt.Acquire(ctx); err != nil {
-				return err
-			}
-
-			target, port, err := indexToRuntimeTarget(rt.targets, rt.ports, i)
-			if err != nil {
-				return err
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case taskCh <- scanTask{
-				chunkIdx:          idx,
-				fabName:           target.fabName,
-				ipCidr:            defaultString(target.ipCidr, ch.CIDR),
-				cidrName:          target.cidrName,
-				ip:                target.ip,
-				port:              port,
-				serviceLabel:      target.serviceLabel,
-				decision:          target.decision,
-				policyID:          target.policyID,
-				reason:            target.reason,
-				executionKey:      target.executionKey,
-				srcIP:             target.srcIP,
-				srcNetworkSegment: target.srcNetworkSegment,
-			}:
-			}
-			ch.NextIndex = i + 1
-			logger.debugf("dispatch cidr=%s target=%s:%d next_index=%d/%d", ch.CIDR, target.ip, port, ch.NextIndex, ch.TotalCount)
-			if cfg.Delay > 0 {
-				time.Sleep(cfg.Delay)
-			}
-		}
-	}
-	return nil
-}
-
-func readCIDRFile(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return input.LoadCIDRsWithColumns(f, ipCol, ipCidrCol)
-}
-
-func readPortFile(path string) ([]input.PortSpec, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return input.LoadPorts(f)
 }
 
 func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error) {
@@ -773,116 +622,6 @@ func ensureFDLimit(workers int) error {
 		return fmt.Errorf("file descriptor limit too low: %d (need >= %d)", lim.Cur, minNeed)
 	}
 	return nil
-}
-
-func startManualPauseMonitor(ctx context.Context, ctrl *speedctrl.Controller, logger *scanLogger) {
-	go func() {
-		prev := ctrl.ManualPaused()
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				curr := ctrl.ManualPaused()
-				if curr != prev {
-					if curr {
-						logger.infof("[Manual] 接收到按鍵指令，掃描已手動暫停")
-					} else {
-						logger.infof("[Manual] 掃描已手動恢復")
-					}
-					prev = curr
-				}
-			}
-		}
-	}()
-}
-
-func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ctrl *speedctrl.Controller, logger *scanLogger, errCh chan<- error) {
-	interval := cfg.PressureInterval
-	if interval <= 0 {
-		interval = 5 * time.Second
-	}
-	threshold := opts.PressureLimit
-	if threshold <= 0 {
-		threshold = defaultPressureLimit
-	}
-	client := opts.PressureHTTP
-	if client == nil {
-		client = &http.Client{Timeout: 2 * time.Second}
-	}
-
-	var consecutiveFailures int
-	var prevPaused bool
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			pressure, err := fetchPressure(client, cfg.PressureAPI)
-			if err != nil {
-				consecutiveFailures++
-				if consecutiveFailures <= 2 {
-					logger.errorf("pressure api request failed (%d/3): %v", consecutiveFailures, err)
-					continue
-				}
-				select {
-				case errCh <- fmt.Errorf("pressure api failed 3 times: %w", err):
-				default:
-				}
-				return
-			}
-			consecutiveFailures = 0
-
-			paused := pressure >= threshold
-			ctrl.SetAPIPaused(paused)
-			if paused != prevPaused {
-				if paused {
-					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%d threshold=%d", pressure, threshold)
-				} else {
-					logger.infof("[API] 路由器壓力恢復，掃描已自動恢復 pressure=%d threshold=%d", pressure, threshold)
-				}
-				prevPaused = paused
-			}
-		}
-	}
-}
-
-func fetchPressure(client *http.Client, url string) (int, error) {
-	resp, err := client.Get(url)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return 0, fmt.Errorf("pressure api status=%d", resp.StatusCode)
-	}
-	var body map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return 0, err
-	}
-	raw, ok := body["pressure"]
-	if !ok {
-		return 0, fmt.Errorf("pressure field missing")
-	}
-	switch v := raw.(type) {
-	case float64:
-		return int(v), nil
-	case int:
-		return v, nil
-	case string:
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, err
-		}
-		return n, nil
-	default:
-		return 0, fmt.Errorf("unsupported pressure field type: %T", raw)
-	}
 }
 
 type scanLogger struct {
