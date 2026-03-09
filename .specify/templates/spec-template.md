@@ -102,6 +102,13 @@
 
 ## Constitution Alignment *(mandatory)*
 
+### Architecture Strategy
+
+- **AS-001**: Define the package/module responsibilities and the single reason each changed
+  component is allowed to change.
+- **AS-002**: Define dependency direction, consumer-owned interfaces, and any adapter boundaries
+  needed to keep CLI, orchestration, and infrastructure concerns separated.
+
 ### Test Strategy
 
 - **TS-001**: Define the failing unit tests that will be written before implementation.

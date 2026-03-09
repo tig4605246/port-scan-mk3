@@ -58,6 +58,15 @@ E2E uses Docker Compose and mock services to verify real scan behavior and artif
 - Run e2e: `bash e2e/run_e2e.sh`
 - Expected artifacts: `e2e/out/report.html`, `e2e/out/report.txt`, batch CSVs, and resume-state snapshots.
 
+## Development Guardrails
+
+- Keep reusable scanning, parsing, orchestration, and writer logic in `pkg/`; keep
+  `cmd/port-scan` limited to CLI wiring and user-facing I/O.
+- Preserve SOLID boundaries when adding or changing packages: narrow responsibilities,
+  consumer-owned interfaces, and composition over god objects.
+- Validate changes with `go test ./...`, `bash scripts/coverage_gate.sh`, and
+  `bash e2e/run_e2e.sh` when pipeline behavior changes.
+
 ## Architecture Diagram
 
 Static HTML + CSS architecture diagram:

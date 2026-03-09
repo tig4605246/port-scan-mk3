@@ -29,4 +29,9 @@ Go 1.24.x (`go 1.24.0`, toolchain `go1.24.4`): Follow standard conventions
 - 001-ip-aware-baseline-spec: Added Go 1.24.x (`go 1.24.0`, toolchain `go1.24.4`) + Go standard library (`flag`, `net`, `encoding/csv`, `encoding/json`, `context`, `os`, `time`), `golang.org/x/term`, `golang.org/x/sys`
 
 <!-- MANUAL ADDITIONS START -->
+## Architecture Guardrails
+
+- 程式碼結構必須符合 SOLID 設計原則。
+- `cmd/port-scan` 只負責 CLI 組裝、參數解析與使用者 I/O；可重用邏輯必須放在 `pkg/`。
+- 介面必須精簡且由消費端擁有；禁止 god struct、god interface 與循環依賴。
 <!-- MANUAL ADDITIONS END -->

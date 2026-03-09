@@ -32,6 +32,8 @@
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 - [ ] Library-first scope is explicit: core behavior lands in reusable packages before CLI wiring.
+- [ ] SOLID boundaries are explicit: package responsibilities, interface ownership, and
+      dependency direction are documented.
 - [ ] CLI contract impact is documented: commands/flags/output schema/default changes identified.
 - [ ] Test-first plan is explicit: failing tests are listed before implementation tasks.
 - [ ] Integration boundary coverage is defined for changed parser/task/pipeline/writer contracts.
@@ -108,4 +110,5 @@ directories captured above]
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., SOLID boundary exception] | [current need] | [why narrower responsibilities or dependency inversion were insufficient] |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
