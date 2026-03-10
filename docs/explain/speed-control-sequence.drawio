@@ -1,0 +1,136 @@
+<mxfile host="app.diagrams.net" modified="2026-03-10T08:00:00.000Z" agent="Codex GPT-5" version="26.0.0" type="device" compressed="false">
+  <diagram id="speed-seq-01" name="Speed-Control-Sequence">
+<mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="P1" value="CLI / Run" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="40" width="150" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="P2" value="Global Controller" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="290" y="40" width="170" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="P3" value="Pressure API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2d8;strokeColor=#b45309;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="540" y="40" width="150" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="P4" value="Dispatcher" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="770" y="40" width="150" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="P5" value="CIDR Bucket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e3eefc;strokeColor=#0369a1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1000" y="40" width="150" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="P6" value="Workers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dff6f3;strokeColor=#0d9488;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1230" y="40" width="150" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="L1" value="" style="shape=line;strokeColor=#94a3b8;dashed=1;dashPattern=4 4;" vertex="1" parent="1">
+      <mxGeometry x="135" y="100" width="1" height="940" as="geometry"/>
+    </mxCell>
+    <mxCell id="L2" value="" style="shape=line;strokeColor=#94a3b8;dashed=1;dashPattern=4 4;" vertex="1" parent="1">
+      <mxGeometry x="375" y="100" width="1" height="940" as="geometry"/>
+    </mxCell>
+    <mxCell id="L3" value="" style="shape=line;strokeColor=#94a3b8;dashed=1;dashPattern=4 4;" vertex="1" parent="1">
+      <mxGeometry x="615" y="100" width="1" height="940" as="geometry"/>
+    </mxCell>
+    <mxCell id="L4" value="" style="shape=line;strokeColor=#94a3b8;dashed=1;dashPattern=4 4;" vertex="1" parent="1">
+      <mxGeometry x="845" y="100" width="1" height="940" as="geometry"/>
+    </mxCell>
+    <mxCell id="L5" value="" style="shape=line;strokeColor=#94a3b8;dashed=1;dashPattern=4 4;" vertex="1" parent="1">
+      <mxGeometry x="1075" y="100" width="1" height="940" as="geometry"/>
+    </mxCell>
+    <mxCell id="L6" value="" style="shape=line;strokeColor=#94a3b8;dashed=1;dashPattern=4 4;" vertex="1" parent="1">
+      <mxGeometry x="1305" y="100" width="1" height="940" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="A1" value="建立 controller" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=11;" edge="1" parent="1" source="P1" target="P2">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="290" y="150" as="targetPoint"/>
+        <mxPoint x="210" y="150" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A2" value="定期輪詢 pressure" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=11;" edge="1" parent="1" source="P1" target="P3">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="540" y="200" as="targetPoint"/>
+        <mxPoint x="210" y="200" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A3" value="SetAPIPaused(true / false)" style="endArrow=block;html=1;strokeColor=#92400e;fontSize=11;dashed=1;" edge="1" parent="1" source="P3" target="P2">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="290" y="250" as="targetPoint"/>
+        <mxPoint x="690" y="250" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A4" value="空白鍵切換 SetManualPaused(true / false)" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=11;" edge="1" parent="1" source="P1" target="P2">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="290" y="300" as="targetPoint"/>
+        <mxPoint x="210" y="300" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="LoopBox" value="loop: 每個 target x port task" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=6 6;strokeColor=#475569;fillColor=none;fontSize=11;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="1">
+      <mxGeometry x="30" y="360" width="1390" height="420" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="A5" value="等待 Gate()" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=11;" edge="1" parent="1" source="P4" target="P2">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="290" y="430" as="targetPoint"/>
+        <mxPoint x="920" y="430" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A6" value="Global paused: 阻塞，不放行" style="endArrow=block;html=1;strokeColor=#b91c1c;fontSize=11;dashed=1;" edge="1" parent="1" source="P2" target="P4">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="770" y="490" as="targetPoint"/>
+        <mxPoint x="460" y="490" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A7" value="Global resumed: 放行" style="endArrow=block;html=1;strokeColor=#15803d;fontSize=11;" edge="1" parent="1" source="P2" target="P4">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="770" y="550" as="targetPoint"/>
+        <mxPoint x="460" y="550" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A8" value="Acquire()" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=11;" edge="1" parent="1" source="P4" target="P5">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="1000" y="610" as="targetPoint"/>
+        <mxPoint x="920" y="610" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A9" value="有 token: 立即通過" style="endArrow=block;html=1;strokeColor=#15803d;fontSize=11;" edge="1" parent="1" source="P5" target="P4">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="770" y="670" as="targetPoint"/>
+        <mxPoint x="1150" y="670" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A10" value="沒 token: 等待 refill" style="endArrow=block;html=1;strokeColor=#b45309;fontSize=11;dashed=1;" edge="1" parent="1" source="P5" target="P4">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="770" y="730" as="targetPoint"/>
+        <mxPoint x="1150" y="730" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A11" value="送出 scan task" style="endArrow=classic;html=1;strokeColor=#334155;fontSize=11;" edge="1" parent="1" source="P4" target="P6">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="1230" y="790" as="targetPoint"/>
+        <mxPoint x="920" y="790" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="A12" value="回報結果" style="endArrow=block;html=1;strokeColor=#0369a1;fontSize=11;" edge="1" parent="1" source="P6" target="P1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="60" y="860" as="targetPoint"/>
+        <mxPoint x="1380" y="860" as="sourcePoint"/>
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="N1" value="Global control = gate&#xa;控制是否繼續 dispatch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="60" y="940" width="260" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="N2" value="CIDR control = leaky bucket&#xa;控制每個 chunk 的 dispatch 節奏" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="380" y="940" width="300" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="N3" value="已進入 worker 的 TCP probe 不會因 pause 被強制取消" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#64748b;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="740" y="940" width="420" height="70" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
+  </diagram>
+</mxfile>
