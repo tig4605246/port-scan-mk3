@@ -1,6 +1,8 @@
 package scanapp
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -84,4 +86,29 @@ func emitCompletionSummary(logger *scanLogger, summary resultSummary, startedAt 
 		"duration_ms":   time.Since(startedAt).Milliseconds(),
 		"success":       success,
 	})
+}
+
+func statusErrorCause(status string) string {
+	s := strings.ToLower(status)
+	switch {
+	case strings.Contains(s, "timeout"):
+		return "timeout"
+	case s == "close":
+		return "closed"
+	default:
+		return "none"
+	}
+}
+
+func errorCause(err error) string {
+	if err == nil {
+		return "none"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "deadline_exceeded"
+	}
+	return "runtime_error"
 }
