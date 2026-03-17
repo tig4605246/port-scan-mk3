@@ -19,7 +19,7 @@ type runDependencies struct {
 	loadCIDRRecords          func(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error)
 	loadPortSpecs            func(path string) ([]input.PortSpec, error)
 	loadOrBuildRuntimeChunks func(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error)
-	buildChunkRuntime        func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error)
+	buildChunkRuntime        func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, policy runtimePolicy) ([]*chunkRuntime, error)
 	resolveOutputPaths       func(output string, now time.Time) (string, string, error)
 }
 
@@ -38,7 +38,7 @@ func prepareRunPlan(cfg config.Config, inputs runInputs, deps runDependencies, n
 	if err != nil {
 		return runPlan{}, err
 	}
-	runtimes, err := deps.buildChunkRuntime(chunks, inputs.cidrRecords, inputs.portSpecs, cfg)
+	runtimes, err := deps.buildChunkRuntime(chunks, inputs.cidrRecords, inputs.portSpecs, runtimePolicyFromConfig(cfg))
 	if err != nil {
 		return runPlan{}, err
 	}

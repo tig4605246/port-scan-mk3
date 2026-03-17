@@ -77,9 +77,12 @@ func TestPrepareRunPlan_WhenDependenciesInjected_BuildsChunksRuntimesAndOutputPa
 			}
 			return wantChunks, nil
 		},
-		buildChunkRuntime: func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error) {
+		buildChunkRuntime: func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec, policy runtimePolicy) ([]*chunkRuntime, error) {
 			if len(chunks) != 1 || chunks[0].CIDR != wantChunks[0].CIDR {
 				t.Fatalf("unexpected chunks: %#v", chunks)
+			}
+			if policy.bucketRate != 0 || policy.bucketCapacity != 0 {
+				t.Fatalf("unexpected runtime policy: %+v", policy)
 			}
 			return wantRuntimes, nil
 		},
@@ -175,7 +178,7 @@ func TestBuildRuntime_WhenTotalCountMismatch_ReturnsError(t *testing.T) {
 		Ports:      []string{"80/tcp"},
 		TotalCount: 2, // expected should be 1
 	}}
-	_, err := buildRuntime(chunks, rows, nil, config.Config{BucketRate: 1, BucketCapacity: 1})
+	_, err := buildRuntime(chunks, rows, nil, runtimePolicy{bucketRate: 1, bucketCapacity: 1})
 	if err == nil {
 		t.Fatal("expected total_count mismatch error")
 	}
@@ -230,11 +233,11 @@ func TestBuildRichGroups_WhenDuplicateExecutionKey_PreservesMergedContext(t *tes
 	if len(got.targets) != 1 {
 		t.Fatalf("expected single runtime target, got %d", len(got.targets))
 	}
-	if got.targets[0].policyID != "P-1|P-2" {
-		t.Fatalf("unexpected merged policy id: %s", got.targets[0].policyID)
+	if got.targets[0].meta.policyID != "P-1|P-2" {
+		t.Fatalf("unexpected merged policy id: %s", got.targets[0].meta.policyID)
 	}
-	if got.targets[0].decision != "accept|deny" {
-		t.Fatalf("unexpected merged decision: %s", got.targets[0].decision)
+	if got.targets[0].meta.decision != "accept|deny" {
+		t.Fatalf("unexpected merged decision: %s", got.targets[0].meta.decision)
 	}
 }
 
@@ -269,6 +272,30 @@ func TestDefaultString_WhenPrimaryEmpty_UsesFallback(t *testing.T) {
 	}
 	if got := defaultString(" y ", "x"); got != " y " {
 		t.Fatalf("unexpected primary-preserved value: %s", got)
+	}
+}
+
+func TestDispatchPolicyFromConfig_WhenConfigHasExtraFields_UsesDelayOnly(t *testing.T) {
+	policy := dispatchPolicyFromConfig(config.Config{
+		Delay:          25 * time.Millisecond,
+		Workers:        99,
+		BucketRate:     88,
+		BucketCapacity: 77,
+	})
+	if policy.delay != 25*time.Millisecond {
+		t.Fatalf("unexpected dispatch delay: %+v", policy)
+	}
+}
+
+func TestRuntimePolicyFromConfig_WhenConfigHasExtraFields_UsesBucketSettingsOnly(t *testing.T) {
+	policy := runtimePolicyFromConfig(config.Config{
+		Delay:          25 * time.Millisecond,
+		Workers:        99,
+		BucketRate:     88,
+		BucketCapacity: 77,
+	})
+	if policy.bucketRate != 88 || policy.bucketCapacity != 77 {
+		t.Fatalf("unexpected runtime policy: %+v", policy)
 	}
 }
 
@@ -322,19 +349,21 @@ func TestOpenBatchOutputs_WhenCreated_WritesHeadersAndSupportsCIDRFallback(t *te
 
 func TestRecordFromScanTask_WhenMapped_PreservesTaskMetadata(t *testing.T) {
 	record := recordFromScanTask(scanTask{
-		chunkIdx:          3,
-		fabName:           "fab-1",
-		ipCidr:            "10.0.0.0/24",
-		cidrName:          "web-tier",
-		ip:                "10.0.0.8",
-		port:              443,
-		serviceLabel:      "https",
-		decision:          "accept",
-		policyID:          "P-1",
-		reason:            "approved",
-		executionKey:      "10.0.0.8:443/tcp",
-		srcIP:             "192.168.1.10",
-		srcNetworkSegment: "192.168.1.0/24",
+		chunkIdx: 3,
+		ipCidr:   "10.0.0.0/24",
+		ip:       "10.0.0.8",
+		port:     443,
+		meta: targetMeta{
+			fabName:           "fab-1",
+			cidrName:          "web-tier",
+			serviceLabel:      "https",
+			decision:          "accept",
+			policyID:          "P-1",
+			reason:            "approved",
+			executionKey:      "10.0.0.8:443/tcp",
+			srcIP:             "192.168.1.10",
+			srcNetworkSegment: "192.168.1.0/24",
+		},
 	}, scanner.Result{
 		IP:             "10.0.0.8",
 		Port:           443,

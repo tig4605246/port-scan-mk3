@@ -275,9 +275,9 @@ func TestBuildRuntime_WhenChunkPortsEmpty_UsesDefaultInputPorts(t *testing.T) {
 	}}
 	ports := []input.PortSpec{{Number: 80, Proto: "tcp", Raw: "80/tcp"}}
 
-	rts, err := buildRuntime(chunks, records, ports, config.Config{
-		BucketRate:     10,
-		BucketCapacity: 10,
+	rts, err := buildRuntime(chunks, records, ports, runtimePolicy{
+		bucketRate:     10,
+		bucketCapacity: 10,
 	})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -436,7 +436,7 @@ func TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex(t *testin
 	}
 	taskCh := make(chan scanTask, 8)
 
-	err := dispatchTasks(context.Background(), config.Config{Delay: 0}, ctrl, logger, []*chunkRuntime{rt}, taskCh)
+	err := dispatchTasks(context.Background(), dispatchPolicy{delay: 0}, ctrl, logger, []*chunkRuntime{rt}, taskCh)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

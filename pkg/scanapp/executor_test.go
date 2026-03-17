@@ -11,19 +11,21 @@ import (
 func TestStartScanExecutor_WhenTasksComplete_EmitsResultsAndClosesChannel(t *testing.T) {
 	taskCh := make(chan scanTask, 2)
 	taskCh <- scanTask{
-		chunkIdx:          0,
-		fabName:           "fab-1",
-		ipCidr:            "10.0.0.0/24",
-		cidrName:          "web",
-		ip:                "10.0.0.8",
-		port:              443,
-		serviceLabel:      "https",
-		decision:          "accept",
-		policyID:          "P-1",
-		reason:            "approved",
-		executionKey:      "10.0.0.8:443/tcp",
-		srcIP:             "192.168.1.10",
-		srcNetworkSegment: "192.168.1.0/24",
+		chunkIdx: 0,
+		ipCidr:   "10.0.0.0/24",
+		ip:       "10.0.0.8",
+		port:     443,
+		meta: targetMeta{
+			fabName:           "fab-1",
+			cidrName:          "web",
+			serviceLabel:      "https",
+			decision:          "accept",
+			policyID:          "P-1",
+			reason:            "approved",
+			executionKey:      "10.0.0.8:443/tcp",
+			srcIP:             "192.168.1.10",
+			srcNetworkSegment: "192.168.1.0/24",
+		},
 	}
 	close(taskCh)
 

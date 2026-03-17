@@ -21,7 +21,6 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 	"github.com/xuxiping/port-scan-mk3/pkg/state"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
-	"github.com/xuxiping/port-scan-mk3/pkg/writer"
 )
 
 const (
@@ -40,49 +39,6 @@ type RunOptions struct {
 	DisableKeyboard  bool
 	PressureHTTP     *http.Client
 	ProgressInterval int
-}
-
-type chunkRuntime struct {
-	ipCidr  string
-	ports   []int
-	targets []scanTarget
-	state   *task.Chunk
-	bkt     *ratelimit.LeakyBucket
-}
-
-type scanTarget struct {
-	ip                string
-	ipCidr            string
-	fabName           string
-	cidrName          string
-	serviceLabel      string
-	decision          string
-	policyID          string
-	reason            string
-	executionKey      string
-	srcIP             string
-	srcNetworkSegment string
-}
-
-type scanTask struct {
-	chunkIdx          int
-	fabName           string
-	ipCidr            string
-	cidrName          string
-	ip                string
-	port              int
-	serviceLabel      string
-	decision          string
-	policyID          string
-	reason            string
-	executionKey      string
-	srcIP             string
-	srcNetworkSegment string
-}
-
-type scanResult struct {
-	chunkIdx int
-	record   writer.Record
 }
 
 // Run executes a full scan flow: load inputs, dispatch scan tasks, write batch
@@ -156,7 +112,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 
 	dispatchErrCh := make(chan error, 1)
 	go func() {
-		dispatchErrCh <- dispatchTasks(runCtx, cfg, ctrl, logger, plan.runtimes, taskCh)
+		dispatchErrCh <- dispatchTasks(runCtx, dispatchPolicyFromConfig(cfg), ctrl, logger, plan.runtimes, taskCh)
 		close(taskCh)
 	}()
 
@@ -265,7 +221,7 @@ func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSp
 		total := len(g.targets) * len(portSpecs)
 		cidrName := ""
 		if len(g.targets) > 0 {
-			cidrName = g.targets[0].cidrName
+			cidrName = g.targets[0].meta.cidrName
 		}
 		out = append(out, task.Chunk{
 			CIDR:         cidr,
@@ -280,7 +236,7 @@ func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSp
 	return out, nil
 }
 
-func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, cfg config.Config) ([]*chunkRuntime, error) {
+func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, policy runtimePolicy) ([]*chunkRuntime, error) {
 	var (
 		groups map[string]cidrGroup
 		err    error
@@ -336,7 +292,7 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 			ports:   ports,
 			targets: group.targets,
 			state:   ch,
-			bkt:     ratelimit.NewLeakyBucket(cfg.BucketRate, cfg.BucketCapacity),
+			bkt:     ratelimit.NewLeakyBucket(policy.bucketRate, policy.bucketCapacity),
 		}
 		runtimes = append(runtimes, rt)
 	}
@@ -379,9 +335,11 @@ func buildCIDRGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, erro
 		group := out[cidr]
 		for _, ip := range ips {
 			group.targets = append(group.targets, scanTarget{
-				ip:       ip,
-				fabName:  rec.FabName,
-				cidrName: rec.CIDRName,
+				ip: ip,
+				meta: targetMeta{
+					fabName:  rec.FabName,
+					cidrName: rec.CIDRName,
+				},
 			})
 		}
 		out[cidr] = group
@@ -420,7 +378,7 @@ func buildRichChunks(cidrRecords []input.CIDRRecord) ([]task.Chunk, error) {
 		g := groups[key]
 		cidrName := ""
 		if len(g.targets) > 0 {
-			cidrName = g.targets[0].cidrName
+			cidrName = g.targets[0].meta.cidrName
 		}
 		out = append(out, task.Chunk{
 			CIDR:         key,
@@ -449,17 +407,19 @@ func buildRichGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, erro
 		if len(group.targets) == 0 {
 			group.port = rec.Port
 			group.targets = append(group.targets, scanTarget{
-				ip:                rec.DstIP,
-				ipCidr:            rec.DstNetworkSegment,
-				fabName:           rec.FabName,
-				cidrName:          rec.CIDRName,
-				serviceLabel:      rec.ServiceLabel,
-				decision:          rec.Decision,
-				policyID:          rec.PolicyID,
-				reason:            rec.Reason,
-				executionKey:      key,
-				srcIP:             rec.SrcIP,
-				srcNetworkSegment: rec.SrcNetworkSegment,
+				ip:     rec.DstIP,
+				ipCidr: rec.DstNetworkSegment,
+				meta: targetMeta{
+					fabName:           rec.FabName,
+					cidrName:          rec.CIDRName,
+					serviceLabel:      rec.ServiceLabel,
+					decision:          rec.Decision,
+					policyID:          rec.PolicyID,
+					reason:            rec.Reason,
+					executionKey:      key,
+					srcIP:             rec.SrcIP,
+					srcNetworkSegment: rec.SrcNetworkSegment,
+				},
 			})
 			out[key] = group
 			continue
@@ -468,14 +428,14 @@ func buildRichGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, erro
 			return nil, fmt.Errorf("execution key %s has inconsistent port", key)
 		}
 		t := &group.targets[0]
-		t.fabName = mergeFieldValue(t.fabName, rec.FabName)
-		t.cidrName = mergeFieldValue(t.cidrName, rec.CIDRName)
-		t.serviceLabel = mergeFieldValue(t.serviceLabel, rec.ServiceLabel)
-		t.decision = mergeFieldValue(t.decision, rec.Decision)
-		t.policyID = mergeFieldValue(t.policyID, rec.PolicyID)
-		t.reason = mergeFieldValue(t.reason, rec.Reason)
-		t.srcIP = mergeFieldValue(t.srcIP, rec.SrcIP)
-		t.srcNetworkSegment = mergeFieldValue(t.srcNetworkSegment, rec.SrcNetworkSegment)
+		t.meta.fabName = mergeFieldValue(t.meta.fabName, rec.FabName)
+		t.meta.cidrName = mergeFieldValue(t.meta.cidrName, rec.CIDRName)
+		t.meta.serviceLabel = mergeFieldValue(t.meta.serviceLabel, rec.ServiceLabel)
+		t.meta.decision = mergeFieldValue(t.meta.decision, rec.Decision)
+		t.meta.policyID = mergeFieldValue(t.meta.policyID, rec.PolicyID)
+		t.meta.reason = mergeFieldValue(t.meta.reason, rec.Reason)
+		t.meta.srcIP = mergeFieldValue(t.meta.srcIP, rec.SrcIP)
+		t.meta.srcNetworkSegment = mergeFieldValue(t.meta.srcNetworkSegment, rec.SrcNetworkSegment)
 		out[key] = group
 	}
 	if len(out) == 0 {

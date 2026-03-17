@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 )
 
-func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Controller, logger *scanLogger, runtimes []*chunkRuntime, taskCh chan<- scanTask) error {
+func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.Controller, logger *scanLogger, runtimes []*chunkRuntime, taskCh chan<- scanTask) error {
 	for idx := range runtimes {
 		rt := runtimes[idx]
 		ch := rt.state
@@ -36,25 +35,17 @@ func dispatchTasks(ctx context.Context, cfg config.Config, ctrl *speedctrl.Contr
 			case <-ctx.Done():
 				return ctx.Err()
 			case taskCh <- scanTask{
-				chunkIdx:          idx,
-				fabName:           target.fabName,
-				ipCidr:            defaultString(target.ipCidr, ch.CIDR),
-				cidrName:          target.cidrName,
-				ip:                target.ip,
-				port:              port,
-				serviceLabel:      target.serviceLabel,
-				decision:          target.decision,
-				policyID:          target.policyID,
-				reason:            target.reason,
-				executionKey:      target.executionKey,
-				srcIP:             target.srcIP,
-				srcNetworkSegment: target.srcNetworkSegment,
+				chunkIdx: idx,
+				ipCidr:   defaultString(target.ipCidr, ch.CIDR),
+				ip:       target.ip,
+				port:     port,
+				meta:     target.meta,
 			}:
 			}
 			ch.NextIndex = i + 1
 			logger.debugf("dispatch cidr=%s target=%s:%d next_index=%d/%d", ch.CIDR, target.ip, port, ch.NextIndex, ch.TotalCount)
-			if cfg.Delay > 0 {
-				time.Sleep(cfg.Delay)
+			if policy.delay > 0 {
+				time.Sleep(policy.delay)
 			}
 		}
 	}
