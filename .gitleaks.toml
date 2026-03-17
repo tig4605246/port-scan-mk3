@@ -1,0 +1,12 @@
+title = "port-scan-mk3 gitleaks config"
+
+[allowlist]
+description = "Exclude generated/non-runtime assets to reduce false positives"
+paths = [
+  '''^docs/slides/.*''',
+  '''^\.agent/.*''',
+  '''^\.cline/.*''',
+  '''^\.codex/.*''',
+  '''^\.specify/.*''',
+  '''^coverage\.out$''',
+]

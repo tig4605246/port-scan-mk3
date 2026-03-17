@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+set -eu
+
+CONFIG_FILE=".gitleaks.toml"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "ERROR: gitleaks is not installed. Install it first (for example: brew install gitleaks)." >&2
+  exit 1
+fi
+
+if gitleaks git --help >/dev/null 2>&1; then
+  # gitleaks v8 preferred command.
+  gitleaks git --staged --redact --config="$CONFIG_FILE" .
+  exit $?
+fi
+
+if gitleaks protect --help >/dev/null 2>&1; then
+  # Backward compatibility for older gitleaks versions.
+  gitleaks protect --staged --redact --config="$CONFIG_FILE"
+  exit $?
+fi
+
+echo "ERROR: Unsupported gitleaks CLI version. Please upgrade gitleaks." >&2
+exit 1
