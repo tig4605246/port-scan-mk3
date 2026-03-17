@@ -458,6 +458,42 @@ func TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex(t *testin
 	}
 }
 
+func TestDispatchTasks_WhenPausedDuringDispatch_DoesNotLeakTokensBeforeGate(t *testing.T) {
+	ctrl := speedctrl.NewController()
+	logOut := &lockedBuffer{}
+	logger := newLogger("debug", false, logOut)
+	bucket := ratelimit.NewLeakyBucket(100, 100)
+	defer bucket.Close()
+
+	rt := &chunkRuntime{
+		ipCidr: "10.0.0.0/24",
+		ports:  []int{80},
+		targets: []scanTarget{
+			{ip: "10.0.0.1", ipCidr: "10.0.0.0/24"},
+			{ip: "10.0.0.2", ipCidr: "10.0.0.0/24"},
+		},
+		state:   &task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 2, Status: "pending"},
+		tracker: newChunkStateTracker(&task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 2, Status: "pending"}),
+		bkt:     bucket,
+	}
+	taskCh := make(chan scanTask, 4)
+
+	// Pause immediately, then unpause after short delay
+	ctrl.SetAPIPaused(true)
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		ctrl.SetAPIPaused(false)
+	}()
+
+	err := dispatchTasks(context.Background(), dispatchPolicy{delay: 0}, ctrl, logger, []*chunkRuntime{rt}, taskCh)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(taskCh) != 2 {
+		t.Fatalf("expected 2 tasks dispatched, got %d", len(taskCh))
+	}
+}
+
 func TestStartManualPauseMonitor_WhenManualPauseChanges_LogsStateTransitions(t *testing.T) {
 	ctrl := speedctrl.NewController()
 	out := &lockedBuffer{}

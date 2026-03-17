@@ -18,14 +18,14 @@ func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.C
 		}
 		rt.tracker.AdvanceNextIndex(snap.NextIndex) // sets status to "scanning"
 		for i := snap.NextIndex; i < snap.TotalCount; i++ {
+			if err := rt.bkt.Acquire(ctx); err != nil {
+				return err
+			}
+
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-ctrl.Gate():
-			}
-
-			if err := rt.bkt.Acquire(ctx); err != nil {
-				return err
 			}
 
 			target, port, err := indexToRuntimeTarget(rt.targets, rt.ports, i)
