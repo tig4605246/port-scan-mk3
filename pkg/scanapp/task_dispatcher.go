@@ -11,12 +11,13 @@ func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.C
 	for idx := range runtimes {
 		rt := runtimes[idx]
 		ch := rt.state
-		if ch.NextIndex >= ch.TotalCount {
-			ch.Status = "completed"
+		snap := rt.tracker.Snapshot()
+		if snap.NextIndex >= snap.TotalCount {
+			rt.tracker.AdvanceNextIndex(snap.NextIndex) // triggers status update
 			continue
 		}
-		ch.Status = "scanning"
-		for i := ch.NextIndex; i < ch.TotalCount; i++ {
+		rt.tracker.AdvanceNextIndex(snap.NextIndex) // sets status to "scanning"
+		for i := snap.NextIndex; i < snap.TotalCount; i++ {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -42,8 +43,8 @@ func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.C
 				meta:     target.meta,
 			}:
 			}
-			ch.NextIndex = i + 1
-			logger.debugf("dispatch cidr=%s target=%s:%d next_index=%d/%d", ch.CIDR, target.ip, port, ch.NextIndex, ch.TotalCount)
+			rt.tracker.AdvanceNextIndex(i + 1)
+			logger.debugf("dispatch cidr=%s target=%s:%d next_index=%d/%d", ch.CIDR, target.ip, port, i+1, snap.TotalCount)
 			if policy.delay > 0 {
 				time.Sleep(policy.delay)
 			}

@@ -28,13 +28,7 @@ func applyScanResult(runtimes []*chunkRuntime, res scanResult, summary *resultSu
 	if summary == nil {
 		summary = &resultSummary{}
 	}
-	ch := runtimes[res.chunkIdx].state
-	ch.ScannedCount++
-	if ch.ScannedCount >= ch.TotalCount {
-		ch.Status = "completed"
-	} else {
-		ch.Status = "scanning"
-	}
+	runtimes[res.chunkIdx].tracker.IncrementScanned()
 
 	summary.written++
 	switch {
@@ -58,16 +52,19 @@ func emitScanResultEvents(stdout io.Writer, logger *scanLogger, ctrl *speedctrl.
 		return
 	}
 
-	ch := runtimes[res.chunkIdx].state
-	_, _ = fmt.Fprintf(stdout, "progress cidr=%s scanned=%d/%d paused=%t\n", ch.CIDR, ch.ScannedCount, ch.TotalCount, ctrl.IsPaused())
+	rt := runtimes[res.chunkIdx]
+	cidr := rt.tracker.CIDR()
+	scanned := rt.tracker.ScannedCount()
+	total := rt.tracker.TotalCount()
+	_, _ = fmt.Fprintf(stdout, "progress cidr=%s scanned=%d/%d paused=%t\n", cidr, scanned, total, ctrl.IsPaused())
 	completionRate := 0.0
-	if ch.TotalCount > 0 {
-		completionRate = float64(ch.ScannedCount) / float64(ch.TotalCount)
+	if total > 0 {
+		completionRate = float64(scanned) / float64(total)
 	}
 	logger.eventf("scan_progress", "", 0, "progress", "none", map[string]any{
-		"cidr":            ch.CIDR,
-		"scanned_count":   ch.ScannedCount,
-		"total_count":     ch.TotalCount,
+		"cidr":            cidr,
+		"scanned_count":   scanned,
+		"total_count":     total,
 		"completion_rate": completionRate,
 		"paused":          ctrl.IsPaused(),
 	})

@@ -179,7 +179,8 @@ func shouldSaveOnDispatchErr(err error) bool {
 
 func hasIncomplete(runtimes []*chunkRuntime) bool {
 	for _, rt := range runtimes {
-		if rt.state.ScannedCount < rt.state.TotalCount {
+		snap := rt.tracker.Snapshot()
+		if snap.ScannedCount < snap.TotalCount {
 			return true
 		}
 	}
@@ -189,7 +190,7 @@ func hasIncomplete(runtimes []*chunkRuntime) bool {
 func collectChunkStates(runtimes []*chunkRuntime) []task.Chunk {
 	out := make([]task.Chunk, 0, len(runtimes))
 	for _, rt := range runtimes {
-		out = append(out, *rt.state)
+		out = append(out, rt.tracker.Snapshot())
 	}
 	return out
 }
@@ -292,6 +293,7 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 			ports:   ports,
 			targets: group.targets,
 			state:   ch,
+			tracker: newChunkStateTracker(ch),
 			bkt:     ratelimit.NewLeakyBucket(policy.bucketRate, policy.bucketCapacity),
 		}
 		runtimes = append(runtimes, rt)

@@ -416,9 +416,11 @@ func TestResumePath_WhenMultipleSourcesProvided_UsesPriorityOrder(t *testing.T) 
 }
 
 func TestChunkStateHelpers_WhenRuntimesMixed_ReturnExpectedSnapshots(t *testing.T) {
+	ch0 := &task.Chunk{CIDR: "10.0.0.0/24", ScannedCount: 1, TotalCount: 2}
+	ch1 := &task.Chunk{CIDR: "10.0.1.0/24", ScannedCount: 2, TotalCount: 2}
 	runtimes := []*chunkRuntime{
-		{state: &task.Chunk{CIDR: "10.0.0.0/24", ScannedCount: 1, TotalCount: 2}},
-		{state: &task.Chunk{CIDR: "10.0.1.0/24", ScannedCount: 2, TotalCount: 2}},
+		{state: ch0, tracker: newChunkStateTracker(ch0)},
+		{state: ch1, tracker: newChunkStateTracker(ch1)},
 	}
 
 	if !hasIncomplete(runtimes) {
@@ -436,7 +438,7 @@ func TestChunkStateHelpers_WhenRuntimesMixed_ReturnExpectedSnapshots(t *testing.
 		t.Fatalf("unexpected scanned counts: %#v", states)
 	}
 
-	runtimes[0].state.ScannedCount = runtimes[0].state.TotalCount
+	runtimes[0].tracker.IncrementScanned()
 	if hasIncomplete(runtimes) {
 		t.Fatal("expected all runtimes complete")
 	}

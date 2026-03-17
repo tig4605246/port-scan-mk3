@@ -138,12 +138,14 @@ func TestEmitScanResultEvents_WhenProgressStepReached_EmitsProgressSnapshot(t *t
 	logOut := &lockedBuffer{}
 	logger := newLogger("info", true, logOut)
 	ctrl := speedctrl.NewController()
+	ch := &task.Chunk{
+		CIDR:         "10.0.0.0/24",
+		ScannedCount: 1,
+		TotalCount:   4,
+	}
 	runtimes := []*chunkRuntime{{
-		state: &task.Chunk{
-			CIDR:         "10.0.0.0/24",
-			ScannedCount: 1,
-			TotalCount:   4,
-		},
+		state:   ch,
+		tracker: newChunkStateTracker(ch),
 	}}
 	summary := &resultSummary{written: 2}
 

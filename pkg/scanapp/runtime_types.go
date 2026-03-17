@@ -46,6 +46,7 @@ type chunkRuntime struct {
 	ports   []int
 	targets []scanTarget
 	state   *task.Chunk
+	tracker *chunkStateTracker
 	bkt     *ratelimit.LeakyBucket
 }
 

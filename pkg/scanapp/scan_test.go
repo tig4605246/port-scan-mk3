@@ -309,14 +309,16 @@ func TestPersistResumeState_WhenRuntimeIncomplete_SavesResumeSnapshot(t *testing
 	tmp := t.TempDir()
 	resumeFile := filepath.Join(tmp, "resume.json")
 	logger := newLogger("error", false, &bytes.Buffer{})
+	ch := &task.Chunk{
+		CIDR:         "10.0.0.0/24",
+		NextIndex:    2,
+		ScannedCount: 2,
+		TotalCount:   4,
+		Status:       "scanning",
+	}
 	runtimes := []*chunkRuntime{{
-		state: &task.Chunk{
-			CIDR:         "10.0.0.0/24",
-			NextIndex:    2,
-			ScannedCount: 2,
-			TotalCount:   4,
-			Status:       "scanning",
-		},
+		state:   ch,
+		tracker: newChunkStateTracker(ch),
 	}}
 
 	if err := persistResumeState(config.Config{}, RunOptions{ResumeStatePath: resumeFile}, logger, runtimes, nil, nil); err != nil {
@@ -339,14 +341,16 @@ func TestPersistResumeState_WhenRunCompletesCleanly_SkipsWrite(t *testing.T) {
 	tmp := t.TempDir()
 	resumeFile := filepath.Join(tmp, "resume.json")
 	logger := newLogger("error", false, &bytes.Buffer{})
+	ch := &task.Chunk{
+		CIDR:         "10.0.0.0/24",
+		NextIndex:    4,
+		ScannedCount: 4,
+		TotalCount:   4,
+		Status:       "completed",
+	}
 	runtimes := []*chunkRuntime{{
-		state: &task.Chunk{
-			CIDR:         "10.0.0.0/24",
-			NextIndex:    4,
-			ScannedCount: 4,
-			TotalCount:   4,
-			Status:       "completed",
-		},
+		state:   ch,
+		tracker: newChunkStateTracker(ch),
 	}}
 
 	if err := persistResumeState(config.Config{}, RunOptions{ResumeStatePath: resumeFile}, logger, runtimes, nil, nil); err != nil {
@@ -424,6 +428,7 @@ func TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex(t *testin
 	bucket := ratelimit.NewLeakyBucket(100, 100)
 	defer bucket.Close()
 
+	ch := &task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 4, Status: "pending"}
 	rt := &chunkRuntime{
 		ipCidr: "10.0.0.0/24",
 		ports:  []int{80, 443},
@@ -431,8 +436,9 @@ func TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex(t *testin
 			{ip: "10.0.0.1", ipCidr: "10.0.0.0/24"},
 			{ip: "10.0.0.2", ipCidr: "10.0.0.0/24"},
 		},
-		state: &task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 4, Status: "pending"},
-		bkt:   bucket,
+		state:   ch,
+		tracker: newChunkStateTracker(ch),
+		bkt:     bucket,
 	}
 	taskCh := make(chan scanTask, 8)
 
@@ -440,11 +446,12 @@ func TestDispatchTasks_WhenRuntimeReady_EmitsTasksAndAdvancesNextIndex(t *testin
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if rt.state.NextIndex != 4 {
-		t.Fatalf("expected next index 4, got %d", rt.state.NextIndex)
+	snap := rt.tracker.Snapshot()
+	if snap.NextIndex != 4 {
+		t.Fatalf("expected next index 4, got %d", snap.NextIndex)
 	}
-	if rt.state.Status != "scanning" {
-		t.Fatalf("expected scanning status during dispatch, got %s", rt.state.Status)
+	if snap.Status != "scanning" {
+		t.Fatalf("expected scanning status during dispatch, got %s", snap.Status)
 	}
 	if len(taskCh) != 4 {
 		t.Fatalf("expected 4 queued tasks, got %d", len(taskCh))
