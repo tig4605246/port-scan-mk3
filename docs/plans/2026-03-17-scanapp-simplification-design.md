@@ -234,3 +234,10 @@
 後續若要落地實作，建議以「中度結構整理但不新增太多 package」為主軸，先完成
 方案 B 的協作者重整與 CLI validation 下沉，再視結果決定是否需要更進一步的 package
 切分。
+
+### Task 6 Decision Update
+
+2026-03-17 檢查結果顯示 `pkg/pipeline` 沒有任何 production consumer；目前實際使用的
+dispatch 與 execution seam 已經由 `pkg/scanapp/task_dispatcher.go` 與
+`pkg/scanapp/executor.go` 承接。基於 YAGNI 與 SOLID，本次決定移除 `pkg/pipeline`
+這個未接線的抽象，而不是為了保留它去扭曲 `scanapp` 的實際責任邊界。
