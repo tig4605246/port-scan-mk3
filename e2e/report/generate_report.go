@@ -10,10 +10,10 @@ import (
 )
 
 type Summary struct {
-	Total   int
-	Open    int
-	Closed  int
-	Timeout int
+	Total   int `json:"total"`
+	Open    int `json:"open"`
+	Closed  int `json:"closed"`
+	Timeout int `json:"timeout"`
 }
 
 func Generate(outDir string, s Summary) error {
