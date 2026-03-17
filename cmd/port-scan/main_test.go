@@ -146,3 +146,30 @@ func TestHandleValidateCommand_WhenConfigParseFails_ReturnsExit2AndWritesStderr(
 		t.Fatalf("expected parse error on stderr, got %s", errOut.String())
 	}
 }
+
+func TestHandleValidateCommand_WhenJSONValidationSucceeds_PreservesDetailAndKeepsStderrEmpty(t *testing.T) {
+	tmp := t.TempDir()
+	cidr := filepath.Join(tmp, "cidr.csv")
+	port := filepath.Join(tmp, "ports.csv")
+	if err := os.WriteFile(cidr, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,10.0.0.1,10.0.0.0/24,a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(port, []byte("80/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	code := handleValidateCommand([]string{"-cidr-file", cidr, "-port-file", port, "-format", "json"}, out, errOut)
+
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d stderr=%s", code, errOut.String())
+	}
+	resp := mustDecodeValidationJSON(t, out.String())
+	if !resp.Valid || resp.Detail != "ok" {
+		t.Fatalf("unexpected validation response: %+v", resp)
+	}
+	if errOut.Len() != 0 {
+		t.Fatalf("expected empty stderr on successful validation, got %s", errOut.String())
+	}
+}

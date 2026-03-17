@@ -206,6 +206,74 @@ func TestRunMain_WhenScanConfigParseFails_ReturnsExit2AndWritesStderr(t *testing
 	}
 }
 
+func TestRunMain_ScanSuccess_WritesTimestampedBatchPairInRequestedDirectory(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	requestedOutput := filepath.Join(tmp, "custom-name.csv")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte(strconv.Itoa(openPort)+"/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	code := runMain([]string{
+		"scan",
+		"-cidr-file", cidrFile,
+		"-port-file", portFile,
+		"-output", requestedOutput,
+		"-workers", "1",
+		"-delay", "0ms",
+		"-timeout", "100ms",
+		"-disable-api=true",
+	}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d stderr=%s", code, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("expected no stdout for single-result scan, got %s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "[INFO] scan_result") {
+		t.Fatalf("expected scan_result log on stderr, got %s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "state_transition:completion_summary") {
+		t.Fatalf("expected completion summary log on stderr, got %s", stderr.String())
+	}
+
+	scanPath := mustFindOneMain(t, filepath.Join(tmp, "scan_results-*.csv"))
+	openPath := mustFindOneMain(t, filepath.Join(tmp, "opened_results-*.csv"))
+	scanSuffix, openSuffix := mustBatchPairSuffix(t, scanPath, openPath)
+	if scanSuffix != openSuffix {
+		t.Fatalf("expected matching batch suffixes, got scan=%s open=%s", scanSuffix, openSuffix)
+	}
+	if _, err := os.Stat(requestedOutput); !os.IsNotExist(err) {
+		t.Fatalf("expected requested output path to be used as directory hint only, err=%v", err)
+	}
+}
+
 func mustFindOneMain(t *testing.T, pattern string) string {
 	t.Helper()
 	matches, err := filepath.Glob(pattern)

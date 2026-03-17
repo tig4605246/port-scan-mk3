@@ -721,6 +721,58 @@ func TestRun_WhenScanCompletes_DoesNotWriteResumeState(t *testing.T) {
 	}
 }
 
+func TestRun_WhenCanceled_EmitsCanceledCompletionSummaryAndFallbackResume(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.0/24,127.0.0.0/24,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n2/tcp\n3/tcp\n4/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          50 * time.Millisecond,
+		Delay:            5 * time.Millisecond,
+		BucketRate:       1,
+		BucketCapacity:   1,
+		Workers:          1,
+		PressureInterval: 10 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "info",
+		Format:           "json",
+	}
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		cancel()
+	}()
+
+	err := Run(ctx, cfg, stdout, stderr, RunOptions{DisableKeyboard: true})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context canceled error, got %v", err)
+	}
+	if !strings.Contains(stderr.String(), `"state_transition":"completion_summary"`) {
+		t.Fatalf("expected completion summary in logs, got %s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), `"error_cause":"canceled"`) {
+		t.Fatalf("expected canceled error cause in logs, got %s", stderr.String())
+	}
+	resumeFile := filepath.Join(tmp, defaultResumeStateFile)
+	if _, statErr := os.Stat(resumeFile); statErr != nil {
+		t.Fatalf("expected fallback resume file %s, got err=%v", resumeFile, statErr)
+	}
+}
+
 func mustFindOne(t *testing.T, pattern string) string {
 	t.Helper()
 	matches, err := filepath.Glob(pattern)
