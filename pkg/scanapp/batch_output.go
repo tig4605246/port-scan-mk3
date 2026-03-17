@@ -17,7 +17,7 @@ func resolveBatchOutputPaths(outputPath string, now time.Time) (string, string, 
 	}
 
 	ts := now.UTC().Format("20060102T150405Z")
-	for seq := 0; seq < 1_000_000; seq++ {
+	for seq := 0; seq < 100; seq++ {
 		suffix := ""
 		if seq > 0 {
 			suffix = fmt.Sprintf("-%d", seq)
