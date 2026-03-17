@@ -311,3 +311,21 @@ Re-run any gate that failed after fixes until all required gates pass.
 git add docs/plans/2026-03-17-scanapp-simplification-implementation.md
 git commit -m "docs: record scanapp simplification verification"
 ```
+
+## Verification Evidence
+
+- `go test ./...`
+  - Result: PASS on 2026-03-17 in `/Users/xuxiping/tsmc/port-scan-mk3/.worktrees/scanapp-simplification`
+
+- `bash scripts/coverage_gate.sh`
+  - Result: PASS
+  - Total coverage: `86.2%`
+
+- `bash e2e/run_e2e.sh`
+  - Result: PASS
+  - Report artifacts: `e2e/out/`
+
+## Final Notes
+
+- The simplification work changed `pkg/scanapp` orchestration and removed the unused `pkg/pipeline`
+  abstraction, so running the e2e gate was required and completed.
