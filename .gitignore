@@ -1,4 +1,5 @@
 .codex/
+.worktrees/
 coverage.out
 e2e/out/
 e2e/inputs/
