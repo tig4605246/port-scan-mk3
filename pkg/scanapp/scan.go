@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -113,25 +112,11 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	outFile, err := os.Create(plan.scanOutputPath)
+	outputs, err := openBatchOutputs(plan.scanOutputPath, plan.openOnlyPath)
 	if err != nil {
 		return err
 	}
-	defer outFile.Close()
-	csvWriter := writer.NewCSVWriter(outFile)
-	if err := csvWriter.WriteHeader(); err != nil {
-		return err
-	}
-
-	openOnlyFile, err := os.Create(plan.openOnlyPath)
-	if err != nil {
-		return err
-	}
-	defer openOnlyFile.Close()
-	openOnlyWriter := writer.NewOpenOnlyWriter(writer.NewCSVWriter(openOnlyFile))
-	if err := openOnlyWriter.WriteHeader(); err != nil {
-		return err
-	}
+	defer outputs.Close()
 
 	workers := cfg.Workers
 	if workers <= 0 {
@@ -183,22 +168,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				}
 				resultCh <- scanResult{
 					chunkIdx: t.chunkIdx,
-					record: writer.Record{
-						IP:                res.IP,
-						IPCidr:            t.ipCidr,
-						Port:              res.Port,
-						Status:            res.Status,
-						ResponseMS:        res.ResponseTimeMS,
-						FabName:           t.fabName,
-						CIDRName:          t.cidrName,
-						ServiceLabel:      t.serviceLabel,
-						Decision:          t.decision,
-						PolicyID:          t.policyID,
-						Reason:            t.reason,
-						ExecutionKey:      t.executionKey,
-						SrcIP:             t.srcIP,
-						SrcNetworkSegment: t.srcNetworkSegment,
-					},
+					record:   recordFromScanTask(t, res),
 				}
 			}
 		}()
@@ -238,7 +208,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				resultCh = nil
 				continue
 			}
-			if err := writeScanRecord(csvWriter, openOnlyWriter, res.record); err != nil && runErr == nil {
+			if err := writeScanRecord(outputs.scanWriter, outputs.openOnlyWriter, res.record); err != nil && runErr == nil {
 				runErr = err
 				cancel()
 			}

@@ -15,8 +15,10 @@ import (
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/input"
+	"github.com/xuxiping/port-scan-mk3/pkg/scanner"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
+	"github.com/xuxiping/port-scan-mk3/pkg/writer"
 )
 
 func TestLoadRunInputs_WhenDependenciesInjected_UsesConfigPathsAndColumns(t *testing.T) {
@@ -276,6 +278,84 @@ func TestReadCIDRFileAndReadPortFile_WhenFileMissing_ReturnsError(t *testing.T) 
 	}
 	if _, err := readPortFile("/not-exist"); err == nil {
 		t.Fatal("expected read port file error")
+	}
+}
+
+func TestOpenBatchOutputs_WhenCreated_WritesHeadersAndSupportsCIDRFallback(t *testing.T) {
+	dir := t.TempDir()
+	outputs, err := openBatchOutputs(filepath.Join(dir, "scan.csv"), filepath.Join(dir, "opened.csv"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := writeScanRecord(outputs.scanWriter, outputs.openOnlyWriter, writer.Record{
+		IP:     "10.0.0.1",
+		CIDR:   "10.0.0.0/24",
+		Port:   80,
+		Status: "open",
+	}); err != nil {
+		t.Fatalf("write scan record failed: %v", err)
+	}
+	if err := outputs.Close(); err != nil {
+		t.Fatalf("close outputs failed: %v", err)
+	}
+
+	scanBytes, err := os.ReadFile(filepath.Join(dir, "scan.csv"))
+	if err != nil {
+		t.Fatalf("read scan output failed: %v", err)
+	}
+	if !strings.Contains(string(scanBytes), "ip,ip_cidr,port,status,response_time_ms") {
+		t.Fatalf("missing header in scan output: %s", string(scanBytes))
+	}
+	if !strings.Contains(string(scanBytes), "10.0.0.1,10.0.0.0/24,80,open") {
+		t.Fatalf("expected CIDR fallback row, got: %s", string(scanBytes))
+	}
+
+	openBytes, err := os.ReadFile(filepath.Join(dir, "opened.csv"))
+	if err != nil {
+		t.Fatalf("read opened output failed: %v", err)
+	}
+	if !strings.Contains(string(openBytes), "10.0.0.1,10.0.0.0/24,80,open") {
+		t.Fatalf("expected open row in opened output, got: %s", string(openBytes))
+	}
+}
+
+func TestRecordFromScanTask_WhenMapped_PreservesTaskMetadata(t *testing.T) {
+	record := recordFromScanTask(scanTask{
+		chunkIdx:          3,
+		fabName:           "fab-1",
+		ipCidr:            "10.0.0.0/24",
+		cidrName:          "web-tier",
+		ip:                "10.0.0.8",
+		port:              443,
+		serviceLabel:      "https",
+		decision:          "accept",
+		policyID:          "P-1",
+		reason:            "approved",
+		executionKey:      "10.0.0.8:443/tcp",
+		srcIP:             "192.168.1.10",
+		srcNetworkSegment: "192.168.1.0/24",
+	}, scanner.Result{
+		IP:             "10.0.0.8",
+		Port:           443,
+		Status:         "open",
+		ResponseTimeMS: 7,
+	})
+
+	if record.IP != "10.0.0.8" || record.IPCidr != "10.0.0.0/24" || record.Port != 443 {
+		t.Fatalf("unexpected primary fields: %+v", record)
+	}
+	if record.FabName != "fab-1" || record.CIDRName != "web-tier" || record.ServiceLabel != "https" {
+		t.Fatalf("unexpected metadata fields: %+v", record)
+	}
+	if record.Decision != "accept" || record.PolicyID != "P-1" || record.Reason != "approved" {
+		t.Fatalf("unexpected policy fields: %+v", record)
+	}
+	if record.ExecutionKey != "10.0.0.8:443/tcp" || record.SrcIP != "192.168.1.10" || record.SrcNetworkSegment != "192.168.1.0/24" {
+		t.Fatalf("unexpected execution metadata: %+v", record)
+	}
+	if record.Status != "open" || record.ResponseMS != 7 {
+		t.Fatalf("unexpected scan result mapping: %+v", record)
 	}
 }
 
