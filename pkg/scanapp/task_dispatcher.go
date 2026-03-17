@@ -4,8 +4,17 @@ import (
 	"context"
 	"time"
 
+	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 )
+
+type dispatchPolicy struct {
+	delay time.Duration
+}
+
+func dispatchPolicyFromConfig(cfg config.Config) dispatchPolicy {
+	return dispatchPolicy{delay: cfg.Delay}
+}
 
 func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.Controller, logger *scanLogger, runtimes []*chunkRuntime, taskCh chan<- scanTask) error {
 	for idx := range runtimes {

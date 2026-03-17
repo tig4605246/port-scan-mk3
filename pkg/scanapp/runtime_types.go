@@ -1,33 +1,10 @@
 package scanapp
 
 import (
-	"time"
-
-	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/ratelimit"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 	"github.com/xuxiping/port-scan-mk3/pkg/writer"
 )
-
-type runtimePolicy struct {
-	bucketRate     int
-	bucketCapacity int
-}
-
-func runtimePolicyFromConfig(cfg config.Config) runtimePolicy {
-	return runtimePolicy{
-		bucketRate:     cfg.BucketRate,
-		bucketCapacity: cfg.BucketCapacity,
-	}
-}
-
-type dispatchPolicy struct {
-	delay time.Duration
-}
-
-func dispatchPolicyFromConfig(cfg config.Config) dispatchPolicy {
-	return dispatchPolicy{delay: cfg.Delay}
-}
 
 type targetMeta struct {
 	fabName           string
