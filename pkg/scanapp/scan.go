@@ -70,7 +70,10 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	if err != nil {
 		return err
 	}
-	defer outputs.Close()
+	var scanSuccess bool
+	defer func() {
+		_ = outputs.Finalize(scanSuccess)
+	}()
 
 	workers := cfg.Workers
 	if workers <= 0 {
@@ -167,6 +170,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return dispatchErr
 	}
 	emitCompletionSummary(logger, summary, startedAt, nil)
+	scanSuccess = true
 	return nil
 }
 

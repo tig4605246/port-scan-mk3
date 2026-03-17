@@ -11,10 +11,13 @@ type batchOutputs struct {
 	openOnlyFile   *os.File
 	scanWriter     *writer.CSVWriter
 	openOnlyWriter *writer.OpenOnlyWriter
+	scanFinalPath  string
+	openFinalPath  string
 }
 
 func openBatchOutputs(scanPath, openPath string) (*batchOutputs, error) {
-	scanFile, err := os.Create(scanPath)
+	scanTmpPath := scanPath + ".tmp"
+	scanFile, err := os.Create(scanTmpPath)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +28,8 @@ func openBatchOutputs(scanPath, openPath string) (*batchOutputs, error) {
 		return nil, err
 	}
 
-	openOnlyFile, err := os.Create(openPath)
+	openTmpPath := openPath + ".tmp"
+	openOnlyFile, err := os.Create(openTmpPath)
 	if err != nil {
 		_ = scanFile.Close()
 		return nil, err
@@ -43,10 +47,12 @@ func openBatchOutputs(scanPath, openPath string) (*batchOutputs, error) {
 		openOnlyFile:   openOnlyFile,
 		scanWriter:     scanWriter,
 		openOnlyWriter: openOnlyWriter,
+		scanFinalPath:  scanPath,
+		openFinalPath:  openPath,
 	}, nil
 }
 
-func (b *batchOutputs) Close() error {
+func (b *batchOutputs) Finalize(success bool) error {
 	if b == nil {
 		return nil
 	}
@@ -61,5 +67,17 @@ func (b *batchOutputs) Close() error {
 			firstErr = err
 		}
 	}
-	return firstErr
+	if firstErr != nil {
+		return firstErr
+	}
+
+	if success {
+		if err := os.Rename(b.scanFinalPath+".tmp", b.scanFinalPath); err != nil {
+			return err
+		}
+		if err := os.Rename(b.openFinalPath+".tmp", b.openFinalPath); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -323,8 +323,8 @@ func TestOpenBatchOutputs_WhenCreated_WritesHeadersAndSupportsCIDRFallback(t *te
 	}); err != nil {
 		t.Fatalf("write scan record failed: %v", err)
 	}
-	if err := outputs.Close(); err != nil {
-		t.Fatalf("close outputs failed: %v", err)
+	if err := outputs.Finalize(true); err != nil {
+		t.Fatalf("finalize outputs failed: %v", err)
 	}
 
 	scanBytes, err := os.ReadFile(filepath.Join(dir, "scan.csv"))
