@@ -816,6 +816,59 @@ func TestRun_WhenCanceled_EmitsCanceledCompletionSummaryAndFallbackResume(t *tes
 	}
 }
 
+func TestRun_WhenCanceled_ResumeStateReflectsAllCompletedScans(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	resumeFile := filepath.Join(tmp, "resume.json")
+
+	// 4 IPs x 4 ports = 16 tasks, slow enough to cancel mid-scan
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.0/30,127.0.0.0/30,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n2/tcp\n3/tcp\n4/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          50 * time.Millisecond,
+		Delay:            10 * time.Millisecond,
+		BucketRate:       2,
+		BucketCapacity:   2,
+		Workers:          2,
+		PressureInterval: 10 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(80 * time.Millisecond)
+		cancel()
+	}()
+
+	_ = Run(ctx, cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
+		DisableKeyboard: true,
+		ResumeStatePath: resumeFile,
+	})
+
+	chunks, err := state.Load(resumeFile)
+	if err != nil {
+		t.Fatalf("expected resume state, got: %v", err)
+	}
+	if len(chunks) == 0 {
+		t.Fatal("expected at least 1 chunk in resume state")
+	}
+	// ScannedCount should be > 0 (workers completed some scans before drain)
+	if chunks[0].ScannedCount == 0 {
+		t.Fatal("expected ScannedCount > 0 after draining in-flight results")
+	}
+}
+
 func mustFindOne(t *testing.T, pattern string) string {
 	t.Helper()
 	matches, err := filepath.Glob(pattern)

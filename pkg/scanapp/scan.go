@@ -142,12 +142,16 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				resultCh = nil
 				continue
 			}
-			if err := writeScanRecord(outputs.scanWriter, outputs.openOnlyWriter, res.record); err != nil && runErr == nil {
-				runErr = err
-				cancel()
+			if runErr == nil {
+				if err := writeScanRecord(outputs.scanWriter, outputs.openOnlyWriter, res.record); err != nil {
+					runErr = err
+					cancel()
+				}
 			}
 			applyScanResult(plan.runtimes, res, &summary)
-			emitScanResultEvents(stdout, logger, ctrl, progressStep, plan.runtimes, res, &summary)
+			if runErr == nil {
+				emitScanResultEvents(stdout, logger, ctrl, progressStep, plan.runtimes, res, &summary)
+			}
 		}
 	}
 
