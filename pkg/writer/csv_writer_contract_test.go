@@ -7,6 +7,22 @@ import (
 	"testing"
 )
 
+func TestColumns_WhenIterated_MatchesExpectedHeaderOrder(t *testing.T) {
+	expected := []string{
+		"ip", "ip_cidr", "port", "status", "response_time_ms",
+		"fab_name", "cidr_name", "service_label", "decision",
+		"policy_id", "reason", "execution_key", "src_ip", "src_network_segment",
+	}
+	if len(Columns) != len(expected) {
+		t.Fatalf("expected %d columns, got %d", len(expected), len(Columns))
+	}
+	for i, col := range Columns {
+		if col.Name != expected[i] {
+			t.Fatalf("column[%d] name mismatch: got=%s want=%s", i, col.Name, expected[i])
+		}
+	}
+}
+
 func TestCSVWriter_WhenMetadataMissing_PreservesHeaderOrderAndEmptyMetadata(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := NewCSVWriter(buf)
