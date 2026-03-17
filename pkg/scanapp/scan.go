@@ -2,18 +2,14 @@ package scanapp
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
-	"github.com/xuxiping/port-scan-mk3/pkg/input"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
-	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
 const (
@@ -170,128 +166,3 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	scanSuccess = true
 	return nil
 }
-
-type cidrGroup struct {
-	targets []scanTarget
-	port    int
-}
-
-func buildCIDRGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error) {
-	out := make(map[string]cidrGroup)
-	for _, rec := range cidrRecords {
-		cidr := rec.CIDR
-		if cidr == "" && rec.Net != nil {
-			cidr = rec.Net.String()
-		}
-		if cidr == "" {
-			return nil, fmt.Errorf("record missing ip_cidr")
-		}
-
-		selector := ""
-		switch {
-		case rec.Selector != nil:
-			selector = rec.Selector.String()
-		case strings.TrimSpace(rec.IPRaw) != "":
-			selector = strings.TrimSpace(rec.IPRaw)
-		case rec.Net != nil:
-			selector = rec.Net.String()
-		default:
-			return nil, fmt.Errorf("record for cidr %s missing selector", cidr)
-		}
-
-		ips, err := task.ExpandIPSelectors([]string{selector})
-		if err != nil {
-			return nil, fmt.Errorf("expand selector failed for cidr %s: %w", cidr, err)
-		}
-
-		group := out[cidr]
-		for _, ip := range ips {
-			group.targets = append(group.targets, scanTarget{
-				ip: ip,
-				meta: targetMeta{
-					fabName:  rec.FabName,
-					cidrName: rec.CIDRName,
-				},
-			})
-		}
-		out[cidr] = group
-	}
-
-	for cidr, group := range out {
-		sort.Slice(group.targets, func(i, j int) bool {
-			return ipv4ToUint32(group.targets[i].ip) < ipv4ToUint32(group.targets[j].ip)
-		})
-		out[cidr] = group
-	}
-	return out, nil
-}
-
-func buildRichGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error) {
-	out := make(map[string]cidrGroup)
-	for _, rec := range cidrRecords {
-		if !rec.IsRich || !rec.IsValid {
-			continue
-		}
-		key := strings.TrimSpace(rec.ExecutionKey)
-		if key == "" {
-			return nil, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
-		}
-		group := out[key]
-		if len(group.targets) == 0 {
-			group.port = rec.Port
-			group.targets = append(group.targets, scanTarget{
-				ip:     rec.DstIP,
-				ipCidr: rec.DstNetworkSegment,
-				meta: targetMeta{
-					fabName:           rec.FabName,
-					cidrName:          rec.CIDRName,
-					serviceLabel:      rec.ServiceLabel,
-					decision:          rec.Decision,
-					policyID:          rec.PolicyID,
-					reason:            rec.Reason,
-					executionKey:      key,
-					srcIP:             rec.SrcIP,
-					srcNetworkSegment: rec.SrcNetworkSegment,
-				},
-			})
-			out[key] = group
-			continue
-		}
-		if group.port != rec.Port {
-			return nil, fmt.Errorf("execution key %s has inconsistent port", key)
-		}
-		t := &group.targets[0]
-		t.meta.fabName = mergeFieldValue(t.meta.fabName, rec.FabName)
-		t.meta.cidrName = mergeFieldValue(t.meta.cidrName, rec.CIDRName)
-		t.meta.serviceLabel = mergeFieldValue(t.meta.serviceLabel, rec.ServiceLabel)
-		t.meta.decision = mergeFieldValue(t.meta.decision, rec.Decision)
-		t.meta.policyID = mergeFieldValue(t.meta.policyID, rec.PolicyID)
-		t.meta.reason = mergeFieldValue(t.meta.reason, rec.Reason)
-		t.meta.srcIP = mergeFieldValue(t.meta.srcIP, rec.SrcIP)
-		t.meta.srcNetworkSegment = mergeFieldValue(t.meta.srcNetworkSegment, rec.SrcNetworkSegment)
-		out[key] = group
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("no usable input rows")
-	}
-	return out, nil
-}
-
-func mergeFieldValue(existing, incoming string) string {
-	existing = strings.TrimSpace(existing)
-	incoming = strings.TrimSpace(incoming)
-	if incoming == "" || existing == incoming {
-		return existing
-	}
-	if existing == "" {
-		return incoming
-	}
-	parts := strings.Split(existing, "|")
-	for _, p := range parts {
-		if p == incoming {
-			return existing
-		}
-	}
-	return existing + "|" + incoming
-}
-
