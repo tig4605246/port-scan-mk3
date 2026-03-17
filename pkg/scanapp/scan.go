@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/input"
 	"github.com/xuxiping/port-scan-mk3/pkg/logx"
 	"github.com/xuxiping/port-scan-mk3/pkg/ratelimit"
-	"github.com/xuxiping/port-scan-mk3/pkg/scanner"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
 	"github.com/xuxiping/port-scan-mk3/pkg/state"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
@@ -148,36 +146,13 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	}
 
 	taskCh := make(chan scanTask, queueSize)
-	resultCh := make(chan scanResult, queueSize)
 
 	dial := opts.Dial
 	if dial == nil {
 		dialer := &net.Dialer{LocalAddr: &net.TCPAddr{Port: 0}}
 		dial = dialer.DialContext
 	}
-
-	var workerWG sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		workerWG.Add(1)
-		go func() {
-			defer workerWG.Done()
-			for t := range taskCh {
-				res := scanner.ScanTCP(dial, t.ip, t.port, cfg.Timeout)
-				if res.Error != "" {
-					logger.debugf("scan %s:%d status=%s err=%s", t.ip, t.port, res.Status, res.Error)
-				}
-				resultCh <- scanResult{
-					chunkIdx: t.chunkIdx,
-					record:   recordFromScanTask(t, res),
-				}
-			}
-		}()
-	}
-
-	go func() {
-		workerWG.Wait()
-		close(resultCh)
-	}()
+	resultCh := startScanExecutor(workers, cfg.Timeout, dial, logger, taskCh)
 
 	dispatchErrCh := make(chan error, 1)
 	go func() {
