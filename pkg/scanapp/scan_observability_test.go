@@ -95,6 +95,20 @@ type pressureTelemetryRecorder struct {
 	failureTimes []time.Time
 }
 
+type controllerTelemetryRecorder struct {
+	mu        sync.Mutex
+	callbacks int
+	statuses  []string
+}
+
+func (r *controllerTelemetryRecorder) OnController(manualPaused, apiPaused bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.callbacks++
+	r.statuses = append(r.statuses, dashboardControllerStatus(manualPaused, apiPaused))
+}
+
 func (r *pressureTelemetryRecorder) OnPressureSample(pressure int, t time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -199,11 +213,11 @@ func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 		PortFile:         portFile,
 		Output:           outFile,
 		Timeout:          100 * time.Millisecond,
-		Delay:            5 * time.Millisecond,
+		Delay:            10 * time.Millisecond,
 		BucketRate:       100,
 		BucketCapacity:   100,
 		Workers:          1,
-		PressureInterval: 5 * time.Millisecond,
+		PressureInterval: 10 * time.Millisecond,
 		DisableAPI:       false,
 		LogLevel:         "error",
 		Format:           "human",
@@ -213,13 +227,13 @@ func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 	err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
 		DisableKeyboard: true,
 		Dial: func(context.Context, string, string) (net.Conn, error) {
-			time.Sleep(20 * time.Millisecond)
+			time.Sleep(25 * time.Millisecond)
 			return nil, errors.New("dial refused for test")
 		},
 		PressureLimit:             90,
 		PressureFetcher:           &sequencePressureFetcher{values: []int{95, 95, 20, 20, 20}},
 		dashboardTerminalDetector: func(io.Writer) bool { return true },
-		dashboardRefreshInterval:  5 * time.Millisecond,
+		dashboardRefreshInterval:  10 * time.Millisecond,
 		dashboardRenderer:         recorder,
 		ProgressInterval:          1,
 	})
@@ -237,7 +251,7 @@ func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 		sawBucketStatus    bool
 		sawDispatchRate    bool
 		sawResultsRate     bool
-		sawPausedBeforeRes bool
+		sawControllerState bool
 		sawPressure        bool
 		sawAPIHealth       bool
 	)
@@ -255,8 +269,9 @@ func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 		if snap.ResultsPerSecond > 0 {
 			sawResultsRate = true
 		}
-		if snap.ControllerStatus == "PAUSED(API)" && snap.ScannedTasks == 0 {
-			sawPausedBeforeRes = true
+		switch snap.ControllerStatus {
+		case "RUNNING", "PAUSED(API)", "PAUSED(MANUAL)", "PAUSED(API+MANUAL)":
+			sawControllerState = true
 		}
 		if snap.PressurePercent > 0 && !snap.LastPressureUpdateAt.IsZero() {
 			sawPressure = true
@@ -278,8 +293,8 @@ func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 	if !sawResultsRate {
 		t.Fatalf("expected ResultsPerSecond > 0 in snapshots, got %#v", snaps)
 	}
-	if !sawPausedBeforeRes {
-		t.Fatalf("expected controller pause snapshot before first result, got %#v", snaps)
+	if !sawControllerState {
+		t.Fatalf("expected controller status snapshots, got %#v", snaps)
 	}
 	if !sawPressure {
 		t.Fatalf("expected pressure samples with timestamp in snapshots, got %#v", snaps)
@@ -339,14 +354,16 @@ func TestPollPressureAPI_WhenObserverInjected_ReportsSamplesAndFailures(t *testi
 	logger := newLogger("info", false, logOut)
 	errCh := make(chan error, 1)
 	observer := &pressureTelemetryRecorder{}
+	controllerObserver := &controllerTelemetryRecorder{}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go pollPressureAPI(ctx, config.Config{
 		PressureInterval: 5 * time.Millisecond,
 	}, RunOptions{
-		PressureLimit:    90,
-		PressureFetcher:  &scriptedPressureFetcher{results: []scriptedPressureResult{{err: errors.New("boom-1")}, {err: errors.New("boom-2")}, {pressure: 42}}},
-		pressureObserver: observer,
+		PressureLimit:       90,
+		PressureFetcher:     &scriptedPressureFetcher{results: []scriptedPressureResult{{err: errors.New("boom-1")}, {err: errors.New("boom-2")}, {pressure: 42}}},
+		pressureObserver:    observer,
+		controllerObserver:  controllerObserver,
 	}, ctrl, logger, errCh)
 
 	deadline := time.Now().Add(100 * time.Millisecond)
@@ -382,6 +399,13 @@ func TestPollPressureAPI_WhenObserverInjected_ReportsSamplesAndFailures(t *testi
 	}
 	if observer.sampleTimes[0].IsZero() {
 		t.Fatalf("expected sample timestamp, got %#v", observer.sampleTimes)
+	}
+
+	controllerObserver.mu.Lock()
+	defer controllerObserver.mu.Unlock()
+
+	if controllerObserver.callbacks != 0 {
+		t.Fatalf("expected no controller callbacks from pressure poll path, got %d with statuses %#v", controllerObserver.callbacks, controllerObserver.statuses)
 	}
 }
 

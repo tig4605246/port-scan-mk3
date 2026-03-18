@@ -61,7 +61,6 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 	var consecutiveFailures int
 	var prevPaused bool
 	pressureObserver := opts.pressureObserver
-	controllerObserver := opts.controllerObserver
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -95,9 +94,6 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 			}
 			paused := pressure >= thresholdValue
 			ctrl.SetAPIPaused(paused)
-			if controllerObserver != nil {
-				controllerObserver.OnController(ctrl.ManualPaused(), ctrl.APIPaused())
-			}
 			if paused != prevPaused {
 				if paused {
 					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
