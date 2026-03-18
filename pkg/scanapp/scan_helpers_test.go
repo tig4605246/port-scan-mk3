@@ -255,12 +255,12 @@ func TestBuildRichGroups_WhenDuplicateExecutionKey_PreservesMergedContext(t *tes
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	got := groups["127.0.0.1:8080/tcp"]
-	if got.port != 8080 {
-		t.Fatalf("unexpected group port: %d", got.port)
-	}
+	got := groups["127.0.0.0/24"]
 	if len(got.targets) != 1 {
 		t.Fatalf("expected single runtime target, got %d", len(got.targets))
+	}
+	if got.targets[0].port != 8080 {
+		t.Fatalf("unexpected target port: %d", got.targets[0].port)
 	}
 	if got.targets[0].meta.policyID != "P-1|P-2" {
 		t.Fatalf("unexpected merged policy id: %s", got.targets[0].meta.policyID)
@@ -270,7 +270,56 @@ func TestBuildRichGroups_WhenDuplicateExecutionKey_PreservesMergedContext(t *tes
 	}
 }
 
-func TestLoadOrBuildChunks_WhenRichRecordsProvided_BuildsExecutionKeyChunks(t *testing.T) {
+func TestBuildRichGroups_WhenExecutionKeyAppearsAcrossCIDRs_DedupGloballyToFirstCIDR(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "127.0.0.1:8080/tcp",
+			DstIP:             "127.0.0.1",
+			DstNetworkSegment: "127.0.0.0/24",
+			Port:              8080,
+			PolicyID:          "P-1",
+			Decision:          "accept",
+			Reason:            "allow",
+			SrcIP:             "10.0.0.10",
+		},
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "127.0.0.1:8080/tcp",
+			DstIP:             "127.0.0.1",
+			DstNetworkSegment: "127.0.0.0/25",
+			Port:              8080,
+			PolicyID:          "P-2",
+			Decision:          "deny",
+			Reason:            "audit",
+			SrcIP:             "10.0.0.11",
+		},
+	}
+	groups, err := buildRichGroups(rows)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 cidr group after global dedup, got %d", len(groups))
+	}
+	if _, ok := groups["127.0.0.0/24"]; !ok {
+		t.Fatalf("expected key to stay at first cidr owner")
+	}
+	if _, ok := groups["127.0.0.0/25"]; ok {
+		t.Fatalf("unexpected second cidr group created for duplicated execution key")
+	}
+	got := groups["127.0.0.0/24"]
+	if len(got.targets) != 1 {
+		t.Fatalf("expected one dedup target, got %d", len(got.targets))
+	}
+	if got.targets[0].meta.policyID != "P-1|P-2" {
+		t.Fatalf("unexpected merged policy id: %s", got.targets[0].meta.policyID)
+	}
+}
+
+func TestLoadOrBuildChunks_WhenRichRecordsProvided_BuildsCIDRScopedChunks(t *testing.T) {
 	rows := []input.CIDRRecord{
 		{IsRich: true, IsValid: true, ExecutionKey: "127.0.0.1:8080/tcp", Port: 8080, CIDRName: "web", DstIP: "127.0.0.1", DstNetworkSegment: "127.0.0.0/24"},
 		{IsRich: true, IsValid: true, ExecutionKey: "127.0.0.1:8080/tcp", Port: 8080, CIDRName: "web", DstIP: "127.0.0.1", DstNetworkSegment: "127.0.0.0/24"},
@@ -280,11 +329,42 @@ func TestLoadOrBuildChunks_WhenRichRecordsProvided_BuildsExecutionKeyChunks(t *t
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if len(chunks) != 2 {
-		t.Fatalf("expected 2 dedup chunks, got %d", len(chunks))
+	if len(chunks) != 1 {
+		t.Fatalf("expected 1 cidr chunk, got %d", len(chunks))
 	}
-	if chunks[0].TotalCount != 1 || chunks[1].TotalCount != 1 {
-		t.Fatalf("expected each rich chunk total_count=1, got %#v", chunks)
+	if chunks[0].CIDR != "127.0.0.0/24" {
+		t.Fatalf("unexpected cidr chunk key: %#v", chunks)
+	}
+	if chunks[0].TotalCount != 2 {
+		t.Fatalf("expected dedup targets count=2 under one cidr, got %#v", chunks)
+	}
+}
+
+func TestIndexToRuntimeTarget_WhenRichTargetsHaveDedicatedPorts_MapsOneTaskPerTarget(t *testing.T) {
+	targets := []scanTarget{
+		{ip: "10.0.0.1", port: 443},
+		{ip: "10.0.0.2", port: 8443},
+	}
+	ports := []int{1}
+
+	t0, p0, err := indexToRuntimeTarget(targets, ports, 0)
+	if err != nil {
+		t.Fatalf("unexpected err on idx 0: %v", err)
+	}
+	if t0.ip != "10.0.0.1" || p0 != 443 {
+		t.Fatalf("unexpected target@0: %s:%d", t0.ip, p0)
+	}
+
+	t1, p1, err := indexToRuntimeTarget(targets, ports, 1)
+	if err != nil {
+		t.Fatalf("unexpected err on idx 1: %v", err)
+	}
+	if t1.ip != "10.0.0.2" || p1 != 8443 {
+		t.Fatalf("unexpected target@1: %s:%d", t1.ip, p1)
+	}
+
+	if _, _, err := indexToRuntimeTarget(targets, ports, 2); err == nil {
+		t.Fatal("expected out-of-range error for idx 2")
 	}
 }
 

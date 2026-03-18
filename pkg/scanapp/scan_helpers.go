@@ -19,6 +19,21 @@ func indexToRuntimeTarget(targets []scanTarget, ports []int, idx int) (scanTarge
 	if idx < 0 {
 		return scanTarget{}, 0, fmt.Errorf("negative index")
 	}
+	if len(ports) == 1 {
+		dedicatedPortPerTarget := true
+		for i := range targets {
+			if targets[i].port <= 0 {
+				dedicatedPortPerTarget = false
+				break
+			}
+		}
+		if dedicatedPortPerTarget {
+			if idx >= len(targets) {
+				return scanTarget{}, 0, fmt.Errorf("index out of range")
+			}
+			return targets[idx], targets[idx].port, nil
+		}
+	}
 	targetIdx := idx / len(ports)
 	portIdx := idx % len(ports)
 	if targetIdx >= len(targets) {

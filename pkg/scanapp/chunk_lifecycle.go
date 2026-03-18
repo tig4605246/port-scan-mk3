@@ -97,7 +97,8 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 		groups map[string]cidrGroup
 		err    error
 	)
-	if hasRichRecords(cidrRecords) {
+	richMode := hasRichRecords(cidrRecords)
+	if richMode {
 		groups, err = buildRichGroups(cidrRecords)
 	} else {
 		groups, err = buildCIDRGroups(cidrRecords)
@@ -116,8 +117,12 @@ func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPo
 
 		portRows := ch.Ports
 		if len(portRows) == 0 {
-			if group.port > 0 {
-				portRows = []string{fmt.Sprintf("%d/tcp", group.port)}
+			if richMode {
+				richPort := 1
+				if len(group.targets) > 0 && group.targets[0].port > 0 {
+					richPort = group.targets[0].port
+				}
+				portRows = []string{fmt.Sprintf("%d/tcp", richPort)}
 			} else {
 				portRows = make([]string, 0, len(defaultPorts))
 				for _, p := range defaultPorts {
@@ -178,19 +183,27 @@ func buildRichChunks(cidrRecords []input.CIDRRecord) ([]task.Chunk, error) {
 	out := make([]task.Chunk, 0, len(keys))
 	for _, key := range keys {
 		g := groups[key]
+		if len(g.targets) == 0 {
+			continue
+		}
 		cidrName := ""
-		if len(g.targets) > 0 {
-			cidrName = g.targets[0].meta.cidrName
+		cidrName = g.targets[0].meta.cidrName
+		port := g.targets[0].port
+		if port <= 0 {
+			port = 1
 		}
 		out = append(out, task.Chunk{
 			CIDR:         key,
 			CIDRName:     cidrName,
-			Ports:        []string{fmt.Sprintf("%d/tcp", g.port)},
+			Ports:        []string{fmt.Sprintf("%d/tcp", port)},
 			NextIndex:    0,
 			ScannedCount: 0,
-			TotalCount:   1,
+			TotalCount:   len(g.targets),
 			Status:       "pending",
 		})
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no usable input rows")
 	}
 	return out, nil
 }

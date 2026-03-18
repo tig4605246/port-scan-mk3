@@ -30,6 +30,7 @@ type chunkRuntime struct {
 type scanTarget struct {
 	ip     string
 	ipCidr string
+	port   int
 	meta   targetMeta
 }
 

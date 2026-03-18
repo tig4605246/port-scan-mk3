@@ -43,11 +43,11 @@ func TestBuildGroups_WhenRichStrategy_ProducesSameResultAsBuildRichGroups(t *tes
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
-	g := groups["10.0.0.1:80/tcp"]
+	g := groups["10.0.0.0/24"]
 	if len(g.targets) != 1 || g.targets[0].ip != "10.0.0.1" {
 		t.Fatalf("unexpected target: %+v", g.targets)
 	}
-	if g.port != 80 {
-		t.Fatalf("expected port 80, got %d", g.port)
+	if g.targets[0].port != 80 {
+		t.Fatalf("expected target port 80, got %d", g.targets[0].port)
 	}
 }

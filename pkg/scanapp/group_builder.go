@@ -11,7 +11,6 @@ import (
 
 type cidrGroup struct {
 	targets []scanTarget
-	port    int
 }
 
 type groupBuildStrategy interface {
@@ -140,54 +139,40 @@ func (richGroupStrategy) ShouldInclude(rec input.CIDRRecord) bool {
 }
 
 func (richGroupStrategy) Key(rec input.CIDRRecord) (string, error) {
-	key := strings.TrimSpace(rec.ExecutionKey)
-	if key == "" {
-		return "", fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
-	}
-	return key, nil
+	return richCIDRKey(rec)
 }
 
 func (richGroupStrategy) NewGroup(rec input.CIDRRecord) (cidrGroup, error) {
-	key, err := (richGroupStrategy{}).Key(rec)
+	target, err := richTargetFromRecord(rec)
 	if err != nil {
 		return cidrGroup{}, err
 	}
-
 	return cidrGroup{
-		port: rec.Port,
-		targets: []scanTarget{{
-			ip:     rec.DstIP,
-			ipCidr: rec.DstNetworkSegment,
-			meta: targetMeta{
-				fabName:           rec.FabName,
-				cidrName:          rec.CIDRName,
-				serviceLabel:      rec.ServiceLabel,
-				decision:          rec.Decision,
-				policyID:          rec.PolicyID,
-				reason:            rec.Reason,
-				executionKey:      key,
-				srcIP:             rec.SrcIP,
-				srcNetworkSegment: rec.SrcNetworkSegment,
-			},
-		}},
+		targets: []scanTarget{target},
 	}, nil
 }
 
 func (richGroupStrategy) MergeGroup(existing cidrGroup, rec input.CIDRRecord) (cidrGroup, error) {
 	key := strings.TrimSpace(rec.ExecutionKey)
-	if existing.port != rec.Port {
-		return cidrGroup{}, fmt.Errorf("execution key %s has inconsistent port", key)
+	if key == "" {
+		return cidrGroup{}, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
 	}
-
-	target := &existing.targets[0]
-	target.meta.fabName = mergeFieldValue(target.meta.fabName, rec.FabName)
-	target.meta.cidrName = mergeFieldValue(target.meta.cidrName, rec.CIDRName)
-	target.meta.serviceLabel = mergeFieldValue(target.meta.serviceLabel, rec.ServiceLabel)
-	target.meta.decision = mergeFieldValue(target.meta.decision, rec.Decision)
-	target.meta.policyID = mergeFieldValue(target.meta.policyID, rec.PolicyID)
-	target.meta.reason = mergeFieldValue(target.meta.reason, rec.Reason)
-	target.meta.srcIP = mergeFieldValue(target.meta.srcIP, rec.SrcIP)
-	target.meta.srcNetworkSegment = mergeFieldValue(target.meta.srcNetworkSegment, rec.SrcNetworkSegment)
+	for i := range existing.targets {
+		target := &existing.targets[i]
+		if strings.TrimSpace(target.meta.executionKey) != key {
+			continue
+		}
+		if target.port != rec.Port {
+			return cidrGroup{}, fmt.Errorf("execution key %s has inconsistent port", key)
+		}
+		mergeRichMetadataFromRecord(target, rec)
+		return existing, nil
+	}
+	target, err := richTargetFromRecord(rec)
+	if err != nil {
+		return cidrGroup{}, err
+	}
+	existing.targets = append(existing.targets, target)
 	return existing, nil
 }
 
@@ -216,5 +201,165 @@ func buildCIDRGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, erro
 }
 
 func buildRichGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error) {
-	return buildGroups(cidrRecords, richGroupStrategy{})
+	groups, err := buildGroups(cidrRecords, richGroupStrategy{})
+	if err != nil {
+		return nil, err
+	}
+
+	ownerByExecutionKey := make(map[string]string)
+	for _, rec := range cidrRecords {
+		if !rec.IsRich || !rec.IsValid {
+			continue
+		}
+		key := strings.TrimSpace(rec.ExecutionKey)
+		if key == "" {
+			return nil, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
+		}
+		cidr, err := richCIDRKey(rec)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := ownerByExecutionKey[key]; !ok {
+			ownerByExecutionKey[key] = cidr
+		}
+	}
+
+	for cidr, group := range groups {
+		kept := make([]scanTarget, 0, len(group.targets))
+		for _, target := range group.targets {
+			executionKey := strings.TrimSpace(target.meta.executionKey)
+			ownerCIDR, ok := ownerByExecutionKey[executionKey]
+			if !ok {
+				return nil, fmt.Errorf("owner cidr missing for execution key %s", executionKey)
+			}
+			if ownerCIDR == cidr {
+				kept = append(kept, target)
+				continue
+			}
+
+			ownerGroup, ok := groups[ownerCIDR]
+			if !ok {
+				return nil, fmt.Errorf("owner cidr %s missing for execution key %s", ownerCIDR, executionKey)
+			}
+			idx := richTargetIndexByExecutionKey(ownerGroup.targets, executionKey)
+			if idx < 0 {
+				ownerGroup.targets = append(ownerGroup.targets, target)
+			} else if err := mergeRichTargetValues(&ownerGroup.targets[idx], target); err != nil {
+				return nil, err
+			}
+			groups[ownerCIDR] = ownerGroup
+		}
+		if len(kept) == 0 {
+			delete(groups, cidr)
+			continue
+		}
+		group.targets = kept
+		groups[cidr] = group
+	}
+
+	if len(groups) == 0 {
+		return nil, fmt.Errorf("no usable input rows")
+	}
+
+	for cidr, group := range groups {
+		sort.Slice(group.targets, func(i, j int) bool {
+			left := group.targets[i]
+			right := group.targets[j]
+			leftIP := ipv4ToUint32(left.ip)
+			rightIP := ipv4ToUint32(right.ip)
+			if leftIP != rightIP {
+				return leftIP < rightIP
+			}
+			if left.port != right.port {
+				return left.port < right.port
+			}
+			return strings.TrimSpace(left.meta.executionKey) < strings.TrimSpace(right.meta.executionKey)
+		})
+		groups[cidr] = group
+	}
+	return groups, nil
+}
+
+func richCIDRKey(rec input.CIDRRecord) (string, error) {
+	if cidr := strings.TrimSpace(rec.DstNetworkSegment); cidr != "" {
+		return cidr, nil
+	}
+	if cidr := strings.TrimSpace(rec.CIDR); cidr != "" {
+		return cidr, nil
+	}
+	if rec.Net != nil {
+		return rec.Net.String(), nil
+	}
+	return "", fmt.Errorf("rich record missing dst_network_segment at row %d", rec.RowNumber)
+}
+
+func richTargetFromRecord(rec input.CIDRRecord) (scanTarget, error) {
+	key := strings.TrimSpace(rec.ExecutionKey)
+	if key == "" {
+		return scanTarget{}, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
+	}
+	cidr, err := richCIDRKey(rec)
+	if err != nil {
+		return scanTarget{}, err
+	}
+	return scanTarget{
+		ip:     rec.DstIP,
+		ipCidr: cidr,
+		port:   rec.Port,
+		meta: targetMeta{
+			fabName:           rec.FabName,
+			cidrName:          rec.CIDRName,
+			serviceLabel:      rec.ServiceLabel,
+			decision:          rec.Decision,
+			policyID:          rec.PolicyID,
+			reason:            rec.Reason,
+			executionKey:      key,
+			srcIP:             rec.SrcIP,
+			srcNetworkSegment: rec.SrcNetworkSegment,
+		},
+	}, nil
+}
+
+func mergeRichMetadataFromRecord(target *scanTarget, rec input.CIDRRecord) {
+	target.meta.fabName = mergeFieldValue(target.meta.fabName, rec.FabName)
+	target.meta.cidrName = mergeFieldValue(target.meta.cidrName, rec.CIDRName)
+	target.meta.serviceLabel = mergeFieldValue(target.meta.serviceLabel, rec.ServiceLabel)
+	target.meta.decision = mergeFieldValue(target.meta.decision, rec.Decision)
+	target.meta.policyID = mergeFieldValue(target.meta.policyID, rec.PolicyID)
+	target.meta.reason = mergeFieldValue(target.meta.reason, rec.Reason)
+	target.meta.srcIP = mergeFieldValue(target.meta.srcIP, rec.SrcIP)
+	target.meta.srcNetworkSegment = mergeFieldValue(target.meta.srcNetworkSegment, rec.SrcNetworkSegment)
+}
+
+func richTargetIndexByExecutionKey(targets []scanTarget, executionKey string) int {
+	for i := range targets {
+		if strings.TrimSpace(targets[i].meta.executionKey) == executionKey {
+			return i
+		}
+	}
+	return -1
+}
+
+func mergeRichTargetValues(dst *scanTarget, incoming scanTarget) error {
+	key := strings.TrimSpace(dst.meta.executionKey)
+	if key == "" {
+		return fmt.Errorf("destination rich target missing execution key")
+	}
+	if strings.TrimSpace(incoming.meta.executionKey) != key {
+		return fmt.Errorf("cannot merge rich targets with different execution keys: %s vs %s", key, strings.TrimSpace(incoming.meta.executionKey))
+	}
+	if dst.port != incoming.port {
+		return fmt.Errorf("execution key %s has inconsistent port", key)
+	}
+	mergeRichMetadataFromRecord(dst, input.CIDRRecord{
+		FabName:           incoming.meta.fabName,
+		CIDRName:          incoming.meta.cidrName,
+		ServiceLabel:      incoming.meta.serviceLabel,
+		Decision:          incoming.meta.decision,
+		PolicyID:          incoming.meta.policyID,
+		Reason:            incoming.meta.reason,
+		SrcIP:             incoming.meta.srcIP,
+		SrcNetworkSegment: incoming.meta.srcNetworkSegment,
+	})
+	return nil
 }
