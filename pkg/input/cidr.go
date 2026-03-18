@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -51,6 +52,7 @@ func LoadCIDRsWithColumns(r io.Reader, ipCol, ipCidrCol string) ([]CIDRRecord, e
 	}
 	fabIdx := headerIndex(header, "fab_name")
 	cidrNameIdx := headerIndex(header, "cidr_name")
+	portIdx := headerIndex(header, "port")
 
 	out := make([]CIDRRecord, 0, len(rows)-1)
 	for i := 1; i < len(rows); i++ {
@@ -71,6 +73,19 @@ func LoadCIDRsWithColumns(r io.Reader, ipCol, ipCidrCol string) ([]CIDRRecord, e
 		}
 		if cidrNameIdx >= 0 && cidrNameIdx < len(row) {
 			rec.CIDRName = strings.TrimSpace(row[cidrNameIdx])
+		}
+		if portIdx >= 0 {
+			if portIdx >= len(row) {
+				return nil, fmt.Errorf("invalid cidr row %d", i+1)
+			}
+			portRaw := strings.TrimSpace(row[portIdx])
+			if portRaw != "" {
+				port, err := strconv.Atoi(portRaw)
+				if err != nil || port < 1 || port > 65535 {
+					return nil, fmt.Errorf("invalid cidr row %d: invalid port %q", i+1, portRaw)
+				}
+				rec.Port = port
+			}
 		}
 		if err := rec.Parse(); err != nil {
 			return nil, fmt.Errorf("invalid cidr row %d: %w", i+1, err)
