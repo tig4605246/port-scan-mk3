@@ -18,6 +18,23 @@ func TestParseConfig_WhenRequiredFlagsProvided_UsesDefaultValues(t *testing.T) {
 	}
 }
 
+func TestParseConfig_WhenPortFileOmitted_StillParses(t *testing.T) {
+	cfg, err := Parse([]string{"-cidr-file", "cidr.csv"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.PortFile != "" {
+		t.Fatalf("expected empty port file, got %q", cfg.PortFile)
+	}
+}
+
+func TestParseConfig_WhenCIDRFileMissing_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{"-port-file", "ports.csv"})
+	if err == nil {
+		t.Fatal("expected error for missing cidr-file")
+	}
+}
+
 func TestParseConfig_WhenFormatIsInvalid_ReturnsError(t *testing.T) {
 	_, err := Parse([]string{"-cidr-file", "cidr.csv", "-port-file", "ports.csv", "-format", "xml"})
 	if err == nil {

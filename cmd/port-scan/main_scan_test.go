@@ -201,8 +201,87 @@ func TestRunMain_WhenScanConfigParseFails_ReturnsExit2AndWritesStderr(t *testing
 	if stdout.Len() != 0 {
 		t.Fatalf("expected empty stdout, got %s", stdout.String())
 	}
-	if !strings.Contains(stderr.String(), "-cidr-file and -port-file are required") {
+	if !strings.Contains(stderr.String(), "-cidr-file is required") {
 		t.Fatalf("expected parse error on stderr, got %s", stderr.String())
+	}
+}
+
+func TestRunMain_WhenRichCSVAndPortFileMissing_ScanSucceeds(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	openPort, _ := strconv.Atoi(portStr)
+
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "rich.csv")
+	requestedOutput := filepath.Join(tmp, "out.csv")
+	if err := os.WriteFile(cidrFile, []byte(
+		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason\n"+
+			"10.0.0.10,10.0.0.0/24,127.0.0.1,127.0.0.0/24,web,tcp,"+strconv.Itoa(openPort)+",accept,P-1,allow\n",
+	), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	code := runMain([]string{
+		"scan",
+		"-cidr-file", cidrFile,
+		"-output", requestedOutput,
+		"-workers", "1",
+		"-delay", "0ms",
+		"-timeout", "100ms",
+		"-disable-api=true",
+	}, stdout, stderr)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d stderr=%s", code, stderr.String())
+	}
+	scanOutputPath := mustFindOneMain(t, filepath.Join(tmp, "scan_results-*.csv"))
+	data, err := os.ReadFile(scanOutputPath)
+	if err != nil {
+		t.Fatalf("failed to read output csv: %v", err)
+	}
+	out := string(data)
+	if !strings.Contains(out, ","+strconv.Itoa(openPort)+",open") {
+		t.Fatalf("expected open rich-mode row, got: %s", out)
+	}
+}
+
+func TestRunMain_WhenDefaultCSVAndPortFileMissing_ReturnsExit1(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	code := runMain([]string{
+		"scan",
+		"-cidr-file", cidrFile,
+		"-output", filepath.Join(tmp, "out.csv"),
+		"-workers", "1",
+		"-delay", "0ms",
+		"-timeout", "100ms",
+		"-disable-api=true",
+	}, stdout, stderr)
+	if code != 1 {
+		t.Fatalf("expected exit 1, got %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "-port-file is required") {
+		t.Fatalf("expected missing port-file error, got %s", stderr.String())
 	}
 }
 

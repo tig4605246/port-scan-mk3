@@ -36,6 +36,8 @@ go run ./cmd/port-scan scan \
   - `src_ip`, `src_network_segment`, `dst_ip`, `dst_network_segment`
   - `service_label`, `protocol`, `port`, `decision`, `policy_id`, `reason`
 - Port file format: one line per port in `<port>/tcp` (for example `443/tcp`)
+  - Required in default CIDR mode
+  - Optional in rich CSV mode
 
 ## Commands
 
@@ -78,7 +80,7 @@ This section lists high-impact flags. Full definitions are in [All flags](docs/c
 | Flag | Typical Use |
 |------|-------------|
 | `-cidr-file` | CIDR input CSV path (required) |
-| `-port-file` | Port list path (required) |
+| `-port-file` | Port list path (required in default mode; optional in rich mode) |
 | `-cidr-ip-col` / `-cidr-ip-cidr-col` | Map custom CSV column names |
 | `-output` | Choose output directory anchor |
 | `-resume` | Read/write state from explicit path |

@@ -15,7 +15,7 @@ This is the complete CLI flag reference for `port-scan-mk3`, sourced from curren
 | Flag | Type | Default | Command | Description |
 |------|------|---------|---------|-------------|
 | `-cidr-file` | string | none (required) | `validate`, `scan` | Path to CIDR CSV input file. |
-| `-port-file` | string | none (required) | `validate`, `scan` | Path to port list file (`<port>/tcp` lines). |
+| `-port-file` | string | optional | `validate`, `scan` | Path to port list file (`<port>/tcp` lines). Required when CIDR input is not rich mode. |
 | `-output` | string | `scan_results.csv` | `validate`, `scan` | Output anchor path for scan batch files; output directory also controls default resume fallback location. |
 | `-timeout` | duration | `100ms` | `validate`, `scan` | TCP dial timeout per probe. Primarily used by `scan`. |
 | `-delay` | duration | `10ms` | `validate`, `scan` | Dispatch delay between tasks. Primarily used by `scan`. |
@@ -33,7 +33,8 @@ This is the complete CLI flag reference for `port-scan-mk3`, sourced from curren
 
 ## Interaction Rules and Behavior Notes
 
-- `-cidr-file` and `-port-file` are required; parser exits with error if either is missing.
+- `-cidr-file` is required.
+- `-port-file` is required only when CIDR input is not rich mode.
 - `-format` only accepts `human` or `json`.
 - `-pressure-interval` must be positive; invalid format or non-positive values are rejected.
 - `-cidr-ip-col` and `-cidr-ip-cidr-col` must be non-empty after trimming.

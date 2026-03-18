@@ -20,8 +20,17 @@ func Inputs(cfg config.Config) Result {
 	}
 	defer cidrFile.Close()
 
-	if _, err := input.LoadCIDRsWithColumns(cidrFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol); err != nil {
+	cidrRecords, err := input.LoadCIDRsWithColumns(cidrFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol)
+	if err != nil {
 		return Result{Valid: false, Detail: err.Error()}
+	}
+	if cfg.PortFile == "" {
+		for _, rec := range cidrRecords {
+			if rec.IsRich {
+				return Result{Valid: true, Detail: "ok"}
+			}
+		}
+		return Result{Valid: false, Detail: "-port-file is required when cidr input is not rich mode"}
 	}
 
 	portFile, err := os.Open(cfg.PortFile)

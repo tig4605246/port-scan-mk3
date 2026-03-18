@@ -1,6 +1,7 @@
 package scanapp
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
@@ -16,6 +17,15 @@ func loadRunInputs(cfg config.Config, deps runDependencies) (runInputs, error) {
 	cidrRecords, err := deps.loadCIDRRecords(cfg.CIDRFile, cfg.CIDRIPCol, cfg.CIDRIPCidrCol)
 	if err != nil {
 		return runInputs{}, err
+	}
+	if cfg.PortFile == "" {
+		if hasRichRecords(cidrRecords) {
+			return runInputs{
+				cidrRecords: cidrRecords,
+				portSpecs:   nil,
+			}, nil
+		}
+		return runInputs{}, fmt.Errorf("-port-file is required when cidr input is not rich mode")
 	}
 	portSpecs, err := deps.loadPortSpecs(cfg.PortFile)
 	if err != nil {

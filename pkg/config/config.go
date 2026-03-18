@@ -52,8 +52,8 @@ func Parse(args []string) (Config, error) {
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
 	}
-	if cfg.CIDRFile == "" || cfg.PortFile == "" {
-		return Config{}, errors.New("-cidr-file and -port-file are required")
+	if cfg.CIDRFile == "" {
+		return Config{}, errors.New("-cidr-file is required")
 	}
 	if strings.TrimSpace(cfg.CIDRIPCol) == "" || strings.TrimSpace(cfg.CIDRIPCidrCol) == "" {
 		return Config{}, errors.New("-cidr-ip-col and -cidr-ip-cidr-col must be non-empty")

@@ -62,6 +62,35 @@ func TestLoadRunInputs_WhenDependenciesInjected_UsesConfigPathsAndColumns(t *tes
 	}
 }
 
+func TestLoadRunInputs_WhenRichInputsAndPortFileMissing_SkipsPortLoader(t *testing.T) {
+	deps := runDependencies{
+		loadCIDRRecords: func(path, ipCol, ipCidrCol string) ([]input.CIDRRecord, error) {
+			return []input.CIDRRecord{{IsRich: true, IsValid: true}}, nil
+		},
+		loadPortSpecs: func(path string) ([]input.PortSpec, error) {
+			t.Fatalf("port loader should not be called when rich mode and port file missing")
+			return nil, nil
+		},
+	}
+
+	cfg := config.Config{
+		CIDRFile:      "rich.csv",
+		PortFile:      "",
+		CIDRIPCol:     "ip",
+		CIDRIPCidrCol: "ip_cidr",
+	}
+	got, err := loadRunInputs(cfg, deps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got.cidrRecords) != 1 || !got.cidrRecords[0].IsRich {
+		t.Fatalf("unexpected cidr records: %#v", got.cidrRecords)
+	}
+	if len(got.portSpecs) != 0 {
+		t.Fatalf("expected empty port specs, got %#v", got.portSpecs)
+	}
+}
+
 func TestPrepareRunPlan_WhenDependenciesInjected_BuildsChunksRuntimesAndOutputPaths(t *testing.T) {
 	wantChunks := []task.Chunk{{CIDR: "10.0.0.0/24", TotalCount: 1}}
 	wantRuntimes := []*chunkRuntime{{state: &task.Chunk{CIDR: "10.0.0.0/24", TotalCount: 1}}}

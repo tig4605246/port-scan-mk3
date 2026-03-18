@@ -40,6 +40,22 @@ Expected:
 Troubleshooting:
 - Column names are case-sensitive; verify header spelling exactly.
 
+## Scenario 2A: Rich mode scan without port file
+
+Goal: Use rich CSV input (`src_ip`/`dst_ip`/.../`port`) and omit `-port-file`.
+
+Command:
+```bash
+go run ./cmd/port-scan scan \
+  -cidr-file tests/integration/testdata/rich_input/dedup_context.csv \
+  -disable-api=true
+```
+
+Expected:
+- Rich mode is auto-detected by header.
+- Scan runs without requiring `-port-file`.
+- Output still includes rich context columns such as `policy_id` and `execution_key`.
+
 ## Scenario 3: Validate inputs (human format)
 
 Goal: Pre-flight check input files without scanning.

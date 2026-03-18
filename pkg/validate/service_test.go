@@ -57,3 +57,43 @@ func TestInputs_WhenCIDRRowsInvalid_ReturnsInvalidDetail(t *testing.T) {
 		t.Fatalf("unexpected detail: %s", result.Detail)
 	}
 }
+
+func TestInputs_WhenRichCSVAndPortFileMissing_ReturnsValidResult(t *testing.T) {
+	tmp := t.TempDir()
+	cidr := filepath.Join(tmp, "rich.csv")
+	if err := os.WriteFile(cidr, []byte(
+		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason\n"+
+			"10.0.0.10,10.0.0.0/24,127.0.0.1,127.0.0.0/24,web,tcp,8080,accept,P-1,allow\n",
+	), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := Inputs(config.Config{
+		CIDRFile:      cidr,
+		CIDRIPCol:     "ip",
+		CIDRIPCidrCol: "ip_cidr",
+	})
+	if !result.Valid {
+		t.Fatalf("expected valid result, got %+v", result)
+	}
+}
+
+func TestInputs_WhenDefaultCSVAndPortFileMissing_ReturnsInvalidDetail(t *testing.T) {
+	tmp := t.TempDir()
+	cidr := filepath.Join(tmp, "cidr.csv")
+	if err := os.WriteFile(cidr, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,10.0.0.1,10.0.0.0/24,a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := Inputs(config.Config{
+		CIDRFile:      cidr,
+		CIDRIPCol:     "ip",
+		CIDRIPCidrCol: "ip_cidr",
+	})
+	if result.Valid {
+		t.Fatalf("expected invalid result, got %+v", result)
+	}
+	if !strings.Contains(result.Detail, "-port-file is required") {
+		t.Fatalf("unexpected detail: %s", result.Detail)
+	}
+}
