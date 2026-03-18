@@ -45,9 +45,17 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 	if threshold <= 0 {
 		threshold = defaultPressureLimit
 	}
-	client := opts.PressureHTTP
-	if client == nil {
-		client = &http.Client{Timeout: 2 * time.Second}
+
+	// Use PressureFetcher if provided, otherwise create SimplePressureFetcher for backward compatibility
+	var fetcher PressureFetcher
+	if opts.PressureFetcher != nil {
+		fetcher = opts.PressureFetcher
+	} else {
+		client := opts.PressureHTTP
+		if client == nil {
+			client = &http.Client{Timeout: 2 * time.Second}
+		}
+		fetcher = NewSimplePressureFetcher(cfg.PressureAPI, client)
 	}
 
 	var consecutiveFailures int
@@ -60,7 +68,7 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			pressure, err := fetchPressure(client, cfg.PressureAPI)
+			pressure, err := fetcher.Fetch(ctx)
 			if err != nil {
 				consecutiveFailures++
 				if consecutiveFailures <= 2 {

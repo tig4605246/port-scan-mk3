@@ -27,6 +27,7 @@ type RunOptions struct {
 	PressureLimit    int
 	DisableKeyboard  bool
 	PressureHTTP     *http.Client
+	PressureFetcher  PressureFetcher
 	ProgressInterval int
 }
 
