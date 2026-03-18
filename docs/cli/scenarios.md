@@ -56,6 +56,26 @@ Expected:
 - Scan runs without requiring `-port-file`.
 - Output still includes rich context columns such as `policy_id` and `execution_key`.
 
+## Scenario 2B: Observe rich dashboard output
+
+Goal: See the rich dashboard render during an interactive scan.
+
+Command:
+```bash
+go run ./cmd/port-scan scan \
+  -cidr-file e2e/inputs/cidr_normal.csv \
+  -port-file e2e/inputs/ports.csv \
+  -format human
+```
+
+Expected:
+- When `stderr` is attached to a TTY, the rich dashboard appears by default.
+- Rich dashboard output is sent to `stderr`.
+- If you redirect `stderr` or switch to `-format json`, the scan falls back to non-rich output.
+
+Troubleshooting:
+- Run the command directly in a terminal session, not through a pipe, to keep `stderr` as a TTY.
+
 ## Scenario 3: Validate inputs (human format)
 
 Goal: Pre-flight check input files without scanning.

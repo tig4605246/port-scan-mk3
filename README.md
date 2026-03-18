@@ -73,6 +73,13 @@ Exit code behavior:
 - Resume state auto-save does not mean auto-load:
   - Loading previous progress requires passing `-resume <path>`.
 
+## Dashboard and Logging
+
+- `scan` enables the rich dashboard by default when `stderr` is attached to a TTY and `-format human` is used.
+- Rich dashboard output is written to `stderr`.
+- If `stderr` is not a TTY, or if `-format json` is selected, `scan` falls back to non-rich output.
+- No new CLI flags are added for the UI in this version.
+
 ## Flags Quick Reference
 
 This section lists high-impact flags. Full definitions are in [All flags](docs/cli/flags.md).
