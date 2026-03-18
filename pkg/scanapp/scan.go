@@ -29,6 +29,10 @@ type RunOptions struct {
 	PressureHTTP     *http.Client
 	PressureFetcher  PressureFetcher
 	ProgressInterval int
+
+	dashboardTerminalDetector func(io.Writer) bool
+	dashboardRefreshInterval  time.Duration
+	dashboardRenderer         dashboardRenderLoop
 }
 
 // Run executes a full scan flow: load inputs, dispatch scan tasks, write batch
@@ -80,6 +84,16 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	if shouldEnableDashboard(cfg, stderr, opts) {
+		dashboard := newDashboardRuntime(newDashboardState(dashboardTotalTasks(plan.runtimes), time.Now), stderr, dashboardRuntimeOptions{
+			refreshInterval: opts.dashboardRefreshInterval,
+			renderer:        opts.dashboardRenderer,
+			logger:          logger,
+		})
+		dashboard.Start(runCtx)
+		defer dashboard.Stop()
+	}
 
 	ctrl := speedctrl.NewController(speedctrl.WithAPIEnabled(!cfg.DisableAPI))
 	if !opts.DisableKeyboard {
