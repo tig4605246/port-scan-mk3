@@ -13,7 +13,7 @@ func ValidateNoOverlap(networks []CIDRRecord) error {
 
 // ValidateIPRows enforces fail-fast input rules:
 // 1) each selector is inside its ip_cidr
-// 2) duplicate (ip, ip_cidr) pairs are rejected
+// 2) duplicate (ip, ip_cidr, port) tuples are rejected
 // 3) ip_cidr groups cannot overlap globally
 // 4) selectors inside same ip_cidr cannot overlap.
 func ValidateIPRows(rows []CIDRRecord) error {
@@ -25,9 +25,12 @@ func ValidateIPRows(rows []CIDRRecord) error {
 
 	seenPair := make(map[string]int, len(rows))
 	for i, row := range rows {
-		key := row.Selector.String() + "|" + row.Net.String()
+		key := duplicateRowKey(row)
 		if prev, ok := seenPair[key]; ok {
-			return fmt.Errorf("duplicate (ip,ip_cidr) found at rows %d and %d: (%s,%s)", prev, i+1, row.Selector.String(), row.Net.String())
+			return fmt.Errorf(
+				"duplicate (ip,ip_cidr,port) found at rows %d and %d: (%s,%s,%d)",
+				prev, i+1, row.Selector.String(), row.Net.String(), row.Port,
+			)
 		}
 		seenPair[key] = i + 1
 	}
@@ -82,6 +85,10 @@ func ValidateIPRows(rows []CIDRRecord) error {
 	}
 
 	return nil
+}
+
+func duplicateRowKey(row CIDRRecord) string {
+	return fmt.Sprintf("%s|%s|%d", row.Selector.String(), row.Net.String(), row.Port)
 }
 
 type selectorWithRow struct {

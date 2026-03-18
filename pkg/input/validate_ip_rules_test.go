@@ -1,6 +1,9 @@
 package input
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func mustLoadRows(t *testing.T, rows []CIDRRecord) []CIDRRecord {
 	t.Helper()
@@ -12,13 +15,28 @@ func mustLoadRows(t *testing.T, rows []CIDRRecord) []CIDRRecord {
 	return rows
 }
 
-func TestValidateIPRows_WhenDuplicateIPAndIPCidrPairExists_ReturnsError(t *testing.T) {
+func TestValidateIPRows_WhenDuplicateIPAndIPCidrAndPortExists_ReturnsError(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
-		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
-		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
+		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24", Port: 443},
+		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24", Port: 443},
 	})
-	if err := ValidateIPRows(rows); err == nil {
-		t.Fatal("expected duplicate pair error")
+	err := ValidateIPRows(rows)
+	if err == nil {
+		t.Fatal("expected duplicate tuple error")
+	}
+	if !strings.Contains(err.Error(), "duplicate (ip,ip_cidr,port)") {
+		t.Fatalf("expected duplicate tuple error, got %v", err)
+	}
+}
+
+func TestDuplicateRowKey_WhenOnlyPortDiffers_ReturnsDifferentKeys(t *testing.T) {
+	rows := mustLoadRows(t, []CIDRRecord{
+		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24", Port: 80},
+		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24", Port: 443},
+	})
+
+	if duplicateRowKey(rows[0]) == duplicateRowKey(rows[1]) {
+		t.Fatal("expected duplicate key to include port")
 	}
 }
 
