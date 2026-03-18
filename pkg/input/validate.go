@@ -1,7 +1,6 @@
 package input
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 )
@@ -13,9 +12,7 @@ func ValidateNoOverlap(networks []CIDRRecord) error {
 
 // ValidateIPRows enforces fail-fast input rules:
 // 1) each selector is inside its ip_cidr
-// 2) duplicate (ip, ip_cidr, port) tuples are rejected
-// 3) ip_cidr groups cannot overlap globally
-// 4) selectors inside same ip_cidr cannot overlap.
+// 2) duplicate (src, dst, ip_cidr, port) tuples are rejected.
 func ValidateIPRows(rows []CIDRRecord) error {
 	for i := range rows {
 		if rows[i].Net == nil || rows[i].Selector == nil {
@@ -27,9 +24,10 @@ func ValidateIPRows(rows []CIDRRecord) error {
 	for i, row := range rows {
 		key := duplicateRowKey(row)
 		if prev, ok := seenPair[key]; ok {
+			src, dst := duplicateTupleSrcDst(row)
 			return fmt.Errorf(
-				"duplicate (ip,ip_cidr,port) found at rows %d and %d: (%s,%s,%d)",
-				prev, i+1, row.Selector.String(), row.Net.String(), row.Port,
+				"duplicate (src,dst,ip_cidr,port) found at rows %d and %d: (%s,%s,%s,%d)",
+				prev, i+1, src, dst, row.Net.String(), row.Port,
 			)
 		}
 		seenPair[key] = i + 1
@@ -41,59 +39,12 @@ func ValidateIPRows(rows []CIDRRecord) error {
 		}
 	}
 
-	uniqueIPCidrs := make([]*net.IPNet, 0, len(rows))
-	for i := range rows {
-		cur := rows[i].Net
-		found := false
-		for _, n := range uniqueIPCidrs {
-			if n.String() == cur.String() {
-				found = true
-				break
-			}
-		}
-		if !found {
-			uniqueIPCidrs = append(uniqueIPCidrs, cur)
-		}
-	}
-	for i := 0; i < len(uniqueIPCidrs); i++ {
-		for j := i + 1; j < len(uniqueIPCidrs); j++ {
-			a := uniqueIPCidrs[i]
-			b := uniqueIPCidrs[j]
-			if networksOverlap(a, b) {
-				return fmt.Errorf("ip_cidr overlap detected: %s <-> %s", a.String(), b.String())
-			}
-		}
-	}
-
-	selectorGroups := make(map[string][]selectorWithRow)
-	for i, row := range rows {
-		key := row.Net.String()
-		selectorGroups[key] = append(selectorGroups[key], selectorWithRow{
-			selector: row.Selector,
-			row:      i + 1,
-		})
-	}
-	for ipCidr, selectors := range selectorGroups {
-		for i := 0; i < len(selectors); i++ {
-			for j := i + 1; j < len(selectors); j++ {
-				if networksOverlap(selectors[i].selector, selectors[j].selector) {
-					return fmt.Errorf("ip selector overlap detected in same ip_cidr %s: row %d (%s) <-> row %d (%s)",
-						ipCidr, selectors[i].row, selectors[i].selector.String(), selectors[j].row, selectors[j].selector.String())
-				}
-			}
-		}
-	}
-
 	return nil
 }
 
 func duplicateRowKey(row CIDRRecord) string {
-	return fmt.Sprintf("%s|%s|%d", row.Selector.String(), row.Net.String(), row.Port)
-}
-
-type selectorWithRow struct {
-	selector *net.IPNet
-	row      int
+	src, dst := duplicateTupleSrcDst(row)
+	return fmt.Sprintf("%s|%s|%s|%d", row.Net.String(), src, dst, row.Port)
 }
 
 func networkContains(outer, inner *net.IPNet) bool {
@@ -107,20 +58,16 @@ func networkContains(outer, inner *net.IPNet) bool {
 	return outer.Contains(innerStart) && outer.Contains(innerEnd)
 }
 
-func networksOverlap(a, b *net.IPNet) bool {
-	if a == nil || b == nil {
-		return false
+func duplicateTupleSrcDst(row CIDRRecord) (src string, dst string) {
+	src = row.SrcIP
+	dst = row.DstIP
+	if src == "" && row.Selector != nil {
+		src = row.Selector.String()
 	}
-	aStart, aEnd, okA := ipv4Range(a)
-	bStart, bEnd, okB := ipv4Range(b)
-	if !okA || !okB {
-		return false
+	if dst == "" && row.Selector != nil {
+		dst = row.Selector.String()
 	}
-	aStartN := binary.BigEndian.Uint32(aStart.To4())
-	aEndN := binary.BigEndian.Uint32(aEnd.To4())
-	bStartN := binary.BigEndian.Uint32(bStart.To4())
-	bEndN := binary.BigEndian.Uint32(bEnd.To4())
-	return aStartN <= bEndN && bStartN <= aEndN
+	return src, dst
 }
 
 func ipv4Range(n *net.IPNet) (start net.IP, end net.IP, ok bool) {

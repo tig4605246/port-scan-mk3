@@ -15,7 +15,7 @@ func mustLoadRows(t *testing.T, rows []CIDRRecord) []CIDRRecord {
 	return rows
 }
 
-func TestValidateIPRows_WhenDuplicateIPAndIPCidrAndPortExists_ReturnsError(t *testing.T) {
+func TestValidateIPRows_WhenDuplicateSrcDstIPCidrAndPortExists_ReturnsError(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24", Port: 443},
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24", Port: 443},
@@ -24,7 +24,95 @@ func TestValidateIPRows_WhenDuplicateIPAndIPCidrAndPortExists_ReturnsError(t *te
 	if err == nil {
 		t.Fatal("expected duplicate tuple error")
 	}
-	if !strings.Contains(err.Error(), "duplicate (ip,ip_cidr,port)") {
+	if !strings.Contains(err.Error(), "duplicate (src,dst,ip_cidr,port)") {
+		t.Fatalf("expected duplicate tuple error, got %v", err)
+	}
+}
+
+func TestValidateIPRows_WhenRichRowsShareSameIPCidrWithDifferentSrcDstOrPort_ReturnsNil(t *testing.T) {
+	rows := mustLoadRows(t, []CIDRRecord{
+		{
+			IsRich:            true,
+			IPRaw:             "10.0.0.10",
+			IPCidrRaw:         "10.0.0.0/24",
+			Port:              443,
+			SrcIP:             "192.168.10.1",
+			SrcNetworkSegment: "192.168.10.0/24",
+			DstIP:             "10.0.0.10",
+			DstNetworkSegment: "10.0.0.0/24",
+		},
+		{
+			IsRich:            true,
+			IPRaw:             "10.0.0.20",
+			IPCidrRaw:         "10.0.0.0/24",
+			Port:              8443,
+			SrcIP:             "192.168.20.1",
+			SrcNetworkSegment: "192.168.20.0/24",
+			DstIP:             "10.0.0.20",
+			DstNetworkSegment: "10.0.0.0/24",
+		},
+	})
+	if err := ValidateIPRows(rows); err != nil {
+		t.Fatalf("expected rich rows with same ip_cidr but different src/dst/port to be allowed, got %v", err)
+	}
+}
+
+func TestValidateIPRows_WhenRichRowsDifferOnlyBySrcIP_ReturnsNil(t *testing.T) {
+	rows := mustLoadRows(t, []CIDRRecord{
+		{
+			IsRich:            true,
+			IPRaw:             "10.0.0.10",
+			IPCidrRaw:         "10.0.0.0/24",
+			Port:              443,
+			SrcIP:             "192.168.10.1",
+			SrcNetworkSegment: "192.168.10.0/24",
+			DstIP:             "10.0.0.10",
+			DstNetworkSegment: "10.0.0.0/24",
+		},
+		{
+			IsRich:            true,
+			IPRaw:             "10.0.0.10",
+			IPCidrRaw:         "10.0.0.0/24",
+			Port:              443,
+			SrcIP:             "192.168.20.1",
+			SrcNetworkSegment: "192.168.20.0/24",
+			DstIP:             "10.0.0.10",
+			DstNetworkSegment: "10.0.0.0/24",
+		},
+	})
+	if err := ValidateIPRows(rows); err != nil {
+		t.Fatalf("expected rich rows differing only by src_ip to be allowed, got %v", err)
+	}
+}
+
+func TestValidateIPRows_WhenRichRowsHaveExactSameSrcDstIPCidrAndPort_ReturnsError(t *testing.T) {
+	rows := mustLoadRows(t, []CIDRRecord{
+		{
+			IsRich:            true,
+			IPRaw:             "10.0.0.10",
+			IPCidrRaw:         "10.0.0.0/24",
+			Port:              443,
+			SrcIP:             "192.168.10.1",
+			SrcNetworkSegment: "192.168.10.0/24",
+			DstIP:             "10.0.0.10",
+			DstNetworkSegment: "10.0.0.0/24",
+		},
+		{
+			IsRich:            true,
+			IPRaw:             "10.0.0.10",
+			IPCidrRaw:         "10.0.0.0/24",
+			Port:              443,
+			SrcIP:             "192.168.10.1",
+			SrcNetworkSegment: "192.168.10.0/24",
+			DstIP:             "10.0.0.10",
+			DstNetworkSegment: "10.0.0.0/24",
+		},
+	})
+	err := ValidateIPRows(rows)
+	if err == nil {
+		t.Fatal("expected duplicate tuple error")
+	}
+	if !strings.Contains(err.Error(), "duplicate (src,dst,ip_cidr,port)") {
 		t.Fatalf("expected duplicate tuple error, got %v", err)
 	}
 }
@@ -58,23 +146,23 @@ func TestValidateIPRows_WhenSelectorCIDRIsOutsideIPCidr_ReturnsError(t *testing.
 	}
 }
 
-func TestValidateIPRows_WhenDifferentIPCidrsOverlap_ReturnsError(t *testing.T) {
+func TestValidateIPRows_WhenDifferentIPCidrsOverlap_ReturnsNil(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
 		{IPRaw: "10.0.1.1", IPCidrRaw: "10.0.0.0/16"},
 	})
-	if err := ValidateIPRows(rows); err == nil {
-		t.Fatal("expected ip_cidr overlap error")
+	if err := ValidateIPRows(rows); err != nil {
+		t.Fatalf("expected overlapping ip_cidr rows to be allowed, got %v", err)
 	}
 }
 
-func TestValidateIPRows_WhenSelectorsOverlapWithinSameIPCidr_ReturnsError(t *testing.T) {
+func TestValidateIPRows_WhenSelectorRangesOverlapWithinSameIPCidrButDstDiffers_ReturnsNil(t *testing.T) {
 	rows := mustLoadRows(t, []CIDRRecord{
 		{IPRaw: "10.0.0.1", IPCidrRaw: "10.0.0.0/24"},
-		{IPRaw: "10.0.0.1/32", IPCidrRaw: "10.0.0.0/24"},
+		{IPRaw: "10.0.0.0/31", IPCidrRaw: "10.0.0.0/24"},
 	})
-	if err := ValidateIPRows(rows); err == nil {
-		t.Fatal("expected selector overlap error")
+	if err := ValidateIPRows(rows); err != nil {
+		t.Fatalf("expected selector overlap within same ip_cidr to be allowed, got %v", err)
 	}
 }
 
