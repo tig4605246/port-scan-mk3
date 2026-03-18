@@ -9,7 +9,7 @@ const (
 	RichFieldProtocol          = "protocol"
 	RichFieldPort              = "port"
 	RichFieldDecision          = "decision"
-	RichFieldPolicyID          = "policy_id"
+	RichFieldPolicyID          = "matched_policy_id"
 	RichFieldReason            = "reason"
 )
 
