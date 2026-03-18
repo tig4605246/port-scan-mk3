@@ -67,3 +67,24 @@ type ManifestScenario struct {
 	Artifacts []string `json:"artifacts"`
 	LogFile   string   `json:"log_file,omitempty"`
 }
+
+type SpeedControlSummary struct {
+	Total int `json:"total"`
+	Pass  int `json:"pass"`
+	Fail  int `json:"fail"`
+}
+
+type SpeedControlScenario struct {
+	Name        string `json:"name"`
+	Pass        bool   `json:"pass"`
+	Expected    string `json:"expected"`
+	Observed    string `json:"observed"`
+	Attribution string `json:"attribution"`
+	Explanation string `json:"explanation"`
+}
+
+type SpeedControlFullReport struct {
+	Timestamp time.Time              `json:"timestamp"`
+	Summary   SpeedControlSummary    `json:"summary"`
+	Scenarios []SpeedControlScenario `json:"scenarios"`
+}

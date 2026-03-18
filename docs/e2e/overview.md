@@ -27,6 +27,20 @@ Execution flow:
 7. Assert each failure scenario exits non-zero and produces `resume_state` artifact.
 8. Run integration tests as part of e2e gate.
 
+## Speed Control E2E
+
+除了 docker-based 掃描 e2e，另有 speed-control 專用驗證入口：
+
+```bash
+bash e2e/speedcontrol/run_speedcontrol_e2e.sh
+```
+
+此流程會執行 global/CIDR/combined 場景矩陣，並輸出：
+
+- `e2e/out/speedcontrol/report.md`
+- `e2e/out/speedcontrol/report.html`
+- `e2e/out/speedcontrol/raw_metrics.json`
+
 ## What is tested
 
 ### Scenario matrix

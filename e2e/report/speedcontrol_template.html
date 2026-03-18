@@ -1,0 +1,47 @@
+<html>
+  <head>
+    <title>Speed Control Verification Report</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+      th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+      th { background: #f2f2f2; }
+      .pass { color: #0a7d2a; font-weight: 700; }
+      .fail { color: #b42318; font-weight: 700; }
+      .card { border: 1px solid #ddd; padding: 12px; margin-bottom: 12px; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Speed Control Verification Report</h1>
+    <p>GeneratedAt: {{.GeneratedAt}}</p>
+    <p>Total={{.Summary.Total}} Pass={{.Summary.Pass}} Fail={{.Summary.Fail}}</p>
+
+    <h2>Scenario Matrix</h2>
+    <table>
+      <thead>
+        <tr><th>Scenario</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        {{range .Scenarios}}
+        <tr>
+          <td>{{.Name}}</td>
+          <td>{{if .Pass}}<span class="pass">PASS</span>{{else}}<span class="fail">FAIL</span>{{end}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+
+    <h2>Detailed Explanation</h2>
+    {{range .Scenarios}}
+    <div class="card">
+      <h3>{{.Name}}</h3>
+      <p><strong>Verdict:</strong> {{if .Pass}}PASS{{else}}FAIL{{end}}</p>
+      <p><strong>Expected:</strong> {{.Expected}}</p>
+      <p><strong>Observed:</strong> {{.Observed}}</p>
+      <p><strong>Attribution:</strong> {{.Attribution}}</p>
+      <p><strong>Explanation:</strong> {{.Explanation}}</p>
+    </div>
+    {{end}}
+  </body>
+</html>
+
