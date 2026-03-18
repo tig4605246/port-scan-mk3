@@ -112,6 +112,9 @@ func TestDashboardState_APIHealthTextAndTimestamps(t *testing.T) {
 
 	state.OnPressureSample(81, okAt)
 	snap := state.Snapshot()
+	if snap.PressurePercent != 81 {
+		t.Fatalf("expected PressurePercent=81 after sample, got %d", snap.PressurePercent)
+	}
 	if snap.APIHealthText != "ok" {
 		t.Fatalf("expected APIHealthText=ok after sample, got %q", snap.APIHealthText)
 	}
@@ -124,6 +127,9 @@ func TestDashboardState_APIHealthTextAndTimestamps(t *testing.T) {
 
 	state.OnPressureFailure(3, failAt)
 	snap = state.Snapshot()
+	if snap.PressurePercent != 81 {
+		t.Fatalf("expected PressurePercent to retain last sample value, got %d", snap.PressurePercent)
+	}
 	if snap.APIHealthText != "fail streak 3" {
 		t.Fatalf("expected APIHealthText=fail streak 3 after failure, got %q", snap.APIHealthText)
 	}

@@ -12,6 +12,7 @@ type dashboardSnapshot struct {
 	ScannedTasks          int
 	TotalTasks            int
 	Percent               float64
+	PressurePercent       int
 	CurrentCIDR           string
 	BucketStatus          string
 	ControllerStatus      string
@@ -33,6 +34,8 @@ type dashboardState struct {
 
 	manualPaused bool
 	apiPaused    bool
+
+	pressurePercent int
 
 	dispatchEvents []time.Time
 	resultEvents   []time.Time
@@ -98,10 +101,11 @@ func (s *dashboardState) OnController(manualPaused, apiPaused bool) {
 	s.apiPaused = apiPaused
 }
 
-func (s *dashboardState) OnPressureSample(_ int, t time.Time) {
+func (s *dashboardState) OnPressureSample(pressure int, t time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.pressurePercent = pressure
 	s.apiHealthText = "ok"
 	s.lastPressureUpdateAt = t
 }
@@ -126,6 +130,7 @@ func (s *dashboardState) Snapshot() dashboardSnapshot {
 		ScannedTasks:          s.scannedTasks,
 		TotalTasks:            s.totalTasks,
 		Percent:               dashboardPercent(s.scannedTasks, s.totalTasks),
+		PressurePercent:       s.pressurePercent,
 		CurrentCIDR:           s.currentCIDR,
 		BucketStatus:          s.bucketStatus,
 		ControllerStatus:      dashboardControllerStatus(s.manualPaused, s.apiPaused),
