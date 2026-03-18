@@ -21,3 +21,17 @@ func TestController_WhenPauseFlagsChange_UpdatesGateState(t *testing.T) {
 		t.Fatal("expected resumed when both flags false")
 	}
 }
+
+func TestController_APIPausedAccessor_ReflectsLatestState(t *testing.T) {
+	c := NewController()
+
+	if c.APIPaused() {
+		t.Fatal("expected api pause to start false")
+	}
+
+	c.SetAPIPaused(true)
+
+	if !c.APIPaused() {
+		t.Fatal("expected api pause to reflect latest true state")
+	}
+}

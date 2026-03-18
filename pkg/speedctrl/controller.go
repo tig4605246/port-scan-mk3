@@ -73,6 +73,12 @@ func (c *Controller) ManualPaused() bool {
 	return c.manualPaused
 }
 
+func (c *Controller) APIPaused() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.apiPaused
+}
+
 func (c *Controller) IsPaused() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
