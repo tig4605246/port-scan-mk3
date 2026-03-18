@@ -195,7 +195,7 @@ func (f *AuthenticatedPressureFetcher) getToken(ctx context.Context) (string, er
 	if authResp.AccessToken == "" {
 		return "", fmt.Errorf("access_token missing in auth response")
 	}
-	if authResp.TokenType != "Bearer" {
+	if !strings.EqualFold(authResp.TokenType, "Bearer") {
 		return "", fmt.Errorf("unexpected token_type: %s (expected Bearer)", authResp.TokenType)
 	}
 
