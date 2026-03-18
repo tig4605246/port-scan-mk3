@@ -11,15 +11,17 @@ pkg/scanapp/
 ├── input_loader.go            # Input loading
 ├── runtime_types.go           # Core data structures
 ├── runtime_builder.go         # Run plan composition
-├── group_builder.go           # CIDR grouping
+├── group_builder.go           # CIDR grouping (basic/rich strategies)
 ├── chunk_lifecycle.go         # Chunk management
 ├── result_aggregator.go       # Result processing
 ├── batch_output.go            # Batch output paths
 ├── output_files.go            # Output file management
 ├── scan_helpers.go            # Helper functions
-├── scan_logger.go             # Logging
-├── dispatch_observer.go        # Dispatch events
-└── pressure_monitor.go        # Pressure API polling
+├── scan_logger.go            # Logging
+├── dispatch_observer.go       # Dispatch events
+├── pressure_monitor.go        # Pressure API polling
+├── pressure.go                # PressureFetcher interface
+└── runtime_record_mapper.go   # Record mapping
 ```
 
 ## 1. Main Entry Point
@@ -191,33 +193,115 @@ Creates `chunkRuntime` for each chunk:
 
 ## 5. Group Builder (group_builder.go)
 
-### Interface
+### cidrGroup Structure
 
 ```go
-type groupBuildStrategy interface {
-    buildGroups([]input.CIDRRecord, []input.PortSpec) ([]cidrGroup, error)
+type cidrGroup struct {
+    targets []scanTarget
 }
 ```
 
-### Implementations
-
-#### Basic Mode (buildCIDRGroups)
+### groupBuildStrategy Interface
 
 ```go
-func buildCIDRGroups(records []input.CIDRRecord, ports []input.PortSpec) ([]cidrGroup, error)
+type groupBuildStrategy interface {
+    ShouldInclude(rec input.CIDRRecord) bool
+    Key(rec input.CIDRRecord) (string, error)
+    NewGroup(rec input.CIDRRecord) (cidrGroup, error)
+    MergeGroup(existing cidrGroup, rec input.CIDRRecord) (cidrGroup, error)
+    RequireNonEmpty() bool
+}
 ```
 
-- Groups records by CIDR boundary
+### Build Groups Function
+
+```go
+func buildGroups(records []input.CIDRRecord, strategy groupBuildStrategy) (map[string]cidrGroup, error)
+```
+
+Core logic:
+1. Iterate through records
+2. Filter via `ShouldInclude()`
+3. Group by `Key()`
+4. Create or merge via `NewGroup()`/`MergeGroup()`
+5. Sort targets by IP within each group
+
+### Basic Mode (basicGroupStrategy)
+
+```go
+func buildCIDRGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error)
+```
+
+- Groups records by CIDR boundary (`ip_cidr`)
+- Includes all valid records
 - Expands IP selectors within each CIDR
 
-#### Rich Mode (buildRichGroups)
+### Rich Mode (richGroupStrategy)
 
 ```go
-func buildRichGroups(records []input.CIDRRecord, ports []input.PortSpec) ([]cidrGroup, error)
+func buildRichGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, error)
 ```
 
-- Groups by execution key (dst_ip:port)
-- Used when input is rich CSV format
+- Groups by `dst_network_segment` (owner CIDR)
+- Only includes `IsRich && IsValid` records
+- Implements **CIDR-scoped rate control** with **global execution-key deduplication**
+- Reassigns targets to their owner CIDR after initial grouping
+
+### Rich Mode: Execution Key Ownership
+
+```go
+// Build owner map during group construction
+ownerByExecutionKey := make(map[string]string)
+
+// After initial grouping, reassign non-owner targets
+for cidr, group := range groups {
+    for _, target := range group.targets {
+        ownerCIDR := ownerByExecutionKey[target.meta.executionKey]
+        if ownerCIDR != cidr {
+            // Move target to owner CIDR's group
+            groups[ownerCIDR].targets = append(groups[ownerCIDR].targets, target)
+        }
+    }
+}
+```
+
+### Reason-Aware Target Expansion
+
+Rich mode supports intelligent target expansion based on the `reason` field:
+
+```go
+const (
+    reasonPrecheckAllowAll  = "PRECHECK_ALLOW_ALL"
+    reasonMatchPolicyAccept = "MATCH_POLICY_ACCEPT"
+)
+
+func richTargetIPs(rec input.CIDRRecord) ([]string, error) {
+    switch strings.EqualFold(rec.Reason, reasonPrecheckAllowAll) {
+    case true:
+        // Expand entire dst_network_segment CIDR
+        return task.ExpandIPSelectors([]string{rec.DstNetworkSegment})
+    case strings.EqualFold(rec.Reason, reasonMatchPolicyAccept):
+        // Single dst_ip only
+        return []string{rec.DstIP}
+    default:
+        // Default: single dst_ip
+        return []string{rec.DstIP}
+    }
+}
+```
+
+### Metadata Merging
+
+When duplicate execution keys are encountered:
+
+```go
+func mergeFieldValue(existing, incoming string) string {
+    // Merge with pipe separator: "value1|value2"
+    // Deduplicates: "a|b" + "a" = "a|b"
+}
+```
+
+Merges: `fabName`, `cidrName`, `serviceLabel`, `decision`, `policyID`, `reason`, `srcIP`, `srcNetworkSegment`
 
 ## 6. Task Dispatcher (task_dispatcher.go)
 

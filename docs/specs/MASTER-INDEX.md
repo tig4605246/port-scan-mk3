@@ -26,6 +26,7 @@ This index provides a comprehensive map of the port-scan-mk3 implementation spec
 | **SPEC-10** | [Validate System](SPEC-10-VALIDATE-SYSTEM.md) | Input validation | `pkg/validate/service.go` |
 | **SPEC-11** | [State System](SPEC-11-STATE-SYSTEM.md) | Resume & signal handling | `pkg/state/*.go` |
 | **SPEC-12** | [Logx System](SPEC-12-LOGX-SYSTEM.md) | Logging utilities | `pkg/logx/*.go` |
+| **SPEC-13** | [Rich Dashboard](SPEC-13-RICH-DASHBOARD.md) | Real-time terminal UI (planned) | `pkg/scanapp/dashboard_*.go` (planned) |
 
 ---
 
@@ -65,6 +66,11 @@ This index provides a comprehensive map of the port-scan-mk3 implementation spec
 │  │ Rate Limit  │ Speed Control│  Scanner    │   Writer    │             │
 │  │ (SPEC-07)   │  (SPEC-08)   │  (SPEC-05)  │  (SPEC-09)  │             │
 │  └─────────────┴──────────────┴─────────────┴─────────────┘             │
+│                              │                                           │
+│                              ▼                                           │
+│  ┌─────────────────────────────────────────────────────┐               │
+│  │            Rich Dashboard (SPEC-13) - planned        │               │
+│  └─────────────────────────────────────────────────────┘               │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -133,6 +139,7 @@ CLI Layer (SPEC-01)
 | `pkg/state` | SPEC-11 | Resume/signal |
 | `pkg/logx` | SPEC-12 | Logging |
 | `pkg/cli` | - | CLI utilities |
+| `pkg/scanapp/dashboard_*` | SPEC-13 | Rich dashboard (planned) |
 
 ---
 
@@ -184,10 +191,14 @@ For changes that affect multiple specs:
 | `Inputs()` | SPEC-10 | `validate` |
 | `LoadCIDRsWithColumns()` | SPEC-03 | `input` |
 | `ExpandIPSelectors()` | SPEC-04 | `task` |
+| `BuildExecutionKey()` | SPEC-04 | `task` |
 | `NewLeakyBucket()` | SPEC-07 | `ratelimit` |
 | `NewController()` | SPEC-08 | `speedctrl` |
+| `Controller.APIPaused()` | SPEC-08 | `speedctrl` |
 | `Save()` | SPEC-11 | `state` |
 | `New()` | SPEC-12 | `logx` |
+| `buildCIDRGroups()` | SPEC-06 | `scanapp` |
+| `buildRichGroups()` | SPEC-06 | `scanapp` |
 
 ### Exit Codes
 
@@ -204,4 +215,4 @@ For changes that affect multiple specs:
 
 - Created: 2024-03-18
 - Last Updated: 2024-03-18
-- Total Specifications: 12
+- Total Specifications: 13

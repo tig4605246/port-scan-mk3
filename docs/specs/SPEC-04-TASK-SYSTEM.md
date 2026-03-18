@@ -163,14 +163,30 @@ pending → scanning → completed
 
 These types extend the core task types for orchestration:
 
+### targetMeta
+
+```go
+type targetMeta struct {
+    fabName           string  // Fabric name
+    cidrName          string  // CIDR name
+    serviceLabel      string  // Rich: service label
+    decision          string  // Rich: accept/deny
+    policyID          string  // Rich: policy ID
+    reason            string  // Rich: decision reason (PRECHECK_ALLOW_ALL, MATCH_POLICY_ACCEPT, etc.)
+    executionKey      string  // Rich: dst_ip:port/protocol
+    srcIP             string  // Rich: source IP
+    srcNetworkSegment string  // Rich: source network segment
+}
+```
+
 ### scanTarget
 
 ```go
 type scanTarget struct {
-    ip       string
-    ipCidr   *net.IPNet
-    port     int
-    meta     writer.Record  // Rich metadata for output
+    ip     string
+    ipCidr string
+    port   int
+    meta   targetMeta
 }
 ```
 
@@ -182,7 +198,7 @@ type scanTask struct {
     ipCidr   string
     ip       string
     port     int
-    meta     writer.Record
+    meta     targetMeta
 }
 ```
 
@@ -190,14 +206,95 @@ type scanTask struct {
 
 ```go
 type chunkRuntime struct {
-    targets []scanTarget
+    ipCidr  string
     ports   []int
+    targets []scanTarget
+    state   *task.Chunk
     tracker *chunkStateTracker
     bkt     *ratelimit.LeakyBucket
 }
 ```
 
-## 7. Adding New Task Features
+## 7. Reason-Aware Rich Target Expansion
+
+The group builder implements intelligent target expansion based on the `reason` field in rich CSV records:
+
+### Reason Constants
+
+```go
+const (
+    reasonPrecheckAllowAll  = "PRECHECK_ALLOW_ALL"
+    reasonMatchPolicyAccept = "MATCH_POLICY_ACCEPT"
+)
+```
+
+### Expansion Logic
+
+| Reason | Target IPs | Description |
+|--------|------------|-------------|
+| `PRECHECK_ALLOW_ALL` | All IPs in `dst_network_segment` | Expand entire CIDR |
+| `MATCH_POLICY_ACCEPT` | Single `dst_ip` | Only the specific destination IP |
+| (other/unknown) | Single `dst_ip` | Default to specific destination IP |
+
+### Example
+
+```go
+// PRECHECK_ALLOW_ALL: expand entire CIDR
+record := input.CIDRRecord{
+    DstNetworkSegment: "10.0.0.0/24",
+    Port:              443,
+    Reason:           "PRECHECK_ALLOW_ALL",
+}
+// Results in 254 target IPs (10.0.0.1 - 10.0.0.254)
+
+// MATCH_POLICY_ACCEPT: single IP
+record := input.CIDRRecord{
+    DstIP:   "10.0.0.1",
+    Port:    443,
+    Reason:  "MATCH_POLICY_ACCEPT",
+}
+// Results in 1 target IP (10.0.0.1)
+```
+
+## 8. Execution Key Ownership (CIDR-Scoped Rate Control)
+
+Rich mode implements global deduplication with CIDR-scoped rate control:
+
+### Concept
+
+- **Global deduplication**: Same `(dst_ip, port)` across multiple CIDR records → scanned once
+- **CIDR-scoped rate control**: Each CIDR has its own rate limit bucket
+- **Owner tracking**: The CIDR that first "claims" an execution key becomes its owner
+
+### Implementation
+
+```go
+// Build owner map during group construction
+ownerByExecutionKey := make(map[string]string)
+for _, rec := range cidrRecords {
+    // ... process records
+    ownerByExecutionKey[executionKey] = cidr  // First owner wins
+}
+
+// Reassign non-owner targets to their owner CIDR
+for cidr, group := range groups {
+    for _, target := range group.targets {
+        ownerCIDR := ownerByExecutionKey[target.meta.executionKey]
+        if ownerCIDR != cidr {
+            // Move target to owner CIDR's group
+            groups[ownerCIDR].targets = append(groups[ownerCIDR].targets, target)
+        }
+    }
+}
+```
+
+### Benefit
+
+- Prevents duplicate scans of the same target
+- Maintains per-CIDR rate limiting
+- Ensures consistent ordering within each CIDR
+
+## 9. Adding New Task Features
 
 ### Adding New Task Metadata
 
@@ -218,7 +315,7 @@ type chunkRuntime struct {
 2. Implement grouping logic
 3. Register in `groupBuildStrategy` interface
 
-## 8. Implementation Files Reference
+## 10. Implementation Files Reference
 
 | File | Responsibility |
 |------|----------------|
@@ -231,7 +328,7 @@ type chunkRuntime struct {
 | `pkg/scanapp/group_builder.go` | CIDR grouping |
 | `pkg/scanapp/chunk_lifecycle.go` | Chunk lifecycle management |
 
-## 9. Integration Points
+## 11. Integration Points
 
 - **Input**: `input.CIDRRecord` provides IP/CIDR for expansion
 - **Rate Limit**: Each chunk gets its own `LeakyBucket`
