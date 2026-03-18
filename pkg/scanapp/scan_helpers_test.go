@@ -319,6 +319,135 @@ func TestBuildRichGroups_WhenExecutionKeyAppearsAcrossCIDRs_DedupGloballyToFirst
 	}
 }
 
+func TestBuildRichGroups_WhenReasonIsPrecheckAllowAll_ExpandsDstNetworkSegmentTargets(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "10.0.0.1:443/tcp",
+			DstIP:             "10.0.0.1",
+			DstNetworkSegment: "10.0.0.0/30",
+			Port:              443,
+			PolicyID:          "P-ALL",
+			Decision:          "accept",
+			Reason:            "PRECHECK_ALLOW_ALL",
+			SrcIP:             "192.168.1.10",
+			SrcNetworkSegment: "192.168.1.0/24",
+		},
+	}
+	groups, err := buildRichGroups(rows)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	got := groups["10.0.0.0/30"]
+	if len(got.targets) != 4 {
+		t.Fatalf("expected 4 expanded targets from /30, got %d", len(got.targets))
+	}
+	wantIPs := []string{"10.0.0.0", "10.0.0.1", "10.0.0.2", "10.0.0.3"}
+	for i, wantIP := range wantIPs {
+		target := got.targets[i]
+		if target.ip != wantIP {
+			t.Fatalf("unexpected target ip at idx=%d: want=%s got=%s", i, wantIP, target.ip)
+		}
+		if target.port != 443 {
+			t.Fatalf("unexpected target port at idx=%d: %d", i, target.port)
+		}
+		if target.meta.executionKey != wantIP+":443/tcp" {
+			t.Fatalf("unexpected execution key at idx=%d: %s", i, target.meta.executionKey)
+		}
+	}
+}
+
+func TestBuildRichGroups_WhenReasonIsMatchPolicyAccept_UsesDstIPOnly(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "10.0.0.1:443/tcp",
+			DstIP:             "10.0.0.1",
+			DstNetworkSegment: "10.0.0.0/30",
+			Port:              443,
+			PolicyID:          "P-1",
+			Decision:          "accept",
+			Reason:            "MATCH_POLICY_ACCEPT",
+			SrcIP:             "192.168.1.10",
+			SrcNetworkSegment: "192.168.1.0/24",
+		},
+	}
+	groups, err := buildRichGroups(rows)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	got := groups["10.0.0.0/30"]
+	if len(got.targets) != 1 {
+		t.Fatalf("expected 1 target for MATCH_POLICY_ACCEPT, got %d", len(got.targets))
+	}
+	if got.targets[0].ip != "10.0.0.1" {
+		t.Fatalf("unexpected target ip: %s", got.targets[0].ip)
+	}
+	if got.targets[0].meta.executionKey != "10.0.0.1:443/tcp" {
+		t.Fatalf("unexpected execution key: %s", got.targets[0].meta.executionKey)
+	}
+}
+
+func TestBuildRichGroups_WhenPrecheckAndMatchOverlap_MergesByExpandedExecutionKey(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "10.0.0.1:443/tcp",
+			DstIP:             "10.0.0.1",
+			DstNetworkSegment: "10.0.0.0/30",
+			Port:              443,
+			PolicyID:          "P-ALL",
+			Decision:          "accept",
+			Reason:            "PRECHECK_ALLOW_ALL",
+			SrcIP:             "192.168.1.10",
+			SrcNetworkSegment: "192.168.1.0/24",
+		},
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "10.0.0.1:443/tcp",
+			DstIP:             "10.0.0.1",
+			DstNetworkSegment: "10.0.0.0/30",
+			Port:              443,
+			PolicyID:          "P-ONE",
+			Decision:          "accept",
+			Reason:            "MATCH_POLICY_ACCEPT",
+			SrcIP:             "192.168.1.11",
+			SrcNetworkSegment: "192.168.1.0/24",
+		},
+	}
+	groups, err := buildRichGroups(rows)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	got := groups["10.0.0.0/30"]
+	if len(got.targets) != 4 {
+		t.Fatalf("expected 4 targets after overlap merge, got %d", len(got.targets))
+	}
+
+	var merged scanTarget
+	found := false
+	for _, target := range got.targets {
+		if target.ip == "10.0.0.1" {
+			merged = target
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected merged target for 10.0.0.1 in %+v", got.targets)
+	}
+	if merged.meta.policyID != "P-ALL|P-ONE" {
+		t.Fatalf("unexpected merged policy id: %s", merged.meta.policyID)
+	}
+	if merged.meta.reason != "PRECHECK_ALLOW_ALL|MATCH_POLICY_ACCEPT" {
+		t.Fatalf("unexpected merged reason: %s", merged.meta.reason)
+	}
+}
+
 func TestLoadOrBuildChunks_WhenRichRecordsProvided_BuildsCIDRScopedChunks(t *testing.T) {
 	rows := []input.CIDRRecord{
 		{IsRich: true, IsValid: true, ExecutionKey: "127.0.0.1:8080/tcp", Port: 8080, CIDRName: "web", DstIP: "127.0.0.1", DstNetworkSegment: "127.0.0.0/24"},

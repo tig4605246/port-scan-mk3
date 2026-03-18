@@ -143,36 +143,34 @@ func (richGroupStrategy) Key(rec input.CIDRRecord) (string, error) {
 }
 
 func (richGroupStrategy) NewGroup(rec input.CIDRRecord) (cidrGroup, error) {
-	target, err := richTargetFromRecord(rec)
+	targets, err := richTargetsFromRecord(rec)
 	if err != nil {
 		return cidrGroup{}, err
 	}
 	return cidrGroup{
-		targets: []scanTarget{target},
+		targets: targets,
 	}, nil
 }
 
 func (richGroupStrategy) MergeGroup(existing cidrGroup, rec input.CIDRRecord) (cidrGroup, error) {
-	key := strings.TrimSpace(rec.ExecutionKey)
-	if key == "" {
-		return cidrGroup{}, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
-	}
-	for i := range existing.targets {
-		target := &existing.targets[i]
-		if strings.TrimSpace(target.meta.executionKey) != key {
-			continue
-		}
-		if target.port != rec.Port {
-			return cidrGroup{}, fmt.Errorf("execution key %s has inconsistent port", key)
-		}
-		mergeRichMetadataFromRecord(target, rec)
-		return existing, nil
-	}
-	target, err := richTargetFromRecord(rec)
+	incomingTargets, err := richTargetsFromRecord(rec)
 	if err != nil {
 		return cidrGroup{}, err
 	}
-	existing.targets = append(existing.targets, target)
+	for _, incoming := range incomingTargets {
+		key := strings.TrimSpace(incoming.meta.executionKey)
+		if key == "" {
+			return cidrGroup{}, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
+		}
+		idx := richTargetIndexByExecutionKey(existing.targets, key)
+		if idx < 0 {
+			existing.targets = append(existing.targets, incoming)
+			continue
+		}
+		if err := mergeRichTargetValues(&existing.targets[idx], incoming); err != nil {
+			return cidrGroup{}, err
+		}
+	}
 	return existing, nil
 }
 
@@ -211,16 +209,22 @@ func buildRichGroups(cidrRecords []input.CIDRRecord) (map[string]cidrGroup, erro
 		if !rec.IsRich || !rec.IsValid {
 			continue
 		}
-		key := strings.TrimSpace(rec.ExecutionKey)
-		if key == "" {
-			return nil, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
-		}
 		cidr, err := richCIDRKey(rec)
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := ownerByExecutionKey[key]; !ok {
-			ownerByExecutionKey[key] = cidr
+		targets, err := richTargetsFromRecord(rec)
+		if err != nil {
+			return nil, err
+		}
+		for _, target := range targets {
+			key := strings.TrimSpace(target.meta.executionKey)
+			if key == "" {
+				return nil, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
+			}
+			if _, ok := ownerByExecutionKey[key]; !ok {
+				ownerByExecutionKey[key] = cidr
+			}
 		}
 	}
 
@@ -293,31 +297,87 @@ func richCIDRKey(rec input.CIDRRecord) (string, error) {
 	return "", fmt.Errorf("rich record missing dst_network_segment at row %d", rec.RowNumber)
 }
 
-func richTargetFromRecord(rec input.CIDRRecord) (scanTarget, error) {
+func richTargetsFromRecord(rec input.CIDRRecord) ([]scanTarget, error) {
 	key := strings.TrimSpace(rec.ExecutionKey)
 	if key == "" {
-		return scanTarget{}, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
+		return nil, fmt.Errorf("rich record missing execution_key at row %d", rec.RowNumber)
 	}
 	cidr, err := richCIDRKey(rec)
 	if err != nil {
-		return scanTarget{}, err
+		return nil, err
 	}
-	return scanTarget{
-		ip:     rec.DstIP,
-		ipCidr: cidr,
-		port:   rec.Port,
-		meta: targetMeta{
-			fabName:           rec.FabName,
-			cidrName:          rec.CIDRName,
-			serviceLabel:      rec.ServiceLabel,
-			decision:          rec.Decision,
-			policyID:          rec.PolicyID,
-			reason:            rec.Reason,
-			executionKey:      key,
-			srcIP:             rec.SrcIP,
-			srcNetworkSegment: rec.SrcNetworkSegment,
-		},
-	}, nil
+	ips, err := richTargetIPs(rec)
+	if err != nil {
+		return nil, err
+	}
+	targets := make([]scanTarget, 0, len(ips))
+	for _, ip := range ips {
+		executionKey := key
+		if strings.TrimSpace(ip) != strings.TrimSpace(rec.DstIP) {
+			executionKey, err = task.BuildExecutionKey(ip, rec.Port, richProtocol(rec))
+			if err != nil {
+				return nil, fmt.Errorf("build execution key for row %d failed: %w", rec.RowNumber, err)
+			}
+		}
+		targets = append(targets, scanTarget{
+			ip:     ip,
+			ipCidr: cidr,
+			port:   rec.Port,
+			meta: targetMeta{
+				fabName:           rec.FabName,
+				cidrName:          rec.CIDRName,
+				serviceLabel:      rec.ServiceLabel,
+				decision:          rec.Decision,
+				policyID:          rec.PolicyID,
+				reason:            rec.Reason,
+				executionKey:      executionKey,
+				srcIP:             rec.SrcIP,
+				srcNetworkSegment: rec.SrcNetworkSegment,
+			},
+		})
+	}
+	return targets, nil
+}
+
+const (
+	reasonPrecheckAllowAll  = "PRECHECK_ALLOW_ALL"
+	reasonMatchPolicyAccept = "MATCH_POLICY_ACCEPT"
+)
+
+func richTargetIPs(rec input.CIDRRecord) ([]string, error) {
+	reason := strings.TrimSpace(rec.Reason)
+	switch {
+	case strings.EqualFold(reason, reasonPrecheckAllowAll):
+		cidr, err := richCIDRKey(rec)
+		if err != nil {
+			return nil, err
+		}
+		ips, err := task.ExpandIPSelectors([]string{cidr})
+		if err != nil {
+			return nil, fmt.Errorf("expand selector failed for cidr %s: %w", cidr, err)
+		}
+		return ips, nil
+	case strings.EqualFold(reason, reasonMatchPolicyAccept):
+		dstIP := strings.TrimSpace(rec.DstIP)
+		if dstIP == "" {
+			return nil, fmt.Errorf("rich record missing dst_ip at row %d", rec.RowNumber)
+		}
+		return []string{dstIP}, nil
+	default:
+		dstIP := strings.TrimSpace(rec.DstIP)
+		if dstIP == "" {
+			return nil, fmt.Errorf("rich record missing dst_ip at row %d", rec.RowNumber)
+		}
+		return []string{dstIP}, nil
+	}
+}
+
+func richProtocol(rec input.CIDRRecord) string {
+	protocol := strings.ToLower(strings.TrimSpace(rec.Protocol))
+	if protocol == "" {
+		return "tcp"
+	}
+	return protocol
 }
 
 func mergeRichMetadataFromRecord(target *scanTarget, rec input.CIDRRecord) {
