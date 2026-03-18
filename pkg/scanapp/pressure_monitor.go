@@ -60,6 +60,8 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 
 	var consecutiveFailures int
 	var prevPaused bool
+	pressureObserver := opts.pressureObserver
+	controllerObserver := opts.controllerObserver
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -71,6 +73,9 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 			pressure, err := fetcher.Fetch(ctx)
 			if err != nil {
 				consecutiveFailures++
+				if pressureObserver != nil {
+					pressureObserver.OnPressureFailure(consecutiveFailures, time.Now())
+				}
 				if consecutiveFailures <= 2 {
 					logger.errorf("pressure api request failed (%d/3): %v", consecutiveFailures, err)
 					continue
@@ -84,8 +89,15 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 			consecutiveFailures = 0
 			logger.infof("[API] pressure api status=ok pressure=%.1f%% threshold=%.1f", pressure, thresholdValue)
 
+			sampledAt := time.Now()
+			if pressureObserver != nil {
+				pressureObserver.OnPressureSample(pressure, sampledAt)
+			}
 			paused := pressure >= thresholdValue
 			ctrl.SetAPIPaused(paused)
+			if controllerObserver != nil {
+				controllerObserver.OnController(ctrl.ManualPaused(), ctrl.APIPaused())
+			}
 			if paused != prevPaused {
 				if paused {
 					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%.1f threshold=%.1f", pressure, thresholdValue)

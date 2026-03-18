@@ -33,6 +33,8 @@ type RunOptions struct {
 	dashboardTerminalDetector func(io.Writer) bool
 	dashboardRefreshInterval  time.Duration
 	dashboardRenderer         dashboardRenderLoop
+	pressureObserver          pressureTelemetryObserver
+	controllerObserver        controllerTelemetryObserver
 }
 
 // Run executes a full scan flow: load inputs, dispatch scan tasks, write batch
@@ -85,17 +87,28 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	runOpts := opts
+	var (
+		dashboardState *dashboardState
+		resultObserver resultTelemetryObserver
+	)
 	if shouldEnableDashboard(cfg, stderr, opts) {
-		dashboard := newDashboardRuntime(newDashboardState(dashboardTotalTasks(plan.runtimes), time.Now), stderr, dashboardRuntimeOptions{
+		dashboardState = newDashboardState(dashboardTotalTasks(plan.runtimes), time.Now)
+		resultObserver = dashboardState
+		dashboard := newDashboardRuntime(dashboardState, stderr, dashboardRuntimeOptions{
 			refreshInterval: opts.dashboardRefreshInterval,
 			renderer:        opts.dashboardRenderer,
 			logger:          logger,
 		})
 		dashboard.Start(runCtx)
 		defer dashboard.Stop()
+
+		runOpts.pressureObserver = appendPressureTelemetryObservers(runOpts.pressureObserver, dashboardState)
+		runOpts.controllerObserver = appendControllerTelemetryObservers(runOpts.controllerObserver, dashboardState)
 	}
 
 	ctrl := speedctrl.NewController(speedctrl.WithAPIEnabled(!cfg.DisableAPI))
+	startControllerTelemetrySync(runCtx, ctrl, controllerTelemetryInterval(runOpts.dashboardRefreshInterval), runOpts.controllerObserver)
 	if !opts.DisableKeyboard {
 		if err := speedctrl.StartKeyboardLoop(runCtx, ctrl); err != nil {
 			logger.errorf("failed to start keyboard loop: %v", err)
@@ -105,7 +118,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 
 	apiErrCh := make(chan error, 1)
 	if !cfg.DisableAPI {
-		go pollPressureAPI(runCtx, cfg, opts, ctrl, logger, apiErrCh)
+		go pollPressureAPI(runCtx, cfg, runOpts, ctrl, logger, apiErrCh)
 	}
 
 	taskCh := make(chan scanTask, queueSize)
@@ -117,9 +130,14 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	}
 	resultCh := startScanExecutor(workers, cfg.Timeout, dial, logger, taskCh)
 
+	dispatchPolicy := dispatchPolicyFromConfig(cfg)
+	if dashboardState != nil {
+		dispatchPolicy.observer = newDashboardDispatchObserver(dashboardState)
+	}
+
 	dispatchErrCh := make(chan error, 1)
 	go func() {
-		dispatchErrCh <- dispatchTasks(runCtx, dispatchPolicyFromConfig(cfg), ctrl, logger, plan.runtimes, taskCh)
+		dispatchErrCh <- dispatchTasks(runCtx, dispatchPolicy, ctrl, logger, plan.runtimes, taskCh)
 		close(taskCh)
 	}()
 
@@ -152,7 +170,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 					cancel()
 				}
 			}
-			applyScanResult(plan.runtimes, res, &summary)
+			applyScanResult(plan.runtimes, res, &summary, resultObserver)
 			if runErr == nil {
 				emitScanResultEvents(stdout, logger, ctrl, progressStep, plan.runtimes, res, &summary, cfg.Quiet)
 			}
