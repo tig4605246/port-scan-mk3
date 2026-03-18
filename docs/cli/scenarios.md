@@ -63,8 +63,8 @@ Goal: See the rich dashboard render during an interactive scan.
 Command:
 ```bash
 go run ./cmd/port-scan scan \
-  -cidr-file e2e/inputs/cidr_normal.csv \
-  -port-file e2e/inputs/ports.csv \
+  -cidr-file tests/integration/testdata/ip_aware/cidr_normal.csv \
+  -port-file tests/integration/testdata/ip_aware/ports.csv \
   -format human
 ```
 
@@ -74,7 +74,7 @@ Expected:
 - If you redirect `stderr` or switch to `-format json`, the scan falls back to non-rich output.
 
 Troubleshooting:
-- Run the command directly in a terminal session, not through a pipe, to keep `stderr` as a TTY.
+- Run in an interactive terminal and avoid redirecting `stderr` (for example `2>` or `2>&1`) if you want rich output.
 
 ## Scenario 3: Validate inputs (human format)
 
