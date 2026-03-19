@@ -49,7 +49,26 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 	ctx, cancel := state.WithSIGINTCancel(context.Background())
 	defer cancel()
 
-	err = scanapp.Run(ctx, cfg, stdout, stderr, scanapp.RunOptions{})
+	// Build RunOptions with appropriate PressureFetcher
+	opts := scanapp.RunOptions{}
+	if !cfg.DisableAPI {
+		if cfg.PressureUseAuth {
+			opts.PressureFetcher = scanapp.NewAuthenticatedPressureFetcher(
+				cfg.PressureAuthURL,
+				cfg.PressureDataURL,
+				cfg.PressureClientID,
+				cfg.PressureClientSecret,
+				nil,
+			)
+		} else {
+			opts.PressureFetcher = scanapp.NewSimplePressureFetcher(
+				cfg.PressureAPI,
+				nil,
+			)
+		}
+	}
+
+	err = scanapp.Run(ctx, cfg, stdout, stderr, opts)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			fmt.Fprintln(stderr, "scan canceled")
@@ -64,5 +83,5 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "port-scan scan -cidr-file <file> [-port-file <file>] [flags]")
 	fmt.Fprintln(w, "port-scan validate -cidr-file <file> [-port-file <file>] [-format human|json]")
-	fmt.Fprintln(w, "Flags: -cidr-ip-col -cidr-ip-cidr-col -resume -disable-api -pressure-api -pressure-interval -bucket-rate -bucket-capacity -workers -timeout -delay -log-level -format")
+	fmt.Fprintln(w, "Flags: -cidr-ip-col -cidr-ip-cidr-col -resume -disable-api -pressure-api -pressure-interval -pressure-auth-url -pressure-data-url -pressure-client-id -pressure-client-secret -pressure-use-auth -quiet -bucket-rate -bucket-capacity -workers -timeout -delay -log-level -format")
 }

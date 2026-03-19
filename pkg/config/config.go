@@ -9,22 +9,28 @@ import (
 )
 
 type Config struct {
-	CIDRFile         string
-	PortFile         string
-	Output           string
-	Timeout          time.Duration
-	Delay            time.Duration
-	BucketRate       int
-	BucketCapacity   int
-	Workers          int
-	PressureAPI      string
-	PressureInterval time.Duration
-	DisableAPI       bool
-	Resume           string
-	LogLevel         string
-	Format           string
-	CIDRIPCol        string
-	CIDRIPCidrCol    string
+	CIDRFile             string
+	PortFile             string
+	Output               string
+	Timeout              time.Duration
+	Delay                time.Duration
+	BucketRate           int
+	BucketCapacity       int
+	Workers              int
+	PressureAPI          string
+	PressureInterval     time.Duration
+	DisableAPI           bool
+	PressureAuthURL      string
+	PressureDataURL      string
+	PressureClientID     string
+	PressureClientSecret string
+	PressureUseAuth      bool
+	Resume               string
+	LogLevel             string
+	Format               string
+	Quiet                bool
+	CIDRIPCol            string
+	CIDRIPCidrCol        string
 }
 
 func Parse(args []string) (Config, error) {
@@ -43,9 +49,15 @@ func Parse(args []string) (Config, error) {
 	fs.StringVar(&cfg.PressureAPI, "pressure-api", "http://localhost:8080/api/pressure", "pressure api")
 	fs.StringVar(&pressureIntervalRaw, "pressure-interval", "5s", "pressure poll interval (duration or seconds)")
 	fs.BoolVar(&cfg.DisableAPI, "disable-api", false, "disable pressure api")
+	fs.StringVar(&cfg.PressureAuthURL, "pressure-auth-url", "", "pressure auth endpoint URL")
+	fs.StringVar(&cfg.PressureDataURL, "pressure-data-url", "", "pressure data endpoint URL")
+	fs.StringVar(&cfg.PressureClientID, "pressure-client-id", "", "pressure API client ID")
+	fs.StringVar(&cfg.PressureClientSecret, "pressure-client-secret", "", "pressure API client secret")
+	fs.BoolVar(&cfg.PressureUseAuth, "pressure-use-auth", false, "use authenticated pressure fetcher")
 	fs.StringVar(&cfg.Resume, "resume", "", "resume state file")
 	fs.StringVar(&cfg.LogLevel, "log-level", "info", "debug|info|error")
 	fs.StringVar(&cfg.Format, "format", "human", "human|json")
+	fs.BoolVar(&cfg.Quiet, "quiet", false, "suppress console logs, keep pressure API logs")
 	fs.StringVar(&cfg.CIDRIPCol, "cidr-ip-col", "ip", "cidr csv ip column name")
 	fs.StringVar(&cfg.CIDRIPCidrCol, "cidr-ip-cidr-col", "ip_cidr", "cidr csv ip_cidr column name")
 
@@ -72,6 +84,20 @@ func Parse(args []string) (Config, error) {
 	}
 	if cfg.PressureInterval <= 0 {
 		return Config{}, errors.New("-pressure-interval must be > 0")
+	}
+	if cfg.PressureUseAuth {
+		if cfg.PressureAuthURL == "" {
+			return Config{}, errors.New("-pressure-auth-url is required when -pressure-use-auth is set")
+		}
+		if cfg.PressureDataURL == "" {
+			return Config{}, errors.New("-pressure-data-url is required when -pressure-use-auth is set")
+		}
+		if cfg.PressureClientID == "" {
+			return Config{}, errors.New("-pressure-client-id is required when -pressure-use-auth is set")
+		}
+		if cfg.PressureClientSecret == "" {
+			return Config{}, errors.New("-pressure-client-secret is required when -pressure-use-auth is set")
+		}
 	}
 
 	return cfg, nil

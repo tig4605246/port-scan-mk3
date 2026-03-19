@@ -35,7 +35,7 @@ type RunOptions struct {
 // outputs, and persist resume state on interruption/failure.
 func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts RunOptions) error {
 	deps := defaultRunDependencies()
-	logger := newLogger(cfg.LogLevel, cfg.Format == "json", stderr)
+	logger := newLoggerWithQuiet(cfg.LogLevel, cfg.Format == "json", stderr, cfg.Quiet)
 	if strings.TrimSpace(cfg.CIDRIPCol) == "" {
 		cfg.CIDRIPCol = "ip"
 	}
@@ -140,7 +140,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 			}
 			applyScanResult(plan.runtimes, res, &summary)
 			if runErr == nil {
-				emitScanResultEvents(stdout, logger, ctrl, progressStep, plan.runtimes, res, &summary)
+				emitScanResultEvents(stdout, logger, ctrl, progressStep, plan.runtimes, res, &summary, cfg.Quiet)
 			}
 		}
 	}

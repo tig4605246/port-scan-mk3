@@ -12,6 +12,7 @@ type scanLogger struct {
 	level  int
 	asJSON bool
 	out    io.Writer
+	quiet  bool
 }
 
 func newLogger(level string, asJSON bool, out io.Writer) *scanLogger {
@@ -25,6 +26,12 @@ func newLogger(level string, asJSON bool, out io.Writer) *scanLogger {
 		parsed = 2
 	}
 	return &scanLogger{level: parsed, asJSON: asJSON, out: out}
+}
+
+func newLoggerWithQuiet(level string, asJSON bool, out io.Writer, quiet bool) *scanLogger {
+	l := newLogger(level, asJSON, out)
+	l.quiet = quiet
+	return l
 }
 
 func (l *scanLogger) debugf(format string, args ...any) {
@@ -56,6 +63,9 @@ func (l *scanLogger) logWithFields(level int, levelName, msg string, fields map[
 	if l == nil || level < l.level {
 		return
 	}
+	if l.quiet && !isPressureLog(msg) {
+		return
+	}
 	if fields == nil {
 		fields = map[string]any{}
 	}
@@ -68,4 +78,8 @@ func (l *scanLogger) logWithFields(level int, levelName, msg string, fields map[
 		return
 	}
 	_, _ = fmt.Fprintf(l.out, "[%s] %s\n", strings.ToUpper(levelName), msg)
+}
+
+func isPressureLog(msg string) bool {
+	return strings.Contains(msg, "[API]") || strings.Contains(msg, "pressure")
 }

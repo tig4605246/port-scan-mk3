@@ -44,13 +44,13 @@ func applyScanResult(runtimes []*chunkRuntime, res scanResult, summary *resultSu
 	return summary
 }
 
-func emitScanResultEvents(stdout io.Writer, logger *scanLogger, ctrl *speedctrl.Controller, progressStep int, runtimes []*chunkRuntime, res scanResult, summary *resultSummary) {
+func emitScanResultEvents(stdout io.Writer, logger *scanLogger, ctrl *speedctrl.Controller, progressStep int, runtimes []*chunkRuntime, res scanResult, summary *resultSummary, quiet bool) {
 	logger.eventf("scan_result", res.record.IP, res.record.Port, "scanned", statusErrorCause(res.record.Status), map[string]any{
 		"status":           res.record.Status,
 		"response_time_ms": res.record.ResponseMS,
 		"cidr":             res.record.IPCidr,
 	})
-	if summary == nil || progressStep <= 0 || summary.written%progressStep != 0 {
+	if summary == nil || progressStep <= 0 || summary.written%progressStep != 0 || quiet {
 		return
 	}
 

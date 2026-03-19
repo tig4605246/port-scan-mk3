@@ -158,7 +158,7 @@ func TestEmitScanResultEvents_WhenProgressStepReached_EmitsProgressSnapshot(t *t
 			Status:     "open",
 			ResponseMS: 7,
 		},
-	}, summary)
+	}, summary, false)
 
 	if !strings.Contains(stdout.String(), "progress cidr=10.0.0.0/24 scanned=1/4 paused=false") {
 		t.Fatalf("expected progress snapshot on stdout, got %s", stdout.String())
