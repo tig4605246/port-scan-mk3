@@ -74,3 +74,28 @@ func TestAnalyze_WhenExpectationMissed_ReturnsExplainableVerdict(t *testing.T) {
 		t.Fatalf("attribution and explanation should be non-empty: %+v", verdict)
 	}
 }
+
+func TestAnalyze_WhenEnqueueAtPauseWindowEnd_DoesNotCountViolation(t *testing.T) {
+	end := time.Unix(0, 200*time.Millisecond.Nanoseconds()).UnixNano()
+	events := []Event{
+		{Kind: EventTaskEnqueued, TimestampNS: end},
+	}
+
+	verdict := Analyze(events, RuleExpectation{
+		Name:                 "G1_boundary_end",
+		RequirePauseBlocking: true,
+		PauseWindows: []PauseWindow{
+			{
+				StartNS: time.Unix(0, 100*time.Millisecond.Nanoseconds()).UnixNano(),
+				EndNS:   end,
+			},
+		},
+	})
+
+	if verdict.Metrics.PauseViolations != 0 {
+		t.Fatalf("expected no pause violation on window end boundary, got %+v", verdict.Metrics)
+	}
+	if !verdict.Pass {
+		t.Fatalf("expected pass on window end boundary, got %+v", verdict)
+	}
+}

@@ -136,7 +136,7 @@ func countPauseWindowViolations(enqueueTS []int64, windows []PauseWindow) int {
 	violations := 0
 	for _, ts := range enqueueTS {
 		for _, w := range windows {
-			if ts >= w.StartNS && ts <= w.EndNS {
+			if ts >= w.StartNS && ts < w.EndNS {
 				violations++
 				break
 			}
