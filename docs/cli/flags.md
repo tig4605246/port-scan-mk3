@@ -24,7 +24,13 @@ This is the complete CLI flag reference for `port-scan-mk3`, sourced from curren
 | `-workers` | int | `10` | `validate`, `scan` | Number of scan workers. Primarily used by `scan`. |
 | `-pressure-api` | string | `http://localhost:8080/api/pressure` | `validate`, `scan` | Pressure API endpoint used for pause/resume control. |
 | `-pressure-interval` | duration or integer seconds | `5s` | `validate`, `scan` | Poll interval for pressure API. Accepts duration (for example `200ms`, `5s`) or integer seconds (for example `7`). |
+| `-pressure-use-auth` | bool | `false` | `validate`, `scan` | Use authenticated pressure fetcher with OAuth flow. |
+| `-pressure-auth-url` | string | empty | `validate`, `scan` | OAuth auth endpoint URL. Required when `-pressure-use-auth` is set. |
+| `-pressure-data-url` | string | empty | `validate`, `scan` | Pressure data endpoint URL. Required when `-pressure-use-auth` is set. |
+| `-pressure-client-id` | string | empty | `validate`, `scan` | OAuth client ID. Required when `-pressure-use-auth` is set. |
+| `-pressure-client-secret` | string | empty | `validate`, `scan` | OAuth client secret. Required when `-pressure-use-auth` is set. |
 | `-disable-api` | bool | `false` | `validate`, `scan` | Disable pressure API polling completely. |
+| `-quiet` | bool | `false` | `validate`, `scan` | Suppress console logs, keep only pressure API logs. |
 | `-resume` | string | empty | `validate`, `scan` | Resume state file path. If set, load/save uses this exact path. |
 | `-log-level` | string | `info` | `validate`, `scan` | Runtime log level: `debug`, `info`, `error`. |
 | `-format` | string | `human` | `validate`, `scan` | User-facing output format: `human` or `json`. |
@@ -37,6 +43,11 @@ This is the complete CLI flag reference for `port-scan-mk3`, sourced from curren
 - `-port-file` is required only when CIDR input is not rich mode.
 - `-format` only accepts `human` or `json`.
 - `-pressure-interval` must be positive; invalid format or non-positive values are rejected.
+- When `-pressure-use-auth` is set, all four auth flags are required:
+  - `-pressure-auth-url`
+  - `-pressure-data-url`
+  - `-pressure-client-id`
+  - `-pressure-client-secret`
 - `-cidr-ip-col` and `-cidr-ip-cidr-col` must be non-empty after trimming.
 - Resume write path behavior:
   - If `-resume` is set, state is read from and written back to that same path.
@@ -59,3 +70,40 @@ This is the complete CLI flag reference for `port-scan-mk3`, sourced from curren
 4. Forgetting explicit resume pinning
 - Problem: restart run but cannot find expected resume file.
 - Fix: pass `-resume <path>` to keep load/save path explicit.
+
+## Examples
+
+### Quiet Mode
+
+Suppress console output while keeping pressure API logs visible:
+
+```bash
+port-scan scan -cidr-file targets.csv -quiet
+```
+
+### Authenticated Pressure API
+
+Use OAuth-authenticated pressure API:
+
+```bash
+port-scan scan -cidr-file targets.csv \
+  -pressure-use-auth \
+  -pressure-auth-url "https://auth.example.com/oauth/token" \
+  -pressure-data-url "https://api.example.com/pressure" \
+  -pressure-client-id "your-client-id" \
+  -pressure-client-secret "your-client-secret"
+```
+
+### Quiet Mode with Authenticated Pressure API
+
+Suppress console logs while using authenticated pressure API:
+
+```bash
+port-scan scan -cidr-file targets.csv \
+  -quiet \
+  -pressure-use-auth \
+  -pressure-auth-url "https://auth.example.com/oauth/token" \
+  -pressure-data-url "https://api.example.com/pressure" \
+  -pressure-client-id "your-client-id" \
+  -pressure-client-secret "your-client-secret"
+```
