@@ -90,7 +90,7 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 
 			sampledAt := time.Now()
 			if pressureObserver != nil {
-				pressureObserver.OnPressureSample(pressure, sampledAt)
+				pressureObserver.OnPressureSample(int(pressure), sampledAt)
 			}
 			paused := pressure >= thresholdValue
 			ctrl.SetAPIPaused(paused)

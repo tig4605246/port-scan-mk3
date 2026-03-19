@@ -53,15 +53,15 @@ func (r *dashboardSnapshotRecorder) snapshots() []dashboardSnapshot {
 
 type sequencePressureFetcher struct {
 	mu     sync.Mutex
-	values []int
+	values []float64
 }
 
-func (f *sequencePressureFetcher) Fetch(context.Context) (int, error) {
+func (f *sequencePressureFetcher) Fetch(context.Context) (float64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if len(f.values) == 0 {
-		return 0, errors.New("no pressure values configured")
+		return 0.0, errors.New("no pressure values configured")
 	}
 	value := f.values[0]
 	if len(f.values) > 1 {
@@ -71,7 +71,7 @@ func (f *sequencePressureFetcher) Fetch(context.Context) (int, error) {
 }
 
 type scriptedPressureResult struct {
-	pressure int
+	pressure float64
 	err      error
 }
 
@@ -80,12 +80,12 @@ type scriptedPressureFetcher struct {
 	results []scriptedPressureResult
 }
 
-func (f *scriptedPressureFetcher) Fetch(context.Context) (int, error) {
+func (f *scriptedPressureFetcher) Fetch(context.Context) (float64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if len(f.results) == 0 {
-		return 0, errors.New("no scripted pressure results configured")
+		return 0.0, errors.New("no scripted pressure results configured")
 	}
 	result := f.results[0]
 	if len(f.results) > 1 {
@@ -238,7 +238,7 @@ func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 			return nil, errors.New("dial refused for test")
 		},
 		PressureLimit:             90,
-		PressureFetcher:           &sequencePressureFetcher{values: []int{95, 95, 20, 20, 20}},
+		PressureFetcher:           &sequencePressureFetcher{values: []float64{95, 95, 20, 20, 20}},
 		dashboardTerminalDetector: func(io.Writer) bool { return true },
 		dashboardRefreshInterval:  10 * time.Millisecond,
 		dashboardRenderer:         recorder,
