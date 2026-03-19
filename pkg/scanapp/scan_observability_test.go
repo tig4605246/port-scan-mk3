@@ -18,6 +18,7 @@ import (
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
 	"github.com/xuxiping/port-scan-mk3/pkg/speedctrl"
+	"github.com/xuxiping/port-scan-mk3/pkg/state"
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 	"github.com/xuxiping/port-scan-mk3/pkg/writer"
 )
@@ -25,13 +26,19 @@ import (
 type dashboardSnapshotRecorder struct {
 	mu    sync.Mutex
 	snaps []dashboardSnapshot
+
+	onRender func(dashboardSnapshot)
 }
 
 func (r *dashboardSnapshotRecorder) Render(_ io.Writer, snap dashboardSnapshot) error {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	r.snaps = append(r.snaps, snap)
+	onRender := r.onRender
+	r.mu.Unlock()
+
+	if onRender != nil {
+		onRender(snap)
+	}
 	return nil
 }
 
@@ -304,6 +311,94 @@ func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 	}
 }
 
+func TestRun_WhenResumeAndRichDashboardEnabled_ProgressStartsFromResume(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	resumeFile := filepath.Join(tmp, "resume.json")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n2/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.Save(resumeFile, []task.Chunk{{
+		CIDR:         "127.0.0.1/32",
+		CIDRName:     "loopback",
+		Ports:        []string{"1/tcp", "2/tcp"},
+		NextIndex:    1,
+		ScannedCount: 1,
+		TotalCount:   2,
+		Status:       "scanning",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          100 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 10 * time.Millisecond,
+		DisableAPI:       true,
+		Resume:           resumeFile,
+		LogLevel:         "error",
+		Format:           "human",
+	}
+
+	firstSnapshotSeen := make(chan struct{})
+	var firstSnapshotOnce sync.Once
+	recorder := &dashboardSnapshotRecorder{
+		onRender: func(dashboardSnapshot) {
+			firstSnapshotOnce.Do(func() {
+				close(firstSnapshotSeen)
+			})
+		},
+	}
+
+	err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
+		DisableKeyboard: true,
+		Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			select {
+			case <-firstSnapshotSeen:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(200 * time.Millisecond):
+				return nil, errors.New("timed out waiting for first dashboard snapshot")
+			}
+			return nil, errors.New("dial refused for test")
+		},
+		dashboardTerminalDetector: func(io.Writer) bool { return true },
+		dashboardRefreshInterval:  10 * time.Millisecond,
+		dashboardRenderer:         recorder,
+		ProgressInterval:          1,
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	snaps := recorder.snapshots()
+	if len(snaps) == 0 {
+		t.Fatal("expected dashboard snapshots during resumed run")
+	}
+	first := snaps[0]
+	if first.ScannedTasks != 1 {
+		t.Fatalf("expected first snapshot ScannedTasks=1 from resume state, got %#v", first)
+	}
+	if first.TotalTasks != 2 {
+		t.Fatalf("expected first snapshot TotalTasks=2, got %#v", first)
+	}
+	if first.Percent != 50 {
+		t.Fatalf("expected first snapshot Percent=50, got %#v", first)
+	}
+}
+
 func TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages(t *testing.T) {
 	values := []int{95, 20}
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -360,10 +455,10 @@ func TestPollPressureAPI_WhenObserverInjected_ReportsSamplesAndFailures(t *testi
 	go pollPressureAPI(ctx, config.Config{
 		PressureInterval: 5 * time.Millisecond,
 	}, RunOptions{
-		PressureLimit:       90,
-		PressureFetcher:     &scriptedPressureFetcher{results: []scriptedPressureResult{{err: errors.New("boom-1")}, {err: errors.New("boom-2")}, {pressure: 42}}},
-		pressureObserver:    observer,
-		controllerObserver:  controllerObserver,
+		PressureLimit:      90,
+		PressureFetcher:    &scriptedPressureFetcher{results: []scriptedPressureResult{{err: errors.New("boom-1")}, {err: errors.New("boom-2")}, {pressure: 42}}},
+		pressureObserver:   observer,
+		controllerObserver: controllerObserver,
 	}, ctrl, logger, errCh)
 
 	deadline := time.Now().Add(100 * time.Millisecond)

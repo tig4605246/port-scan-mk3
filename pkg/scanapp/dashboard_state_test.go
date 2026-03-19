@@ -140,3 +140,18 @@ func TestDashboardState_APIHealthTextAndTimestamps(t *testing.T) {
 		t.Fatalf("expected LastPressureFailureAt=%v, got %v", failAt, snap.LastPressureFailureAt)
 	}
 }
+
+func TestDashboardState_SetScannedTasks_ClampsWithinBounds(t *testing.T) {
+	current := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC)
+	state := newDashboardState(4, func() time.Time { return current })
+
+	state.SetScannedTasks(-3)
+	if snap := state.Snapshot(); snap.ScannedTasks != 0 || snap.Percent != 0 {
+		t.Fatalf("expected negative seed to clamp to zero, got %#v", snap)
+	}
+
+	state.SetScannedTasks(9)
+	if snap := state.Snapshot(); snap.ScannedTasks != 4 || snap.Percent != 100 {
+		t.Fatalf("expected oversized seed to clamp to total, got %#v", snap)
+	}
+}

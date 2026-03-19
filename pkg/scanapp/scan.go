@@ -94,6 +94,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	)
 	if shouldEnableDashboard(cfg, stderr, opts) {
 		dashboardState = newDashboardState(dashboardTotalTasks(plan.runtimes), time.Now)
+		dashboardState.SetScannedTasks(dashboardScannedTasks(plan.runtimes))
 		resultObserver = dashboardState
 		dashboard := newDashboardRuntime(dashboardState, stderr, dashboardRuntimeOptions{
 			refreshInterval: opts.dashboardRefreshInterval,

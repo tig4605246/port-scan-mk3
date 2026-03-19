@@ -135,3 +135,14 @@ func dashboardTotalTasks(runtimes []*chunkRuntime) int {
 	}
 	return total
 }
+
+func dashboardScannedTasks(runtimes []*chunkRuntime) int {
+	scanned := 0
+	for _, rt := range runtimes {
+		if rt == nil || rt.state == nil {
+			continue
+		}
+		scanned += dashboardClampTaskCount(rt.state.ScannedCount, rt.state.TotalCount)
+	}
+	return scanned
+}

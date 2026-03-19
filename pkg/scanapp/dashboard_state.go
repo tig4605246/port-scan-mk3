@@ -48,9 +48,7 @@ type dashboardState struct {
 }
 
 func newDashboardState(total int, now func() time.Time) *dashboardState {
-	if total < 0 {
-		total = 0
-	}
+	total = dashboardClampTaskCount(total, total)
 	if now == nil {
 		now = time.Now
 	}
@@ -59,6 +57,13 @@ func newDashboardState(total int, now func() time.Time) *dashboardState {
 		apiHealthText: "ok",
 		now:           now,
 	}
+}
+
+func (s *dashboardState) SetScannedTasks(scanned int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.scannedTasks = dashboardClampTaskCount(scanned, s.totalTasks)
 }
 
 func (s *dashboardState) OnTaskEnqueued(cidr string) {
@@ -163,10 +168,21 @@ func dashboardPercent(scanned, total int) float64 {
 	if total <= 0 {
 		return 0
 	}
-	if scanned > total {
-		scanned = total
-	}
+	scanned = dashboardClampTaskCount(scanned, total)
 	return (float64(scanned) / float64(total)) * 100
+}
+
+func dashboardClampTaskCount(value, total int) int {
+	if total < 0 {
+		total = 0
+	}
+	if value < 0 {
+		return 0
+	}
+	if value > total {
+		return total
+	}
+	return value
 }
 
 func dashboardControllerStatus(manualPaused, apiPaused bool) string {
