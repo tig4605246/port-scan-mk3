@@ -82,6 +82,7 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 				return
 			}
 			consecutiveFailures = 0
+			logger.infof("[API] pressure api status=ok pressure=%d%% threshold=%d", pressure, threshold)
 
 			paused := pressure >= threshold
 			ctrl.SetAPIPaused(paused)
