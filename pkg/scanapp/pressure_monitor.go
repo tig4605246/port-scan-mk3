@@ -60,6 +60,7 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 
 	var consecutiveFailures int
 	var prevPaused bool
+	pressureObserver := opts.pressureObserver
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -71,6 +72,9 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 			pressure, err := fetcher.Fetch(ctx)
 			if err != nil {
 				consecutiveFailures++
+				if pressureObserver != nil {
+					pressureObserver.OnPressureFailure(consecutiveFailures, time.Now())
+				}
 				if consecutiveFailures <= 2 {
 					logger.errorf("pressure api request failed (%d/3): %v", consecutiveFailures, err)
 					continue
@@ -84,6 +88,10 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 			consecutiveFailures = 0
 			logger.infof("[API] pressure api status=ok pressure=%.1f%% threshold=%.1f", pressure, thresholdValue)
 
+			sampledAt := time.Now()
+			if pressureObserver != nil {
+				pressureObserver.OnPressureSample(int(pressure), sampledAt)
+			}
 			paused := pressure >= thresholdValue
 			ctrl.SetAPIPaused(paused)
 			if paused != prevPaused {

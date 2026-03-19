@@ -26,11 +26,14 @@ func writeScanRecord(csvWriter *writer.CSVWriter, openOnlyWriter *writer.OpenOnl
 	return openOnlyWriter.Write(record)
 }
 
-func applyScanResult(runtimes []*chunkRuntime, res scanResult, summary *resultSummary) *resultSummary {
+func applyScanResult(runtimes []*chunkRuntime, res scanResult, summary *resultSummary, observer resultTelemetryObserver) *resultSummary {
 	if summary == nil {
 		summary = &resultSummary{}
 	}
 	runtimes[res.chunkIdx].tracker.IncrementScanned()
+	if observer != nil {
+		observer.OnResult()
+	}
 
 	summary.written++
 	switch {
