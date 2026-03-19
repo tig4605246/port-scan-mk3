@@ -129,30 +129,42 @@ func (f *AuthenticatedPressureFetcher) Fetch(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("no data entries in response")
 	}
 
-	// Extract Percent from first element's "data" field
-	first := data[0]
-	dataObj, ok := first["data"].(map[string]any)
-	if !ok {
-		return 0, fmt.Errorf("data field missing or not object")
-	}
-	raw, ok := dataObj["Percent"]
-	if !ok {
-		return 0, fmt.Errorf("Percent field missing")
-	}
-	switch v := raw.(type) {
-	case float64:
-		return int(v), nil
-	case int:
-		return v, nil
-	case string:
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, err
+	// Loop through all entries and find the maximum Percent value
+	var maxPressure int
+	for _, entry := range data {
+		dataObj, ok := entry["data"].(map[string]any)
+		if !ok {
+			continue // skip entries without valid data
 		}
-		return n, nil
-	default:
-		return 0, fmt.Errorf("unsupported Percent type: %T", raw)
+		raw, ok := dataObj["Percent"]
+		if !ok {
+			continue // skip entries without Percent
+		}
+		var pressure int
+		switch v := raw.(type) {
+		case float64:
+			pressure = int(v)
+		case int:
+			pressure = v
+		case string:
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				continue // skip invalid string values
+			}
+			pressure = n
+		default:
+			continue // skip unsupported types
+		}
+		if pressure > maxPressure {
+			maxPressure = pressure
+		}
 	}
+
+	if maxPressure == 0 {
+		return 0, fmt.Errorf("no valid Percent values found in response")
+	}
+
+	return maxPressure, nil
 }
 
 func (f *AuthenticatedPressureFetcher) getToken(ctx context.Context) (string, error) {
