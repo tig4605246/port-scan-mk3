@@ -178,7 +178,7 @@ func TestMainValidate_WhenRichCSVAndPortFileMissing_ReturnsExit0(t *testing.T) {
 	tmp := t.TempDir()
 	cidr := filepath.Join(tmp, "rich.csv")
 	if err := os.WriteFile(cidr, []byte(
-		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason\n"+
+		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,matched_policy_id,reason\n"+
 			"10.0.0.10,10.0.0.0/24,127.0.0.1,127.0.0.0/24,web,tcp,8080,accept,P-1,allow\n",
 	), 0o644); err != nil {
 		t.Fatal(err)

@@ -11,7 +11,7 @@ func TestColumns_WhenIterated_MatchesExpectedHeaderOrder(t *testing.T) {
 	expected := []string{
 		"ip", "ip_cidr", "port", "status", "response_time_ms",
 		"fab_name", "cidr_name", "service_label", "decision",
-		"policy_id", "reason", "execution_key", "src_ip", "src_network_segment",
+		"matched_policy_id", "reason", "execution_key", "src_ip", "src_network_segment",
 	}
 	if len(Columns) != len(expected) {
 		t.Fatalf("expected %d columns, got %d", len(expected), len(Columns))
@@ -57,7 +57,7 @@ func TestCSVWriter_WhenMetadataMissing_PreservesHeaderOrderAndEmptyMetadata(t *t
 		"cidr_name",
 		"service_label",
 		"decision",
-		"policy_id",
+		"matched_policy_id",
 		"reason",
 		"execution_key",
 		"src_ip",

@@ -47,7 +47,7 @@ var Columns = []ColumnDef{
 	{"cidr_name", func(r Record) string { return r.CIDRName }},
 	{"service_label", func(r Record) string { return r.ServiceLabel }},
 	{"decision", func(r Record) string { return r.Decision }},
-	{"policy_id", func(r Record) string { return r.PolicyID }},
+	{"matched_policy_id", func(r Record) string { return r.PolicyID }},
 	{"reason", func(r Record) string { return r.Reason }},
 	{"execution_key", func(r Record) string { return r.ExecutionKey }},
 	{"src_ip", func(r Record) string { return r.SrcIP }},

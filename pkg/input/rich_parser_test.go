@@ -7,7 +7,7 @@ import (
 
 func TestLoadCIDRsWithColumns_WhenRichHeaderCaseAndTrimVary_ParsesAndKeepsRowResults(t *testing.T) {
 	csv := strings.Join([]string{
-		" SRC_IP , SRC_NETWORK_SEGMENT , DST_IP , DST_NETWORK_SEGMENT , SERVICE_LABEL , PROTOCOL , PORT , DECISION , POLICY_ID , REASON ",
+		" SRC_IP , SRC_NETWORK_SEGMENT , DST_IP , DST_NETWORK_SEGMENT , SERVICE_LABEL , PROTOCOL , PORT , DECISION , MATCHED_POLICY_ID , REASON ",
 		"10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,web,tcp,443,accept,P-1,baseline",
 		"10.0.0.11,10.0.0.0/24,192.168.1.11,192.168.1.0/24,web,udp,443,accept,P-2,bad-proto",
 	}, "\n")
@@ -40,7 +40,7 @@ func TestLoadCIDRsWithColumns_WhenRichHeaderCaseAndTrimVary_ParsesAndKeepsRowRes
 
 func TestLoadCIDRsWithColumns_WhenAllRichRowsInvalid_ReturnsNoUsableError(t *testing.T) {
 	csv := strings.Join([]string{
-		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason",
+		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,matched_policy_id,reason",
 		"10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,web,udp,443,accept,P-1,bad-proto",
 	}, "\n")
 
@@ -52,7 +52,7 @@ func TestLoadCIDRsWithColumns_WhenAllRichRowsInvalid_ReturnsNoUsableError(t *tes
 
 func TestLoadCIDRsWithColumns_WhenAliasHeaderUsed_DoesNotTreatAsCanonicalRichField(t *testing.T) {
 	csv := strings.Join([]string{
-		"source_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason",
+		"source_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,matched_policy_id,reason",
 		"10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,web,tcp,443,accept,P-1,baseline",
 	}, "\n")
 
@@ -64,7 +64,7 @@ func TestLoadCIDRsWithColumns_WhenAliasHeaderUsed_DoesNotTreatAsCanonicalRichFie
 
 func TestLoadCIDRsWithColumns_WhenSrcOrDstOutOfSegment_MarksRowInvalid(t *testing.T) {
 	csv := strings.Join([]string{
-		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason",
+		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,matched_policy_id,reason",
 		"10.0.1.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,web,tcp,443,accept,P-1,bad-src",
 		"10.0.0.10,10.0.0.0/24,192.168.2.10,192.168.1.0/24,web,tcp,443,accept,P-2,bad-dst",
 		"10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,web,tcp,443,accept,P-3,ok",
@@ -90,7 +90,7 @@ func TestLoadCIDRsWithColumns_WhenSrcOrDstOutOfSegment_MarksRowInvalid(t *testin
 
 func TestLoadCIDRsWithColumns_WhenDecisionOrPortInvalid_MarksRowInvalidWithReasonCode(t *testing.T) {
 	csv := strings.Join([]string{
-		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason",
+		"src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,matched_policy_id,reason",
 		"10.0.0.10,10.0.0.0/24,192.168.1.10,192.168.1.0/24,web,tcp,abc,accept,P-1,bad-port",
 		"10.0.0.10,10.0.0.0/24,192.168.1.11,192.168.1.0/24,web,tcp,443,hold,P-2,bad-decision",
 		"10.0.0.10,10.0.0.0/24,192.168.1.12,192.168.1.0/24,web,tcp,443,accept,P-3,ok",

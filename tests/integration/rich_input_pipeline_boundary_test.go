@@ -40,7 +40,7 @@ func TestRichInputPipelineBoundary_WhenRowsShareExecutionKey_DispatchesOnceAndPr
 	portFile := filepath.Join(tmp, "ports.csv")
 	outFile := filepath.Join(tmp, "out.csv")
 
-	csvData := fmt.Sprintf("src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,policy_id,reason\n"+
+	csvData := fmt.Sprintf("src_ip,src_network_segment,dst_ip,dst_network_segment,service_label,protocol,port,decision,matched_policy_id,reason\n"+
 		"10.0.0.10,10.0.0.0/24,127.0.0.1,127.0.0.0/24,web,tcp,%d,accept,P-1,allow\n"+
 		"10.0.0.11,10.0.0.0/24,127.0.0.1,127.0.0.0/24,web,tcp,%d,deny,P-2,audit\n"+
 		"10.0.0.12,10.0.0.0/24,127.0.0.1,127.0.0.0/24,web,tcp,1,accept,P-3,secondary\n", openPort, openPort)
@@ -94,8 +94,8 @@ func TestRichInputPipelineBoundary_WhenRowsShareExecutionKey_DispatchesOnceAndPr
 	for i, h := range header {
 		idx[h] = i
 	}
-	if _, ok := idx["policy_id"]; !ok {
-		t.Fatalf("missing policy_id column in header: %v", header)
+	if _, ok := idx["matched_policy_id"]; !ok {
+		t.Fatalf("missing matched_policy_id column in header: %v", header)
 	}
 	if _, ok := idx["execution_key"]; !ok {
 		t.Fatalf("missing execution_key column in header: %v", header)
@@ -104,8 +104,8 @@ func TestRichInputPipelineBoundary_WhenRowsShareExecutionKey_DispatchesOnceAndPr
 	mergedSeen := false
 	for _, row := range rows[1:] {
 		if row[idx["port"]] == strconv.Itoa(openPort) {
-			if row[idx["policy_id"]] != "P-1|P-2" {
-				t.Fatalf("expected merged policy_id, got %q", row[idx["policy_id"]])
+			if row[idx["matched_policy_id"]] != "P-1|P-2" {
+				t.Fatalf("expected merged matched_policy_id, got %q", row[idx["matched_policy_id"]])
 			}
 			mergedSeen = true
 		}
