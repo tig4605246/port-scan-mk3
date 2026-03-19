@@ -222,8 +222,8 @@ func TestFetchPressure_WhenResponseShapesVary_ReturnsParsedPressureOrError(t *te
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if n != 95 {
-		t.Fatalf("unexpected pressure: %d", n)
+	if n != 95.0 {
+		t.Fatalf("unexpected pressure: %.1f", n)
 	}
 
 	strAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -232,8 +232,8 @@ func TestFetchPressure_WhenResponseShapesVary_ReturnsParsedPressureOrError(t *te
 	defer strAPI.Close()
 
 	n, err = fetchPressure(&http.Client{Timeout: time.Second}, strAPI.URL)
-	if err != nil || n != 88 {
-		t.Fatalf("unexpected parse result n=%d err=%v", n, err)
+	if err != nil || n != 88.0 {
+		t.Fatalf("unexpected parse result n=%.1f err=%v", n, err)
 	}
 
 	badAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

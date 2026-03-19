@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
@@ -45,6 +44,7 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 	if threshold <= 0 {
 		threshold = defaultPressureLimit
 	}
+	thresholdValue := float64(threshold)
 
 	// Use PressureFetcher if provided, otherwise create SimplePressureFetcher for backward compatibility
 	var fetcher PressureFetcher
@@ -82,15 +82,15 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 				return
 			}
 			consecutiveFailures = 0
-			logger.infof("[API] pressure api status=ok pressure=%d%% threshold=%d", pressure, threshold)
+			logger.infof("[API] pressure api status=ok pressure=%.1f%% threshold=%.1f", pressure, thresholdValue)
 
-			paused := pressure >= threshold
+			paused := pressure >= thresholdValue
 			ctrl.SetAPIPaused(paused)
 			if paused != prevPaused {
 				if paused {
-					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%d threshold=%d", pressure, threshold)
+					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
 				} else {
-					logger.infof("[API] 路由器壓力恢復，掃描已自動恢復 pressure=%d threshold=%d", pressure, threshold)
+					logger.infof("[API] 路由器壓力恢復，掃描已自動恢復 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
 				}
 				prevPaused = paused
 			}
@@ -98,35 +98,26 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 	}
 }
 
-func fetchPressure(client *http.Client, url string) (int, error) {
+func fetchPressure(client *http.Client, url string) (float64, error) {
 	resp, err := client.Get(url)
 	if err != nil {
-		return 0, err
+		return 0.0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return 0, fmt.Errorf("pressure api status=%d", resp.StatusCode)
+		return 0.0, fmt.Errorf("pressure api status=%d", resp.StatusCode)
 	}
 	var body map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return 0, err
+		return 0.0, err
 	}
 	raw, ok := body["pressure"]
 	if !ok {
-		return 0, fmt.Errorf("pressure field missing")
+		return 0.0, fmt.Errorf("pressure field missing")
 	}
-	switch v := raw.(type) {
-	case float64:
-		return int(v), nil
-	case int:
-		return v, nil
-	case string:
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, err
-		}
-		return n, nil
-	default:
-		return 0, fmt.Errorf("unsupported pressure field type: %T", raw)
+	n, err := parsePressureValue(raw)
+	if err != nil {
+		return 0.0, err
 	}
+	return n, nil
 }

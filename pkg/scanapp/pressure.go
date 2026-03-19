@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 
 // PressureFetcher defines the interface for fetching pressure data.
 type PressureFetcher interface {
-	Fetch(ctx context.Context) (int, error)
+	Fetch(ctx context.Context) (float64, error)
 }
 
 // SimplePressureFetcher makes plain HTTP GET requests.
@@ -32,41 +33,32 @@ func NewSimplePressureFetcher(url string, client *http.Client) PressureFetcher {
 }
 
 // Fetch retrieves pressure value from the configured URL.
-func (f *SimplePressureFetcher) Fetch(ctx context.Context) (int, error) {
+func (f *SimplePressureFetcher) Fetch(ctx context.Context) (float64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.url, nil)
 	if err != nil {
-		return 0, err
+		return 0.0, err
 	}
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return 0, err
+		return 0.0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return 0, fmt.Errorf("pressure api status=%d", resp.StatusCode)
+		return 0.0, fmt.Errorf("pressure api status=%d", resp.StatusCode)
 	}
 	var body map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return 0, err
+		return 0.0, err
 	}
 	raw, ok := body["pressure"]
 	if !ok {
-		return 0, fmt.Errorf("pressure field missing")
+		return 0.0, fmt.Errorf("pressure field missing")
 	}
-	switch v := raw.(type) {
-	case float64:
-		return int(v), nil
-	case int:
-		return v, nil
-	case string:
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, err
-		}
-		return n, nil
-	default:
-		return 0, fmt.Errorf("unsupported pressure field type: %T", raw)
+	pressure, err := parsePressureValue(raw)
+	if err != nil {
+		return 0.0, err
 	}
+	return pressure, nil
 }
 
 // AuthenticatedPressureFetcher handles OAuth-style auth flow.
@@ -97,40 +89,44 @@ func NewAuthenticatedPressureFetcher(authURL, dataURL, clientID, clientSecret st
 }
 
 // Fetch retrieves pressure value with token authentication.
-func (f *AuthenticatedPressureFetcher) Fetch(ctx context.Context) (int, error) {
+func (f *AuthenticatedPressureFetcher) Fetch(ctx context.Context) (float64, error) {
 	// Get valid token (refresh if needed)
 	token, err := f.getToken(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("auth failed: %w", err)
+		return 0.0, fmt.Errorf("auth failed: %w", err)
 	}
 
 	// Make data request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.dataURL, nil)
 	if err != nil {
-		return 0, err
+		return 0.0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return 0, err
+		return 0.0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return 0, fmt.Errorf("data api status=%d", resp.StatusCode)
+		return 0.0, fmt.Errorf("data api status=%d", resp.StatusCode)
 	}
 
 	// Parse array response
 	var data []map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return 0, fmt.Errorf("failed to decode response: %w", err)
+		return 0.0, fmt.Errorf("failed to decode response: %w", err)
 	}
 	if len(data) == 0 {
-		return 0, fmt.Errorf("no data entries in response")
+		return 0.0, fmt.Errorf("no data entries in response")
 	}
 
-	// Loop through all entries and find the maximum Percent value
-	var maxPressure int
+	// Loop through all entries and find the maximum Percent value.
+	// Use foundValid to distinguish "no valid value" from a valid 0 percent.
+	var (
+		maxPressure float64
+		foundValid  bool
+	)
 	for _, entry := range data {
 		dataObj, ok := entry["data"].(map[string]any)
 		if !ok {
@@ -140,31 +136,48 @@ func (f *AuthenticatedPressureFetcher) Fetch(ctx context.Context) (int, error) {
 		if !ok {
 			continue // skip entries without Percent
 		}
-		var pressure int
-		switch v := raw.(type) {
-		case float64:
-			pressure = int(v)
-		case int:
-			pressure = v
-		case string:
-			n, err := strconv.Atoi(v)
-			if err != nil {
-				continue // skip invalid string values
-			}
-			pressure = n
-		default:
-			continue // skip unsupported types
+		pressure, err := parsePressureValue(raw)
+		if err != nil {
+			continue // skip invalid values
 		}
-		if pressure > maxPressure {
+		if !foundValid || pressure > maxPressure {
 			maxPressure = pressure
 		}
+		foundValid = true
 	}
 
-	if maxPressure == 0 {
-		return 0, fmt.Errorf("no valid Percent values found in response")
+	if !foundValid {
+		return 0.0, fmt.Errorf("no valid Percent values found in response")
 	}
 
 	return maxPressure, nil
+}
+
+func parsePressureValue(raw any) (float64, error) {
+	switch v := raw.(type) {
+	case float64:
+		return normalizePressure(v), nil
+	case float32:
+		return normalizePressure(float64(v)), nil
+	case int:
+		return normalizePressure(float64(v)), nil
+	case int32:
+		return normalizePressure(float64(v)), nil
+	case int64:
+		return normalizePressure(float64(v)), nil
+	case string:
+		n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			return 0.0, err
+		}
+		return normalizePressure(n), nil
+	default:
+		return 0.0, fmt.Errorf("unsupported pressure field type: %T", raw)
+	}
+}
+
+func normalizePressure(v float64) float64 {
+	return math.Round(v*10) / 10
 }
 
 func (f *AuthenticatedPressureFetcher) getToken(ctx context.Context) (string, error) {

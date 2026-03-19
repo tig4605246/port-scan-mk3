@@ -23,8 +23,8 @@ func TestSimplePressureFetcher_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if pressure != 85 {
-		t.Errorf("expected 85, got %d", pressure)
+	if pressure != 85.0 {
+		t.Errorf("expected 85.0, got %.1f", pressure)
 	}
 }
 
@@ -79,8 +79,27 @@ func TestSimplePressureFetcher_StringValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if pressure != 85 {
-		t.Errorf("expected 85, got %d", pressure)
+	if pressure != 85.0 {
+		t.Errorf("expected 85.0, got %.1f", pressure)
+	}
+}
+
+func TestSimplePressureFetcher_FloatValue_UsesOneDecimalPrecision(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"pressure": 85.16}`))
+	}))
+	defer srv.Close()
+
+	fetcher := NewSimplePressureFetcher(srv.URL, srv.Client())
+	ctx := context.Background()
+
+	pressure, err := fetcher.Fetch(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := pressure, 85.2; got != want {
+		t.Fatalf("expected pressure %.1f, got %.1f", want, got)
 	}
 }
 
@@ -116,11 +135,40 @@ func TestAuthenticatedPressureFetcher_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if pressure != 42 {
-		t.Errorf("expected 42, got %d", pressure)
+	if got, want := pressure, 42.5; got != want {
+		t.Errorf("expected %.1f, got %.1f", want, got)
 	}
 	if authCalls != 1 {
 		t.Errorf("expected 1 auth call, got %d", authCalls)
+	}
+}
+
+func TestAuthenticatedPressureFetcher_PercentRoundsToOneDecimal(t *testing.T) {
+	authSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"tok-round","token_type":"Bearer","expires_in":3600}`))
+	}))
+	defer authSrv.Close()
+
+	dataSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer tok-round" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`[{"data":{"Percent":42.56}}]`))
+	}))
+	defer dataSrv.Close()
+
+	fetcher := NewAuthenticatedPressureFetcher(authSrv.URL, dataSrv.URL, "test-client", "test-secret", dataSrv.Client())
+	ctx := context.Background()
+
+	pressure, err := fetcher.Fetch(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := pressure, 42.6; got != want {
+		t.Fatalf("expected rounded pressure %.1f, got %.1f", want, got)
 	}
 }
 
@@ -155,10 +203,39 @@ func TestAuthenticatedPressureFetcher_AcceptsLowercaseBearerAndCachesToken(t *te
 		t.Fatalf("second fetch unexpected error: %v", err)
 	}
 
-	if first != 33 || second != 33 {
-		t.Fatalf("expected both fetches to return 33, got first=%d second=%d", first, second)
+	if first != 33.9 || second != 33.9 {
+		t.Fatalf("expected both fetches to return 33.9, got first=%.1f second=%.1f", first, second)
 	}
 	if authCalls != 1 {
 		t.Fatalf("expected token cache to avoid extra auth calls, got %d", authCalls)
+	}
+}
+
+func TestAuthenticatedPressureFetcher_ZeroPercentIsValid(t *testing.T) {
+	authSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token":"tok-zero","token_type":"Bearer","expires_in":3600}`))
+	}))
+	defer authSrv.Close()
+
+	dataSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer tok-zero" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`[{"data":{"Percent":0.0}}]`))
+	}))
+	defer dataSrv.Close()
+
+	fetcher := NewAuthenticatedPressureFetcher(authSrv.URL, dataSrv.URL, "test-client", "test-secret", dataSrv.Client())
+	ctx := context.Background()
+
+	pressure, err := fetcher.Fetch(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error for zero percent: %v", err)
+	}
+	if pressure != 0.0 {
+		t.Fatalf("expected zero pressure, got %.1f", pressure)
 	}
 }
