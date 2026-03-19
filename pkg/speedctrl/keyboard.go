@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"sync"
 
 	"golang.org/x/term"
 )
@@ -37,10 +38,21 @@ func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 		_ = restore(fd, oldState)
 		return err
 	}
+	var restoreOnce sync.Once
+	restoreTerminal := func() {
+		restoreOnce.Do(func() {
+			_ = restore(fd, oldState)
+		})
+	}
+
+	go func() {
+		<-ctx.Done()
+		restoreTerminal()
+	}()
 
 	go func() {
 		defer func() {
-			_ = restore(fd, oldState)
+			restoreTerminal()
 		}()
 		buf := make([]byte, 1)
 		for {
@@ -53,6 +65,11 @@ func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 			n, readErr := input.Read(buf)
 			if readErr != nil || n == 0 {
 				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			default:
 			}
 			if buf[0] == ' ' {
 				c.ToggleManualPaused()

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -164,4 +165,78 @@ func TestStartKeyboardLoop_WhenEnableOutputPostProcessingFails_RestoresStateAndR
 	if !restoreCalled {
 		t.Fatal("expected restore to be called when output post-processing setup fails")
 	}
+}
+
+type blockingReader struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (r *blockingReader) Read(p []byte) (int, error) {
+	select {
+	case <-r.started:
+	default:
+		close(r.started)
+	}
+	<-r.release
+	return 0, io.EOF
+}
+
+func TestStartKeyboardLoop_WhenContextCanceledDuringBlockingRead_RestoresTerminal(t *testing.T) {
+	oldIsTerminal := keyboardIsTerminal
+	oldMakeRaw := keyboardMakeRaw
+	oldRestore := keyboardRestore
+	oldEnableOutputPostProcessing := keyboardEnableOutputPostProcessing
+	oldFD := keyboardFD
+	oldInput := keyboardInput
+	t.Cleanup(func() {
+		keyboardIsTerminal = oldIsTerminal
+		keyboardMakeRaw = oldMakeRaw
+		keyboardRestore = oldRestore
+		keyboardEnableOutputPostProcessing = oldEnableOutputPostProcessing
+		keyboardFD = oldFD
+		keyboardInput = oldInput
+	})
+
+	keyboardIsTerminal = func(fd int) bool { return true }
+	keyboardMakeRaw = func(fd int) (*term.State, error) { return &term.State{}, nil }
+	keyboardEnableOutputPostProcessing = func(fd int) error { return nil }
+	keyboardFD = func() int { return 9 }
+
+	reader := &blockingReader{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	keyboardInput = reader
+
+	restored := make(chan struct{}, 1)
+	keyboardRestore = func(fd int, state *term.State) error {
+		select {
+		case restored <- struct{}{}:
+		default:
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := StartKeyboardLoop(ctx, NewController()); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+
+	select {
+	case <-reader.started:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected keyboard loop to start blocking read")
+	}
+
+	cancel()
+
+	select {
+	case <-restored:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected restore to run after context cancellation")
+	}
+
+	close(reader.release)
 }
