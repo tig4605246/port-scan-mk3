@@ -53,6 +53,29 @@ services:
     networks:
       e2e-net: {}
 
+  pressure-api-auth:
+    build:
+      context: ..
+      dockerfile: e2e/mock-pressure-api/Dockerfile
+    container_name: pressure-api-auth
+    ports:
+      - "8083:8083"
+    environment:
+      ADDR: ":8083"
+      USE_AUTH: "true"
+      AUTH_CLIENT_ID: "test-client"
+      AUTH_CLIENT_SECRET: "test-secret"
+      PRESSURE_VALUE_1: "85"
+      PRESSURE_VALUE_2: "72"
+    networks:
+      e2e-net:
+        ipv4_address: 172.28.0.15
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8083/api/pressure"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
 networks:
   e2e-net:
     driver: bridge
