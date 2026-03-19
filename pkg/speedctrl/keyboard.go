@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	keyboardIsTerminal           = term.IsTerminal
-	keyboardMakeRaw              = term.MakeRaw
-	keyboardRestore              = term.Restore
-	keyboardFD                   = func() int { return int(os.Stdin.Fd()) }
-	keyboardInput      io.Reader = os.Stdin
+	keyboardIsTerminal                           = term.IsTerminal
+	keyboardMakeRaw                              = term.MakeRaw
+	keyboardRestore                              = term.Restore
+	keyboardEnableOutputPostProcessing           = enableOutputPostProcessing
+	keyboardFD                                   = func() int { return int(os.Stdin.Fd()) }
+	keyboardInput                      io.Reader = os.Stdin
 )
 
 // StartKeyboardLoop enables raw-mode keyboard handling and toggles pause on space key.
@@ -30,6 +31,10 @@ func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 
 	oldState, err := makeRaw(fd)
 	if err != nil {
+		return err
+	}
+	if err := keyboardEnableOutputPostProcessing(fd); err != nil {
+		_ = restore(fd, oldState)
 		return err
 	}
 
