@@ -68,7 +68,17 @@ func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.C
 			rt.tracker.AdvanceNextIndex(i + 1)
 			logger.debugf("dispatch cidr=%s target=%s:%d next_index=%d/%d", ch.CIDR, target.ip, port, i+1, snap.TotalCount)
 			if policy.delay > 0 {
-				time.Sleep(policy.delay)
+				multiplier := ctrl.GetSpeedMultiplier()
+				if multiplier < 1.0 {
+					// extraDelay = baseDelay * (1/multiplier - 1)
+					// At multiplier=1.0: extraDelay=0 (no throttle)
+					// At multiplier=0.5: 10ms -> 20ms effective
+					// At multiplier=0.2: 10ms -> 50ms effective
+					extraDelay := time.Duration(float64(policy.delay) * (1.0/multiplier - 1.0))
+					time.Sleep(policy.delay + extraDelay)
+				} else {
+					time.Sleep(policy.delay)
+				}
 			}
 		}
 	}

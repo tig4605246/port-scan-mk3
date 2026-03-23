@@ -25,6 +25,9 @@ type RunOptions struct {
 	Dial             DialFunc
 	ResumeStatePath  string
 	PressureLimit    int
+	PauseThreshold   int
+	SafeThreshold    int
+	RampStep         float64
 	DisableKeyboard  bool
 	PressureHTTP     *http.Client
 	PressureFetcher  PressureFetcher
@@ -116,6 +119,19 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		}
 	}
 	startManualPauseMonitor(runCtx, ctrl, logger)
+
+	if cfg.PauseThreshold <= 0 {
+		cfg.PauseThreshold = 60
+	}
+	if cfg.SafeThreshold <= 0 {
+		cfg.SafeThreshold = 30
+	}
+	if cfg.RampStep <= 0 {
+		cfg.RampStep = 0.10
+	}
+	runOpts.PauseThreshold = cfg.PauseThreshold
+	runOpts.SafeThreshold = cfg.SafeThreshold
+	runOpts.RampStep = cfg.RampStep
 
 	apiErrCh := make(chan error, 1)
 	if !cfg.DisableAPI {
