@@ -19,6 +19,9 @@ type Config struct {
 	Workers              int
 	PressureAPI          string
 	PressureInterval     time.Duration
+	PauseThreshold       int
+	SafeThreshold        int
+	RampStep             float64
 	DisableAPI           bool
 	PressureAuthURL      string
 	PressureDataURL      string
@@ -54,6 +57,9 @@ func Parse(args []string) (Config, error) {
 	fs.StringVar(&cfg.PressureClientID, "pressure-client-id", "", "pressure API client ID")
 	fs.StringVar(&cfg.PressureClientSecret, "pressure-client-secret", "", "pressure API client secret")
 	fs.BoolVar(&cfg.PressureUseAuth, "pressure-use-auth", false, "use authenticated pressure fetcher")
+	fs.IntVar(&cfg.PauseThreshold, "pause-threshold", 60, "pressure percentage to trigger full pause")
+	fs.IntVar(&cfg.SafeThreshold, "safe-threshold", 30, "pressure percentage for safe/ramp-up zone")
+	fs.Float64Var(&cfg.RampStep, "ramp-step", 0.10, "speed adjustment fraction per poll (e.g., 0.10 = ±10%)")
 	fs.StringVar(&cfg.Resume, "resume", "", "resume state file")
 	fs.StringVar(&cfg.LogLevel, "log-level", "info", "debug|info|error")
 	fs.StringVar(&cfg.Format, "format", "human", "human|json")
@@ -84,6 +90,15 @@ func Parse(args []string) (Config, error) {
 	}
 	if cfg.PressureInterval <= 0 {
 		return Config{}, errors.New("-pressure-interval must be > 0")
+	}
+	if cfg.PauseThreshold <= 0 || cfg.PauseThreshold > 100 {
+		return Config{}, errors.New("-pause-threshold must be between 1 and 100")
+	}
+	if cfg.SafeThreshold <= 0 || cfg.SafeThreshold >= cfg.PauseThreshold {
+		return Config{}, errors.New("-safe-threshold must be positive and less than -pause-threshold")
+	}
+	if cfg.RampStep <= 0 || cfg.RampStep > 1 {
+		return Config{}, errors.New("-ramp-step must be between 0 and 1")
 	}
 	if cfg.PressureUseAuth {
 		if cfg.PressureAuthURL == "" {
