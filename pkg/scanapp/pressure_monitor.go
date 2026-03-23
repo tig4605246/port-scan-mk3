@@ -40,11 +40,6 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 	if interval <= 0 {
 		interval = 5 * time.Second
 	}
-	threshold := opts.PressureLimit
-	if threshold <= 0 {
-		threshold = defaultPressureLimit
-	}
-	thresholdValue := float64(threshold)
 
 	// Use PressureFetcher if provided, otherwise create SimplePressureFetcher for backward compatibility
 	var fetcher PressureFetcher
@@ -59,7 +54,6 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 	}
 
 	var consecutiveFailures int
-	var prevPaused bool
 	pressureObserver := opts.pressureObserver
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -85,22 +79,30 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 				}
 				return
 			}
+			thresholdPause := float64(opts.PauseThreshold)
+			thresholdSafe := float64(opts.SafeThreshold)
+			rampStep := opts.RampStep
+
 			consecutiveFailures = 0
-			logger.infof("[API] pressure api status=ok pressure=%.1f%% threshold=%.1f", pressure, thresholdValue)
+			logger.infof("[API] pressure api status=ok pressure=%.1f%% pause_thresh=%.1f safe_thresh=%.1f", pressure, thresholdPause, thresholdSafe)
 
 			sampledAt := time.Now()
 			if pressureObserver != nil {
 				pressureObserver.OnPressureSample(int(pressure), sampledAt)
 			}
-			paused := pressure >= thresholdValue
-			ctrl.SetAPIPaused(paused)
-			if paused != prevPaused {
-				if paused {
-					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
-				} else {
-					logger.infof("[API] 路由器壓力恢復，掃描已自動恢復 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
+
+			if pressure >= thresholdPause {
+				ctrl.SetAPIPaused(true)
+				ctrl.ResetSpeedMultiplier()
+			} else if pressure >= thresholdSafe {
+				ctrl.SetAPIPaused(false)
+				if ctrl.GetSpeedMultiplier() == 0.0 {
+					ctrl.SetSpeedMultiplier(speedctrl.SpeedMultiplierMin)
 				}
-				prevPaused = paused
+				ctrl.AdjustSpeedMultiplier(-rampStep)
+			} else {
+				ctrl.SetAPIPaused(false)
+				ctrl.AdjustSpeedMultiplier(rampStep)
 			}
 		}
 	}
