@@ -16,7 +16,7 @@ This is the complete CLI flag reference for `port-scan-mk3`, sourced from curren
 |------|------|---------|---------|-------------|
 | `-cidr-file` | string | none (required) | `validate`, `scan` | Path to CIDR CSV input file. |
 | `-port-file` | string | optional | `validate`, `scan` | Path to port list file (`<port>/tcp` lines). Required when CIDR input is not rich mode. |
-| `-output` | string | `scan_results.csv` | `validate`, `scan` | Output anchor path for batch files; the run writes `scan_results-<suffix>.csv`, `opened_results-<suffix>.csv`, and `unreachable_results-<suffix>.csv` with the same suffix. The output directory also controls the default resume fallback location. |
+| `-output` | string | `scan_results.csv` | `validate`, `scan` | Parsed by both `validate` and `scan`. Only `scan` uses it to choose the batch output directory and shared suffix for `scan_results-<suffix>.csv`, `opened_results-<suffix>.csv`, and `unreachable_results-<suffix>.csv`. The output directory also controls the default resume fallback location. |
 | `-timeout` | duration | `100ms` | `validate`, `scan` | TCP dial timeout per probe. This does not control pre-scan ping; the pre-scan ping timeout is fixed internally at `100ms`. |
 | `-disable-pre-scan-ping` | bool | `false` | `validate`, `scan` | Disable the default-on pre-scan ping stage. |
 | `-delay` | duration | `10ms` | `validate`, `scan` | Dispatch delay between tasks. Primarily used by `scan`. |

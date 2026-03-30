@@ -83,15 +83,14 @@ Goal: Verify the default pre-scan ping flow and the `-disable-pre-scan-ping` fal
 Command:
 ```bash
 go run ./cmd/port-scan scan \
-  -cidr-file e2e/inputs/cidr_fail.csv \
-  -port-file e2e/inputs/ports.csv \
-  -cidr-ip-col source_ip \
-  -cidr-ip-cidr-col source_cidr \
+  -cidr-file tests/integration/testdata/ip_aware/cidr_fail.csv \
+  -port-file tests/integration/testdata/ip_aware/ports.csv \
   -output e2e/out/scan_results.csv \
   -disable-api=true
 ```
 
 Expected:
+- The test data uses the default `ip` / `ip_cidr` headers, so no CIDR mapping flags are needed.
 - With the flag omitted, pre-scan ping runs before TCP scan planning.
 - `unreachable_results-<suffix>.csv` is flushed and finalized before any TCP dial starts.
 - `scan_results-<suffix>.csv`, `opened_results-<suffix>.csv`, and `unreachable_results-<suffix>.csv` share the same suffix.
@@ -101,8 +100,8 @@ Expected:
 Disabled mode:
 ```bash
 go run ./cmd/port-scan scan \
-  -cidr-file e2e/inputs/cidr_normal.csv \
-  -port-file e2e/inputs/ports.csv \
+  -cidr-file tests/integration/testdata/ip_aware/cidr_normal.csv \
+  -port-file tests/integration/testdata/ip_aware/ports.csv \
   -output e2e/out/scan_results.csv \
   -disable-pre-scan-ping=true \
   -disable-api=true
@@ -110,7 +109,7 @@ go run ./cmd/port-scan scan \
 
 Expected:
 - No pre-scan ping stage runs.
-- `unreachable_results-<suffix>.csv` is emitted with header only.
+- `unreachable_results-<suffix>.csv` is still created as a final batch file, but it contains header only.
 - TCP scanning behaves like the prior direct-scan flow.
 
 ## Scenario 3: Validate inputs (human format)
