@@ -63,6 +63,39 @@ func TestLoadSnapshot_WhenObjectEnvelopeHasUnknownField_ReturnsError(t *testing.
 	}
 }
 
+func TestLoadSnapshot_WhenPreScanPingMissingEnabled_ReturnsError(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "missing_enabled.json")
+	if err := os.WriteFile(file, []byte(`{"chunks":[],"pre_scan_ping":{"timeout_ms":100}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadSnapshot(file); err == nil {
+		t.Fatal("expected pre_scan_ping enabled error")
+	}
+}
+
+func TestLoadSnapshot_WhenPreScanPingMissingTimeoutMS_ReturnsError(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "missing_timeout_ms.json")
+	if err := os.WriteFile(file, []byte(`{"chunks":[],"pre_scan_ping":{"enabled":true}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadSnapshot(file); err == nil {
+		t.Fatal("expected pre_scan_ping timeout_ms error")
+	}
+}
+
+func TestLoadSnapshot_WhenPreScanPingHasUnknownField_ReturnsError(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "unknown_pre_scan_ping_field.json")
+	if err := os.WriteFile(file, []byte(`{"chunks":[],"pre_scan_ping":{"enabled":true,"timeout_ms":100,"unexpected":true}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadSnapshot(file); err == nil {
+		t.Fatal("expected pre_scan_ping unknown field error")
+	}
+}
+
 func TestLoad_WhenObjectEnvelopeHasWrongSchema_ReturnsError(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "wrong_schema.json")
 	if err := os.WriteFile(file, []byte(`{"chunks":{}}`), 0o644); err != nil {

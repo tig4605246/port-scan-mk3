@@ -25,8 +25,14 @@ type Snapshot struct {
 }
 
 type snapshotEnvelope struct {
-	Chunks      *[]task.Chunk     `json:"chunks"`
-	PreScanPing *PreScanPingState `json:"pre_scan_ping,omitempty"`
+	Chunks      *[]task.Chunk        `json:"chunks"`
+	PreScanPing *preScanPingEnvelope `json:"pre_scan_ping,omitempty"`
+}
+
+type preScanPingEnvelope struct {
+	Enabled            *bool    `json:"enabled"`
+	TimeoutMS          *int     `json:"timeout_ms"`
+	UnreachableIPv4U32 []uint32 `json:"unreachable_ipv4_u32,omitempty"`
 }
 
 // SaveSnapshot writes resume state as the current JSON envelope.
@@ -35,8 +41,13 @@ func SaveSnapshot(path string, snap Snapshot) error {
 		Chunks: &snap.Chunks,
 	}
 	if hasPreScanPingState(snap.PreScanPing) {
-		preScanPing := snap.PreScanPing
-		env.PreScanPing = &preScanPing
+		enabled := snap.PreScanPing.Enabled
+		timeoutMS := snap.PreScanPing.TimeoutMS
+		env.PreScanPing = &preScanPingEnvelope{
+			Enabled:            &enabled,
+			TimeoutMS:          &timeoutMS,
+			UnreachableIPv4U32: snap.PreScanPing.UnreachableIPv4U32,
+		}
 	}
 
 	data, err := json.MarshalIndent(env, "", "  ")
@@ -75,7 +86,17 @@ func LoadSnapshot(path string) (Snapshot, error) {
 		}
 		snap := Snapshot{Chunks: *env.Chunks}
 		if env.PreScanPing != nil {
-			snap.PreScanPing = *env.PreScanPing
+			if env.PreScanPing.Enabled == nil {
+				return Snapshot{}, errors.New("resume snapshot pre_scan_ping missing required enabled field")
+			}
+			if env.PreScanPing.TimeoutMS == nil {
+				return Snapshot{}, errors.New("resume snapshot pre_scan_ping missing required timeout_ms field")
+			}
+			snap.PreScanPing = PreScanPingState{
+				Enabled:            *env.PreScanPing.Enabled,
+				TimeoutMS:          *env.PreScanPing.TimeoutMS,
+				UnreachableIPv4U32: env.PreScanPing.UnreachableIPv4U32,
+			}
 		}
 		return snap, nil
 	default:
