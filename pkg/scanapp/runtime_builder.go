@@ -11,6 +11,7 @@ import (
 type runPlan struct {
 	chunks         []task.Chunk
 	runtimes       []*chunkRuntime
+	outputPaths    batchOutputPaths
 	scanOutputPath string
 	openOnlyPath   string
 }
@@ -49,6 +50,7 @@ func prepareRunPlan(cfg config.Config, inputs runInputs, deps runDependencies, n
 	return runPlan{
 		chunks:         chunks,
 		runtimes:       runtimes,
+		outputPaths:    outputPaths,
 		scanOutputPath: outputPaths.scanPath,
 		openOnlyPath:   outputPaths.openPath,
 	}, nil

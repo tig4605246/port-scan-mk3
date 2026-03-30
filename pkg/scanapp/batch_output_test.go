@@ -68,6 +68,28 @@ func TestResolveBatchOutputPaths_WhenExistingFilesCollide_AppendsIncrementingSuf
 	}
 }
 
+func TestResolveBatchOutputPaths_WhenOnlyUnreachableCollides_AdvancesSuffix(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 3, 2, 1, 30, 45, 0, time.UTC)
+
+	firstUnreachable := filepath.Join(dir, "unreachable_results-20260302T013045Z.csv")
+	if err := os.WriteFile(firstUnreachable, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	paths, err := resolveBatchOutputPaths(filepath.Join(dir, "scan_results.csv"), now)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantScan := filepath.Join(dir, "scan_results-20260302T013045Z-1.csv")
+	wantOpen := filepath.Join(dir, "opened_results-20260302T013045Z-1.csv")
+	wantUnreachable := filepath.Join(dir, "unreachable_results-20260302T013045Z-1.csv")
+	if paths.scanPath != wantScan || paths.openPath != wantOpen || paths.unreachablePath != wantUnreachable {
+		t.Fatalf("unexpected paths: %+v", paths)
+	}
+}
+
 func TestResolveBatchOutputPaths_WhenOver100Collisions_ReturnsError(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Date(2026, 3, 2, 1, 30, 45, 0, time.UTC)

@@ -160,17 +160,12 @@ func TestUnreachableOutput_WhenFinalizeFails_DoesNotOpenScanOrOpenOutputs(t *tes
 		t.Fatalf("mkdir failed: %v", err)
 	}
 
-	output, err := openUnreachableOutput(finalPath)
-	if err != nil {
-		t.Fatalf("open failed: %v", err)
-	}
-
 	paths := batchOutputPaths{
 		scanPath:        filepath.Join(dir, "scan.csv"),
 		openPath:        filepath.Join(dir, "open.csv"),
 		unreachablePath: finalPath,
 	}
-	if _, err := openBatchOutputsAfterUnreachable(output, paths); err == nil {
+	if _, err := openBatchOutputsAfterUnreachable(paths); err == nil {
 		t.Fatal("expected unreachable finalize to fail")
 	}
 

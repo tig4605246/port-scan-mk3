@@ -125,7 +125,11 @@ func (u *unreachableOutput) Finalize(success bool) error {
 	return nil
 }
 
-func openBatchOutputsAfterUnreachable(output *unreachableOutput, paths batchOutputPaths) (*batchOutputs, error) {
+func openBatchOutputsAfterUnreachable(paths batchOutputPaths) (*batchOutputs, error) {
+	output, err := openUnreachableOutput(paths.unreachablePath)
+	if err != nil {
+		return nil, err
+	}
 	if err := output.Finalize(true); err != nil {
 		return nil, err
 	}

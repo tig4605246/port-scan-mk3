@@ -146,6 +146,9 @@ func TestPrepareRunPlan_WhenDependenciesInjected_BuildsChunksRuntimesAndOutputPa
 	if plan.scanOutputPath != "scan_results-20260309T120000Z.csv" || plan.openOnlyPath != "opened_results-20260309T120000Z.csv" {
 		t.Fatalf("unexpected output paths: %#v", plan)
 	}
+	if plan.outputPaths.unreachablePath != "unreachable_results-20260309T120000Z.csv" {
+		t.Fatalf("unexpected unreachable output path: %#v", plan.outputPaths)
+	}
 }
 
 func TestIndexToRuntimeTarget_WhenInputsInvalid_ReturnsErrors(t *testing.T) {
