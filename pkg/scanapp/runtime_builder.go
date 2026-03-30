@@ -20,7 +20,7 @@ type runDependencies struct {
 	loadPortSpecs            func(path string) ([]input.PortSpec, error)
 	loadOrBuildRuntimeChunks func(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error)
 	buildChunkRuntime        func(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, policy runtimePolicy) ([]*chunkRuntime, error)
-	resolveOutputPaths       func(output string, now time.Time) (string, string, error)
+	resolveOutputPaths       func(output string, now time.Time) (batchOutputPaths, error)
 }
 
 func defaultRunDependencies() runDependencies {
@@ -42,14 +42,14 @@ func prepareRunPlan(cfg config.Config, inputs runInputs, deps runDependencies, n
 	if err != nil {
 		return runPlan{}, err
 	}
-	scanOutputPath, openOnlyPath, err := deps.resolveOutputPaths(cfg.Output, now)
+	outputPaths, err := deps.resolveOutputPaths(cfg.Output, now)
 	if err != nil {
 		return runPlan{}, err
 	}
 	return runPlan{
 		chunks:         chunks,
 		runtimes:       runtimes,
-		scanOutputPath: scanOutputPath,
-		openOnlyPath:   openOnlyPath,
+		scanOutputPath: outputPaths.scanPath,
+		openOnlyPath:   outputPaths.openPath,
 	}, nil
 }

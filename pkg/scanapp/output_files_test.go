@@ -104,7 +104,7 @@ func TestResolveBatchOutputPaths_WhenAllocated_ReturnsScanOpenUnreachableWithSha
 	dir := t.TempDir()
 	now := time.Date(2026, 3, 2, 1, 30, 45, 0, time.UTC)
 
-	paths, err := resolveBatchOutputFilePaths(filepath.Join(dir, "scan_results.csv"), now)
+	paths, err := resolveBatchOutputPaths(filepath.Join(dir, "scan_results.csv"), now)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

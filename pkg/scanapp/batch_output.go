@@ -13,7 +13,7 @@ type batchOutputPaths struct {
 	unreachablePath string
 }
 
-func resolveBatchOutputFilePaths(outputPath string, now time.Time) (batchOutputPaths, error) {
+func resolveBatchOutputPaths(outputPath string, now time.Time) (batchOutputPaths, error) {
 	baseDir := filepath.Dir(outputPath)
 	if baseDir == "" {
 		baseDir = "."
@@ -40,14 +40,6 @@ func resolveBatchOutputFilePaths(outputPath string, now time.Time) (batchOutputP
 		}
 	}
 	return batchOutputPaths{}, fmt.Errorf("failed to allocate unique batch output paths")
-}
-
-func resolveBatchOutputPaths(outputPath string, now time.Time) (string, string, error) {
-	paths, err := resolveBatchOutputFilePaths(outputPath, now)
-	if err != nil {
-		return "", "", err
-	}
-	return paths.scanPath, paths.openPath, nil
 }
 
 func fileExists(path string) bool {

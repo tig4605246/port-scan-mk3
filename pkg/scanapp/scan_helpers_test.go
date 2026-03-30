@@ -115,14 +115,18 @@ func TestPrepareRunPlan_WhenDependenciesInjected_BuildsChunksRuntimesAndOutputPa
 			}
 			return wantRuntimes, nil
 		},
-		resolveOutputPaths: func(output string, now time.Time) (string, string, error) {
+		resolveOutputPaths: func(output string, now time.Time) (batchOutputPaths, error) {
 			if output != "scan_results.csv" {
 				t.Fatalf("unexpected output path: %s", output)
 			}
 			if !now.Equal(wantNow) {
 				t.Fatalf("unexpected time: %s", now)
 			}
-			return "scan_results-20260309T120000Z.csv", "opened_results-20260309T120000Z.csv", nil
+			return batchOutputPaths{
+				scanPath:        "scan_results-20260309T120000Z.csv",
+				openPath:        "opened_results-20260309T120000Z.csv",
+				unreachablePath: "unreachable_results-20260309T120000Z.csv",
+			}, nil
 		},
 	}
 
