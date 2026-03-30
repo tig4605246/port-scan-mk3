@@ -298,6 +298,50 @@ func TestBuildRichGroupsWithPredicate_SkipsUnreachableTargetsAndPreservesDistinc
 	}
 }
 
+func TestBuildRichGroupsWithPredicate_WhenAllValidTargetsFiltered_ReturnsEmptyGroupsWithoutError(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "10.0.0.9:443/tcp",
+			DstIP:             "10.0.0.9",
+			DstNetworkSegment: "10.0.0.0/24",
+			Port:              443,
+			Reason:            "MATCH_POLICY_ACCEPT",
+		},
+	}
+
+	groups, err := buildRichGroupsWithPredicate(rows, reachablePredicate([]uint32{ipv4ToUint32("10.0.0.9")}))
+	if err != nil {
+		t.Fatalf("expected all-filtered rich groups to return empty result, got err=%v", err)
+	}
+	if len(groups) != 0 {
+		t.Fatalf("expected empty groups after filtering all rich targets, got %+v", groups)
+	}
+}
+
+func TestBuildRichChunksWithPredicate_WhenAllValidTargetsFiltered_ReturnsEmptyChunksWithoutError(t *testing.T) {
+	rows := []input.CIDRRecord{
+		{
+			IsRich:            true,
+			IsValid:           true,
+			ExecutionKey:      "10.0.0.9:443/tcp",
+			DstIP:             "10.0.0.9",
+			DstNetworkSegment: "10.0.0.0/24",
+			Port:              443,
+			Reason:            "MATCH_POLICY_ACCEPT",
+		},
+	}
+
+	chunks, err := buildRichChunksWithPredicate(rows, reachablePredicate([]uint32{ipv4ToUint32("10.0.0.9")}))
+	if err != nil {
+		t.Fatalf("expected all-filtered rich chunks to return empty result, got err=%v", err)
+	}
+	if len(chunks) != 0 {
+		t.Fatalf("expected empty chunks after filtering all rich targets, got %+v", chunks)
+	}
+}
+
 func TestLoadOrBuildChunksWithPredicate_SkipsUnreachableTargetsFromChunkTotals(t *testing.T) {
 	rows := []input.CIDRRecord{
 		{CIDR: "10.0.0.0/24", Selector: mustSelectorNet(t, "10.0.0.1/32"), CIDRName: "web"},

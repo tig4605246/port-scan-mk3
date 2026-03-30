@@ -239,11 +239,13 @@ func buildRichGroupsWithPredicate(cidrRecords []input.CIDRRecord, reachable func
 	predicate := normalizeReachablePredicate(reachable)
 	groups := make(map[string]cidrGroup)
 	ownerByExecutionKey := make(map[string]string)
+	hasValidRichInput := false
 
 	for _, rec := range cidrRecords {
 		if !rec.IsRich || !rec.IsValid {
 			continue
 		}
+		hasValidRichInput = true
 		cidr, err := richCIDRKey(rec)
 		if err != nil {
 			return nil, err
@@ -293,6 +295,9 @@ func buildRichGroupsWithPredicate(cidrRecords []input.CIDRRecord, reachable func
 	}
 
 	if len(groups) == 0 {
+		if hasValidRichInput {
+			return groups, nil
+		}
 		return nil, fmt.Errorf("no usable input rows")
 	}
 

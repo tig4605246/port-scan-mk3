@@ -187,6 +187,9 @@ func buildRichChunksWithPredicate(cidrRecords []input.CIDRRecord, reachable func
 	if err != nil {
 		return nil, err
 	}
+	if len(groups) == 0 {
+		return []task.Chunk{}, nil
+	}
 	keys := make([]string, 0, len(groups))
 	for key := range groups {
 		keys = append(keys, key)
@@ -213,9 +216,6 @@ func buildRichChunksWithPredicate(cidrRecords []input.CIDRRecord, reachable func
 			TotalCount:   len(g.targets),
 			Status:       "pending",
 		})
-	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("no usable input rows")
 	}
 	return out, nil
 }
