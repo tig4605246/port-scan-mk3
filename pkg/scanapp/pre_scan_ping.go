@@ -21,6 +21,11 @@ type preScanOutcome struct {
 	UnreachableRows    []writer.UnreachableRecord
 }
 
+const (
+	preScanPingTimeout = 100 * time.Millisecond
+	preScanPingReason  = "ping failed within 100ms"
+)
+
 func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, checker ReachabilityChecker, paths batchOutputPaths, saved state.PreScanPingState) (preScanOutcome, error) {
 	_ = paths
 
@@ -34,9 +39,8 @@ func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, ch
 		if err != nil {
 			return preScanOutcome{}, err
 		}
-		saved.UnreachableIPv4U32 = unreachable
 		return preScanOutcome{
-			State:              saved,
+			State:              buildPreScanPingState(unreachable),
 			UnreachableIPv4U32: unreachable,
 			UnreachableRows:    rows,
 		}, nil
@@ -50,7 +54,7 @@ func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, ch
 	if err != nil {
 		return preScanOutcome{}, err
 	}
-	unreachable, err := runReachabilityChecks(ctx, checker, uniqueIPs, cfg.Timeout, cfg.Workers)
+	unreachable, err := runReachabilityChecks(ctx, checker, uniqueIPs, cfg.Workers)
 	if err != nil {
 		return preScanOutcome{}, err
 	}
@@ -60,13 +64,8 @@ func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, ch
 		return preScanOutcome{}, err
 	}
 
-	st := state.PreScanPingState{
-		Enabled:            true,
-		TimeoutMS:          int(cfg.Timeout / time.Millisecond),
-		UnreachableIPv4U32: unreachable,
-	}
 	return preScanOutcome{
-		State:              st,
+		State:              buildPreScanPingState(unreachable),
 		UnreachableIPv4U32: unreachable,
 		UnreachableRows:    rows,
 	}, nil
@@ -132,7 +131,7 @@ func collectUniquePreScanIPs(inputs runInputs) ([]string, error) {
 	return ips, nil
 }
 
-func runReachabilityChecks(ctx context.Context, checker ReachabilityChecker, ips []string, timeout time.Duration, workers int) ([]uint32, error) {
+func runReachabilityChecks(ctx context.Context, checker ReachabilityChecker, ips []string, workers int) ([]uint32, error) {
 	if len(ips) == 0 {
 		return nil, nil
 	}
@@ -155,7 +154,7 @@ func runReachabilityChecks(ctx context.Context, checker ReachabilityChecker, ips
 		go func() {
 			defer wg.Done()
 			for ip := range jobs {
-				result := checker.Check(ctx, ip, timeout)
+				result := checker.Check(ctx, ip, preScanPingTimeout)
 				if !result.Reachable {
 					results <- ipv4ToUint32(ip)
 				}
@@ -183,6 +182,8 @@ func runReachabilityChecks(ctx context.Context, checker ReachabilityChecker, ips
 func collectUnreachableRows(inputs runInputs, reachable func(string) bool) ([]writer.UnreachableRecord, error) {
 	predicate := normalizeReachablePredicate(reachable)
 	rows := make([]writer.UnreachableRecord, 0)
+	richOrder := make([]string, 0)
+	richRows := make(map[string]writer.UnreachableRecord)
 	for _, rec := range inputs.cidrRecords {
 		targets, err := preScanTargetsFromRecord(rec)
 		if err != nil {
@@ -192,11 +193,11 @@ func collectUnreachableRows(inputs runInputs, reachable func(string) bool) ([]wr
 			if predicate(target.ip) {
 				continue
 			}
-			rows = append(rows, writer.UnreachableRecord{
+			row := writer.UnreachableRecord{
 				IP:                target.ip,
 				IPCidr:            target.ipCidr,
 				Status:            "unreachable",
-				Reason:            "pre-scan",
+				Reason:            preScanPingReason,
 				FabName:           target.meta.fabName,
 				CIDRName:          target.meta.cidrName,
 				ServiceLabel:      target.meta.serviceLabel,
@@ -205,8 +206,24 @@ func collectUnreachableRows(inputs runInputs, reachable func(string) bool) ([]wr
 				ExecutionKey:      target.meta.executionKey,
 				SrcIP:             target.meta.srcIP,
 				SrcNetworkSegment: target.meta.srcNetworkSegment,
-			})
+			}
+			if !rec.IsRich {
+				rows = append(rows, row)
+				continue
+			}
+
+			key := richUnreachableRowKey(row)
+			existing, ok := richRows[key]
+			if !ok {
+				richRows[key] = row
+				richOrder = append(richOrder, key)
+				continue
+			}
+			richRows[key] = mergeUnreachableRecord(existing, row)
 		}
+	}
+	for _, key := range richOrder {
+		rows = append(rows, richRows[key])
 	}
 	return rows, nil
 }
@@ -224,4 +241,28 @@ func preScanTargetsFromRecord(rec input.CIDRRecord) ([]scanTarget, error) {
 		return nil, err
 	}
 	return strategy.targets(rec)
+}
+
+func buildPreScanPingState(unreachable []uint32) state.PreScanPingState {
+	return state.PreScanPingState{
+		Enabled:            true,
+		TimeoutMS:          int(preScanPingTimeout / time.Millisecond),
+		UnreachableIPv4U32: unreachable,
+	}
+}
+
+func richUnreachableRowKey(row writer.UnreachableRecord) string {
+	return row.IP + "\x00" + row.IPCidr
+}
+
+func mergeUnreachableRecord(existing, incoming writer.UnreachableRecord) writer.UnreachableRecord {
+	existing.FabName = mergeFieldValue(existing.FabName, incoming.FabName)
+	existing.CIDRName = mergeFieldValue(existing.CIDRName, incoming.CIDRName)
+	existing.ServiceLabel = mergeFieldValue(existing.ServiceLabel, incoming.ServiceLabel)
+	existing.Decision = mergeFieldValue(existing.Decision, incoming.Decision)
+	existing.PolicyID = mergeFieldValue(existing.PolicyID, incoming.PolicyID)
+	existing.ExecutionKey = mergeFieldValue(existing.ExecutionKey, incoming.ExecutionKey)
+	existing.SrcIP = mergeFieldValue(existing.SrcIP, incoming.SrcIP)
+	existing.SrcNetworkSegment = mergeFieldValue(existing.SrcNetworkSegment, incoming.SrcNetworkSegment)
+	return existing
 }

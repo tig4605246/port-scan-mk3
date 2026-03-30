@@ -39,8 +39,11 @@ func TestPreScanPing_Run_DedupesCheckerCallsAcrossDuplicateIPs(t *testing.T) {
 	if !outcome.State.Enabled {
 		t.Fatalf("expected pre-scan state enabled, got %+v", outcome.State)
 	}
-	if outcome.State.TimeoutMS != 250 {
+	if outcome.State.TimeoutMS != 100 {
 		t.Fatalf("unexpected timeout ms: %+v", outcome.State)
+	}
+	if got := checker.timeoutFor("10.0.0.1"); got != 100*time.Millisecond {
+		t.Fatalf("expected fixed pre-scan timeout, got %v", got)
 	}
 	if len(outcome.UnreachableIPv4U32) != 1 || outcome.UnreachableIPv4U32[0] != ipv4ToUint32("10.0.0.1") {
 		t.Fatalf("unexpected unreachable set: %+v", outcome.UnreachableIPv4U32)
@@ -80,7 +83,7 @@ func TestPreScanPing_Run_AggregatesUnreachableRowsPerContextWithoutPortExpansion
 	if got.IP != "10.0.0.2" || got.IPCidr != "10.0.0.0/24" {
 		t.Fatalf("unexpected unreachable row: %+v", got)
 	}
-	if got.Status != "unreachable" || got.Reason != "pre-scan" {
+	if got.Status != "unreachable" || got.Reason != "ping failed within 100ms" {
 		t.Fatalf("unexpected unreachable row status/reason: %+v", got)
 	}
 }
@@ -113,8 +116,94 @@ func TestPreScanPing_Run_ReusesSavedUnreachableStateWithoutCallingChecker(t *tes
 	if len(outcome.UnreachableRows) != 1 || outcome.UnreachableRows[0].IP != "10.0.0.3" {
 		t.Fatalf("unexpected unreachable rows from saved state: %+v", outcome.UnreachableRows)
 	}
-	if outcome.State.TimeoutMS != saved.TimeoutMS || !outcome.State.Enabled {
+	if outcome.State.TimeoutMS != 100 || !outcome.State.Enabled {
 		t.Fatalf("expected saved state to be reused, got %+v", outcome.State)
+	}
+}
+
+func TestPreScanPing_Run_RichRowsAggregateToSingleUnreachableRowWithDistinctMergedMetadata(t *testing.T) {
+	checker := &fakePreScanChecker{
+		results: map[string]ReachabilityResult{
+			"10.0.0.9": {IP: "10.0.0.9", Reachable: false, FailureText: "timeout"},
+		},
+	}
+
+	outcome, err := runPreScanPing(context.Background(), runInputs{
+		cidrRecords: []input.CIDRRecord{
+			{
+				IsRich:            true,
+				IsValid:           true,
+				ExecutionKey:      "10.0.0.9:443/tcp",
+				DstIP:             "10.0.0.9",
+				DstNetworkSegment: "10.0.0.0/24",
+				Port:              443,
+				FabName:           "fab-a",
+				CIDRName:          "seg-a",
+				ServiceLabel:      "svc-a",
+				Decision:          "accept",
+				PolicyID:          "P-1",
+				Reason:            "MATCH_POLICY_ACCEPT",
+				SrcIP:             "192.168.1.10",
+				SrcNetworkSegment: "192.168.1.0/24",
+			},
+			{
+				IsRich:            true,
+				IsValid:           true,
+				ExecutionKey:      "10.0.0.9:8443/tcp",
+				DstIP:             "10.0.0.9",
+				DstNetworkSegment: "10.0.0.0/24",
+				Port:              8443,
+				FabName:           "fab-b",
+				CIDRName:          "seg-b",
+				ServiceLabel:      "svc-b",
+				Decision:          "deny",
+				PolicyID:          "P-2",
+				Reason:            "MATCH_POLICY_ACCEPT",
+				SrcIP:             "192.168.1.11",
+				SrcNetworkSegment: "192.168.2.0/24",
+			},
+		},
+	}, config.Config{
+		Timeout: 5 * time.Second,
+		Workers: 2,
+	}, checker, batchOutputPaths{}, state.PreScanPingState{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(outcome.UnreachableRows) != 1 {
+		t.Fatalf("expected single aggregated rich unreachable row, got %+v", outcome.UnreachableRows)
+	}
+	got := outcome.UnreachableRows[0]
+	if got.IP != "10.0.0.9" || got.IPCidr != "10.0.0.0/24" {
+		t.Fatalf("unexpected aggregated row identity: %+v", got)
+	}
+	if got.Reason != "ping failed within 100ms" {
+		t.Fatalf("unexpected aggregated row reason: %+v", got)
+	}
+	if got.FabName != "fab-a|fab-b" {
+		t.Fatalf("unexpected merged fab_name: %s", got.FabName)
+	}
+	if got.CIDRName != "seg-a|seg-b" {
+		t.Fatalf("unexpected merged cidr_name: %s", got.CIDRName)
+	}
+	if got.ServiceLabel != "svc-a|svc-b" {
+		t.Fatalf("unexpected merged service_label: %s", got.ServiceLabel)
+	}
+	if got.Decision != "accept|deny" {
+		t.Fatalf("unexpected merged decision: %s", got.Decision)
+	}
+	if got.PolicyID != "P-1|P-2" {
+		t.Fatalf("unexpected merged policy_id: %s", got.PolicyID)
+	}
+	if got.ExecutionKey != "10.0.0.9:443/tcp|10.0.0.9:8443/tcp" {
+		t.Fatalf("unexpected merged execution_key: %s", got.ExecutionKey)
+	}
+	if got.SrcIP != "192.168.1.10|192.168.1.11" {
+		t.Fatalf("unexpected merged src_ip: %s", got.SrcIP)
+	}
+	if got.SrcNetworkSegment != "192.168.1.0/24|192.168.2.0/24" {
+		t.Fatalf("unexpected merged src_network_segment: %s", got.SrcNetworkSegment)
 	}
 }
 
@@ -232,16 +321,21 @@ func TestLoadOrBuildChunksWithPredicate_SkipsUnreachableTargetsFromChunkTotals(t
 }
 
 type fakePreScanChecker struct {
-	mu      sync.Mutex
-	called  []string
-	results map[string]ReachabilityResult
+	mu       sync.Mutex
+	called   []string
+	timeouts map[string]time.Duration
+	results  map[string]ReachabilityResult
 }
 
-func (f *fakePreScanChecker) Check(_ context.Context, ip string, _ time.Duration) ReachabilityResult {
+func (f *fakePreScanChecker) Check(_ context.Context, ip string, timeout time.Duration) ReachabilityResult {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	f.called = append(f.called, ip)
+	if f.timeouts == nil {
+		f.timeouts = make(map[string]time.Duration)
+	}
+	f.timeouts[ip] = timeout
 	if f.results == nil {
 		return ReachabilityResult{IP: ip, Reachable: true}
 	}
@@ -261,4 +355,11 @@ func (f *fakePreScanChecker) calls() []string {
 	out := append([]string(nil), f.called...)
 	sort.Strings(out)
 	return out
+}
+
+func (f *fakePreScanChecker) timeoutFor(ip string) time.Duration {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.timeouts[ip]
 }
