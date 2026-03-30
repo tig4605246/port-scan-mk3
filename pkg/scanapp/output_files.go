@@ -15,6 +15,12 @@ type batchOutputs struct {
 	openFinalPath  string
 }
 
+type unreachableOutput struct {
+	file      *os.File
+	writer    *writer.UnreachableWriter
+	finalPath string
+}
+
 func openBatchOutputs(scanPath, openPath string) (*batchOutputs, error) {
 	scanTmpPath := scanPath + ".tmp"
 	scanFile, err := os.Create(scanTmpPath)
@@ -52,6 +58,26 @@ func openBatchOutputs(scanPath, openPath string) (*batchOutputs, error) {
 	}, nil
 }
 
+func openUnreachableOutput(finalPath string) (*unreachableOutput, error) {
+	tmpPath := finalPath + ".tmp"
+	file, err := os.Create(tmpPath)
+	if err != nil {
+		return nil, err
+	}
+
+	unreachableWriter := writer.NewUnreachableWriter(file)
+	if err := unreachableWriter.WriteHeader(); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+
+	return &unreachableOutput{
+		file:      file,
+		writer:    unreachableWriter,
+		finalPath: finalPath,
+	}, nil
+}
+
 func (b *batchOutputs) Finalize(success bool) error {
 	if b == nil {
 		return nil
@@ -80,4 +106,28 @@ func (b *batchOutputs) Finalize(success bool) error {
 		}
 	}
 	return nil
+}
+
+func (u *unreachableOutput) Finalize(success bool) error {
+	if u == nil {
+		return nil
+	}
+	if u.file != nil {
+		if err := u.file.Close(); err != nil {
+			return err
+		}
+	}
+	if success {
+		if err := os.Rename(u.finalPath+".tmp", u.finalPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func openBatchOutputsAfterUnreachable(output *unreachableOutput, paths batchOutputPaths) (*batchOutputs, error) {
+	if err := output.Finalize(true); err != nil {
+		return nil, err
+	}
+	return openBatchOutputs(paths.scanPath, paths.openPath)
 }
