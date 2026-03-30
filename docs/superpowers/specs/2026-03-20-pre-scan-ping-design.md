@@ -44,6 +44,10 @@ behavior with `-disable-pre-scan-ping`.
 - Add:
   - `unreachable_results-<suffix>.csv`
 - All three files must share the same suffix so a single run can be correlated.
+- `unreachable_results-<suffix>.csv` must be fully flushed and finalized before
+  the TCP scanning phase starts.
+- TCP task planning, dispatch, and execution must not begin until unreachable
+  output is durably written for the pre-scan ping phase.
 
 ### Unreachable Output Contract
 
@@ -156,9 +160,26 @@ type ReachabilityResult struct {
 
 `RunOptions` gains an injectable checker for tests. Production uses a default
 checker that shells out to the system `ping` command with platform-specific
-arguments.
+arguments and a context deadline.
 
 This keeps the CLI thin and allows tests to avoid invoking real ICMP tooling.
+
+### Windows Compatibility
+
+The feature must work on Windows as well as Unix-like environments.
+
+Design requirements:
+
+- Keep OS-specific `ping` command construction out of `cmd/port-scan`.
+- Use a small platform adapter in `pkg/scanapp` or a closely related package.
+- Build the command with OS-specific arguments:
+  - Windows: one echo request with Windows-compatible timeout arguments
+  - Unix-like: one echo request with Unix-compatible count arguments
+- Enforce the `100ms` timeout with `context.WithTimeout` around command
+  execution so the high-level contract remains consistent even when CLI flags of
+  the underlying `ping` binary differ by platform.
+- Tests must cover command construction or injected checker behavior for
+  Windows and non-Windows code paths without requiring real ICMP access in CI.
 
 ### Pre-Scan Filtering Phase
 
@@ -171,7 +192,9 @@ Responsibilities:
 2. Run reachability checks once per unique IP using a bounded worker pool.
 3. Build an in-memory ping decision set.
 4. Write unreachable rows into the new batch output.
-5. Filter unreachable IPs out of group/runtime construction.
+5. Flush and finalize `unreachable_results-<suffix>.csv`.
+6. Filter unreachable IPs out of group/runtime construction.
+7. Start TCP runtime planning and scanning only after step 5 succeeds.
 
 The filtering applies before chunk totals are finalized so `TotalCount`,
 dashboard totals, and resume state remain aligned with actual TCP work.
@@ -179,6 +202,9 @@ dashboard totals, and resume state remain aligned with actual TCP work.
 The worker pool is required for scale. With a fixed `100ms` timeout, sequential
 ping is not acceptable when the expanded input can reach hundreds of thousands
 of unique IPv4 targets.
+
+This phase is a hard barrier. TCP scanning is a later stage, not an interleaved
+continuation of pre-ping work.
 
 ### Runtime and Group Building
 
@@ -197,11 +223,24 @@ For rich mode:
 
 ### Output Writers
 
-Extend batch output management to open and finalize a third writer alongside the
-existing scan and opened-only writers.
+Batch output path allocation must happen before pre-scan ping so all outputs can
+share the same timestamp suffix.
+
+Writer lifecycle is split into two stages:
+
+1. Pre-scan stage:
+   - open unreachable temp file
+   - write unreachable rows
+   - flush, close, and rename to final `unreachable_results-<suffix>.csv`
+2. TCP scan stage:
+   - open scan/opened temp files using the already allocated suffix
+   - run TCP scanning
+   - finalize the scan/opened outputs on successful completion
 
 The new unreachable writer should be isolated from the existing writer contract
 to avoid breaking callers that only understand scan result rows.
+
+If unreachable output finalization fails, TCP scanning must not start.
 
 ### Resume Format
 
@@ -244,6 +283,8 @@ Compatibility rules:
   tool level, abort the scan with an error.
 - If a specific IP fails the reachability check, treat that IP as unreachable
   and continue.
+- If writing or finalizing `unreachable_results-<suffix>.csv` fails, abort the
+  run before TCP planning or dispatch starts.
 - If all candidate IPs are unreachable, produce a successful run with:
   - `scan_results-*.csv` containing only the header
   - `opened_results-*.csv` containing only the header
@@ -262,6 +303,10 @@ Compatibility rules:
 - Batch output finalization renames the unreachable file with the same suffix.
 - Pre-scan reachability work is deduplicated per IP and executed with bounded
   concurrency.
+- TCP scanning does not start until unreachable output has been flushed and
+  finalized.
+- Windows and non-Windows ping command paths are both covered by tests or by an
+  injected checker abstraction.
 
 ### Integration-Level Tests
 
@@ -270,6 +315,8 @@ Compatibility rules:
 - Mixed reachable/unreachable inputs produce all three output files.
 - Resume after interruption reuses saved pre-ping decisions.
 - Disabled mode preserves the current behavior exactly.
+- Windows runs can complete the pre-scan ping stage and transition into TCP
+  scanning using the same high-level behavior contract.
 
 ## Implementation Notes
 
@@ -278,6 +325,8 @@ Compatibility rules:
   `pkg/scanapp` and supporting `pkg/` packages.
 - Prefer focused types over adding more responsibility to existing scan result
   writers.
+- Keep pre-scan output finalization as an explicit stage boundary, not an
+  incidental side effect inside the TCP scan loop.
 
 ## Open Questions Resolved
 
@@ -286,3 +335,5 @@ Compatibility rules:
 - Ping timeout is fixed at `100ms`.
 - Unreachable output uses the timestamped batch naming convention instead of a
   fixed `unreachable.csv` filename.
+- `unreachable_results` must be fully written before TCP scanning begins.
+- The implementation must support Windows.
