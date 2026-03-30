@@ -51,13 +51,17 @@ func collectChunkStates(runtimes []*chunkRuntime) []task.Chunk {
 }
 
 func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec) ([]task.Chunk, error) {
+	return loadOrBuildChunksWithPredicate(cfg, cidrRecords, portSpecs, nil)
+}
+
+func loadOrBuildChunksWithPredicate(cfg config.Config, cidrRecords []input.CIDRRecord, portSpecs []input.PortSpec, reachable func(string) bool) ([]task.Chunk, error) {
 	if cfg.Resume != "" {
 		return state.Load(cfg.Resume)
 	}
 	if hasRichRecords(cidrRecords) {
-		return buildRichChunks(cidrRecords)
+		return buildRichChunksWithPredicate(cidrRecords, reachable)
 	}
-	groups, err := buildCIDRGroups(cidrRecords)
+	groups, err := buildCIDRGroupsWithPredicate(cidrRecords, reachable)
 	if err != nil {
 		return nil, err
 	}
@@ -93,15 +97,19 @@ func loadOrBuildChunks(cfg config.Config, cidrRecords []input.CIDRRecord, portSp
 }
 
 func buildRuntime(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, policy runtimePolicy) ([]*chunkRuntime, error) {
+	return buildRuntimeWithPredicate(chunks, cidrRecords, defaultPorts, policy, nil)
+}
+
+func buildRuntimeWithPredicate(chunks []task.Chunk, cidrRecords []input.CIDRRecord, defaultPorts []input.PortSpec, policy runtimePolicy, reachable func(string) bool) ([]*chunkRuntime, error) {
 	var (
 		groups map[string]cidrGroup
 		err    error
 	)
 	richMode := hasRichRecords(cidrRecords)
 	if richMode {
-		groups, err = buildRichGroups(cidrRecords)
+		groups, err = buildRichGroupsWithPredicate(cidrRecords, reachable)
 	} else {
-		groups, err = buildCIDRGroups(cidrRecords)
+		groups, err = buildCIDRGroupsWithPredicate(cidrRecords, reachable)
 	}
 	if err != nil {
 		return nil, err
@@ -171,7 +179,11 @@ func hasRichRecords(cidrRecords []input.CIDRRecord) bool {
 }
 
 func buildRichChunks(cidrRecords []input.CIDRRecord) ([]task.Chunk, error) {
-	groups, err := buildRichGroups(cidrRecords)
+	return buildRichChunksWithPredicate(cidrRecords, nil)
+}
+
+func buildRichChunksWithPredicate(cidrRecords []input.CIDRRecord, reachable func(string) bool) ([]task.Chunk, error) {
+	groups, err := buildRichGroupsWithPredicate(cidrRecords, reachable)
 	if err != nil {
 		return nil, err
 	}
