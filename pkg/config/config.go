@@ -25,6 +25,7 @@ type Config struct {
 	PressureClientID     string
 	PressureClientSecret string
 	PressureUseAuth      bool
+	DisablePreScanPing   bool
 	Resume               string
 	LogLevel             string
 	Format               string
@@ -54,6 +55,7 @@ func Parse(args []string) (Config, error) {
 	fs.StringVar(&cfg.PressureClientID, "pressure-client-id", "", "pressure API client ID")
 	fs.StringVar(&cfg.PressureClientSecret, "pressure-client-secret", "", "pressure API client secret")
 	fs.BoolVar(&cfg.PressureUseAuth, "pressure-use-auth", false, "use authenticated pressure fetcher")
+	fs.BoolVar(&cfg.DisablePreScanPing, "disable-pre-scan-ping", false, "disable pre-scan ping")
 	fs.StringVar(&cfg.Resume, "resume", "", "resume state file")
 	fs.StringVar(&cfg.LogLevel, "log-level", "info", "debug|info|error")
 	fs.StringVar(&cfg.Format, "format", "human", "human|json")
