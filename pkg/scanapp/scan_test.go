@@ -339,14 +339,14 @@ func TestRun_WhenPreScanPingFindsUnreachable_FinalizesUnreachableOutputBeforeFir
 	}
 }
 
-func TestRun_WhenResumeSnapshotContainsPreScanState_ReusesCheckerWithoutCallingIt(t *testing.T) {
+func TestRun_WhenResumeSnapshotContainsPreScanState_ReusesCheckerAndBlocksSavedUnreachableIPs(t *testing.T) {
 	tmp := t.TempDir()
 	cidrFile := filepath.Join(tmp, "cidr.csv")
 	portFile := filepath.Join(tmp, "ports.csv")
 	outFile := filepath.Join(tmp, "out.csv")
 	resumeFile := filepath.Join(tmp, "resume.json")
 
-	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,10.0.0.1,10.0.0.1/32,blocked\nfab2,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(portFile, []byte("1/tcp\n"), 0o644); err != nil {
@@ -361,8 +361,9 @@ func TestRun_WhenResumeSnapshotContainsPreScanState_ReusesCheckerWithoutCallingI
 			Status:     "pending",
 		}},
 		PreScanPing: state.PreScanPingState{
-			Enabled:   true,
-			TimeoutMS: 100,
+			Enabled:            true,
+			TimeoutMS:          100,
+			UnreachableIPv4U32: []uint32{ipv4ToUint32("10.0.0.1")},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -393,6 +394,102 @@ func TestRun_WhenResumeSnapshotContainsPreScanState_ReusesCheckerWithoutCallingI
 	}
 	if calls := checker.calls(); len(calls) != 0 {
 		t.Fatalf("expected saved pre-scan state to skip checker, got %v", calls)
+	}
+
+	unreachablePath := mustFindOne(t, filepath.Join(tmp, "unreachable_results-*.csv"))
+	unreachableData, err := os.ReadFile(unreachablePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(unreachableData), "10.0.0.1,10.0.0.1/32,unreachable") {
+		t.Fatalf("expected saved unreachable ip to be written, got %s", string(unreachableData))
+	}
+
+	scanPath := mustFindOne(t, filepath.Join(tmp, "scan_results-*.csv"))
+	scanData, err := os.ReadFile(scanPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(scanData), "10.0.0.1") {
+		t.Fatalf("did not expect saved unreachable ip in scan output, got %s", string(scanData))
+	}
+	if !strings.Contains(string(scanData), "127.0.0.1,127.0.0.1/32,1,close") {
+		t.Fatalf("expected reachable resume chunk to scan, got %s", string(scanData))
+	}
+}
+
+func TestRun_WhenLegacyResumeAndCurrentPreScanFiltersUnreachable_SucceedsWithoutChunkMismatch(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "out.csv")
+	resumeFile := filepath.Join(tmp, "resume.json")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.0/30,127.0.0.0/30,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.Save(resumeFile, []task.Chunk{{
+		CIDR:         "127.0.0.0/30",
+		CIDRName:     "loopback",
+		Ports:        []string{"1/tcp"},
+		NextIndex:    1,
+		ScannedCount: 1,
+		TotalCount:   4,
+		Status:       "scanning",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	checker := &fakeRunReachabilityChecker{
+		results: map[string]ReachabilityResult{
+			"127.0.0.1": {IP: "127.0.0.1", Reachable: false},
+		},
+	}
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          20 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		Resume:           resumeFile,
+		LogLevel:         "error",
+	}
+
+	if err := Run(context.Background(), cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
+		Dial:                func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("forced dial failure") },
+		DisableKeyboard:     true,
+		ReachabilityChecker: checker,
+	}); err != nil {
+		t.Fatalf("expected legacy resume to continue without chunk mismatch, got %v", err)
+	}
+
+	scanPath := mustFindOne(t, filepath.Join(tmp, "scan_results-*.csv"))
+	scanData, err := os.ReadFile(scanPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(scanData), "127.0.0.1") {
+		t.Fatalf("did not expect filtered unreachable ip in scan output, got %s", string(scanData))
+	}
+	if lineCount(string(scanData)) != 4 {
+		t.Fatalf("expected header plus three scanned rows after filtering, got %s", string(scanData))
+	}
+
+	unreachablePath := mustFindOne(t, filepath.Join(tmp, "unreachable_results-*.csv"))
+	unreachableData, err := os.ReadFile(unreachablePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(unreachableData), "127.0.0.1,127.0.0.0/30,unreachable") {
+		t.Fatalf("expected unreachable row for filtered legacy resume ip, got %s", string(unreachableData))
 	}
 }
 

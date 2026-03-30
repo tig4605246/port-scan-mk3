@@ -44,15 +44,22 @@ func prepareRunPlan(cfg config.Config, inputs runInputs, deps runDependencies, n
 		return runPlan{}, err
 	}
 
-	plan, err := prepareRuntimePlan(cfg, inputs, deps, nil, nil, false)
+	chunks, err := deps.loadOrBuildRuntimeChunks(cfg, inputs.cidrRecords, inputs.portSpecs)
+	if err != nil {
+		return runPlan{}, err
+	}
+	runtimes, err := deps.buildChunkRuntime(chunks, inputs.cidrRecords, inputs.portSpecs, runtimePolicyFromConfig(cfg))
 	if err != nil {
 		return runPlan{}, err
 	}
 
-	plan.outputPaths = outputPaths
-	plan.scanOutputPath = outputPaths.scanPath
-	plan.openOnlyPath = outputPaths.openPath
-	return plan, nil
+	return runPlan{
+		chunks:         chunks,
+		runtimes:       runtimes,
+		outputPaths:    outputPaths,
+		scanOutputPath: outputPaths.scanPath,
+		openOnlyPath:   outputPaths.openPath,
+	}, nil
 }
 
 func resolveRunOutputPaths(cfg config.Config, deps runDependencies, now time.Time) (batchOutputPaths, error) {
@@ -80,10 +87,12 @@ func resolveRuntimeChunks(cfg config.Config, inputs runInputs, deps runDependenc
 	if useResumeChunks {
 		return append([]task.Chunk(nil), resumeChunks...), nil
 	}
+	buildCfg := cfg
+	buildCfg.Resume = ""
 	if reachable != nil && deps.loadOrBuildFilteredChunks != nil {
-		return deps.loadOrBuildFilteredChunks(cfg, inputs.cidrRecords, inputs.portSpecs, reachable)
+		return deps.loadOrBuildFilteredChunks(buildCfg, inputs.cidrRecords, inputs.portSpecs, reachable)
 	}
-	return deps.loadOrBuildRuntimeChunks(cfg, inputs.cidrRecords, inputs.portSpecs)
+	return deps.loadOrBuildRuntimeChunks(buildCfg, inputs.cidrRecords, inputs.portSpecs)
 }
 
 func buildRuntimePlanRuntimes(cfg config.Config, inputs runInputs, deps runDependencies, chunks []task.Chunk, reachable func(string) bool) ([]*chunkRuntime, error) {
