@@ -1,8 +1,10 @@
 package state
 
 import (
+	"os"
 	"reflect"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
@@ -23,6 +25,24 @@ func TestSaveAndLoad_WhenStatePersisted_RestoresChunkFields(t *testing.T) {
 	}
 	if got[0].NextIndex != 2 {
 		t.Fatalf("next index mismatch: %d", got[0].NextIndex)
+	}
+}
+
+func TestSave_WhenPreScanPingAbsent_OmitsFieldFromJSON(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "resume_state.json")
+
+	chunks := []task.Chunk{{CIDR: "10.0.0.0/30", NextIndex: 2, TotalCount: 8, Status: "scanning"}}
+	if err := Save(file, chunks); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if strings.Contains(string(data), `"pre_scan_ping"`) {
+		t.Fatalf("unexpected pre_scan_ping in JSON: %s", data)
 	}
 }
 

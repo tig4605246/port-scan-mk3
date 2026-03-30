@@ -1,26 +1,45 @@
 package state
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"os"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/task"
 )
 
+// PreScanPingState stores the pre-scan ping metadata persisted in resume state.
 type PreScanPingState struct {
 	Enabled            bool     `json:"enabled"`
 	TimeoutMS          int      `json:"timeout_ms"`
 	UnreachableIPv4U32 []uint32 `json:"unreachable_ipv4_u32,omitempty"`
 }
 
+// Snapshot is the current resume envelope persisted by the state package.
 type Snapshot struct {
 	Chunks      []task.Chunk     `json:"chunks"`
 	PreScanPing PreScanPingState `json:"pre_scan_ping,omitempty"`
 }
 
+type snapshotEnvelope struct {
+	Chunks      *[]task.Chunk     `json:"chunks"`
+	PreScanPing *PreScanPingState `json:"pre_scan_ping,omitempty"`
+}
+
 // SaveSnapshot writes resume state as the current JSON envelope.
 func SaveSnapshot(path string, snap Snapshot) error {
-	data, err := json.MarshalIndent(snap, "", "  ")
+	env := snapshotEnvelope{
+		Chunks: &snap.Chunks,
+	}
+	if hasPreScanPingState(snap.PreScanPing) {
+		preScanPing := snap.PreScanPing
+		env.PreScanPing = &preScanPing
+	}
+
+	data, err := json.MarshalIndent(env, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -34,16 +53,53 @@ func LoadSnapshot(path string) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 
-	var snap Snapshot
-	if err := json.Unmarshal(data, &snap); err == nil {
-		return snap, nil
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return Snapshot{}, errors.New("unexpected end of JSON input")
 	}
 
-	var chunks []task.Chunk
-	if err := json.Unmarshal(data, &chunks); err != nil {
-		return Snapshot{}, err
+	switch trimmed[0] {
+	case '[':
+		var chunks []task.Chunk
+		if err := decodeStrictJSON(trimmed, &chunks); err != nil {
+			return Snapshot{}, err
+		}
+		return Snapshot{Chunks: chunks}, nil
+	case '{':
+		var env snapshotEnvelope
+		if err := decodeStrictJSON(trimmed, &env); err != nil {
+			return Snapshot{}, err
+		}
+		if env.Chunks == nil {
+			return Snapshot{}, errors.New("resume snapshot missing required chunks field")
+		}
+		snap := Snapshot{Chunks: *env.Chunks}
+		if env.PreScanPing != nil {
+			snap.PreScanPing = *env.PreScanPing
+		}
+		return snap, nil
+	default:
+		return Snapshot{}, fmt.Errorf("invalid resume snapshot root token %q", trimmed[0])
 	}
-	return Snapshot{Chunks: chunks}, nil
+}
+
+func hasPreScanPingState(state PreScanPingState) bool {
+	return state.Enabled || state.TimeoutMS != 0 || len(state.UnreachableIPv4U32) > 0
+}
+
+func decodeStrictJSON(data []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return errors.New("unexpected trailing JSON content")
+		}
+		return err
+	}
+	return nil
 }
 
 // Save writes chunk resume state as JSON.

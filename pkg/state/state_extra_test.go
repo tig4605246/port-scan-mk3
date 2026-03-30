@@ -41,6 +41,39 @@ func TestLoadSnapshot_WhenLegacyChunkArrayProvided_PreservesCompatibility(t *tes
 	}
 }
 
+func TestLoadSnapshot_WhenObjectEnvelopeMissingChunks_ReturnsError(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "missing_chunks.json")
+	if err := os.WriteFile(file, []byte(`{"pre_scan_ping":{"enabled":true,"timeout_ms":100}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadSnapshot(file); err == nil {
+		t.Fatal("expected missing chunks error")
+	}
+}
+
+func TestLoadSnapshot_WhenObjectEnvelopeHasUnknownField_ReturnsError(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "unknown_field.json")
+	if err := os.WriteFile(file, []byte(`{"chunks":[],"unexpected":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := LoadSnapshot(file); err == nil {
+		t.Fatal("expected unknown field error")
+	}
+}
+
+func TestLoad_WhenObjectEnvelopeHasWrongSchema_ReturnsError(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "wrong_schema.json")
+	if err := os.WriteFile(file, []byte(`{"chunks":{}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Load(file); err == nil {
+		t.Fatal("expected schema error")
+	}
+}
+
 func TestWithSIGINTCancel_WhenCancelInvoked_CancelsContext(t *testing.T) {
 	ctx, cancel := WithSIGINTCancel(context.Background())
 	cancel()
