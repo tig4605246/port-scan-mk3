@@ -168,13 +168,17 @@ Insert a new phase in `scanapp.Run()` after `loadRunInputs()` and before
 Responsibilities:
 
 1. Extract unique target IPs from loaded records.
-2. Run reachability checks once per unique IP.
-3. Build an in-memory ping decision map.
+2. Run reachability checks once per unique IP using a bounded worker pool.
+3. Build an in-memory ping decision set.
 4. Write unreachable rows into the new batch output.
 5. Filter unreachable IPs out of group/runtime construction.
 
 The filtering applies before chunk totals are finalized so `TotalCount`,
 dashboard totals, and resume state remain aligned with actual TCP work.
+
+The worker pool is required for scale. With a fixed `100ms` timeout, sequential
+ping is not acceptable when the expanded input can reach hundreds of thousands
+of unique IPv4 targets.
 
 ### Runtime and Group Building
 
@@ -212,10 +216,18 @@ Introduce a backward-compatible state envelope:
   "pre_scan_ping": {
     "enabled": true,
     "timeout_ms": 100,
-    "unreachable_ips": ["10.0.0.7"]
+    "unreachable_ipv4_u32": [167772167]
   }
 }
 ```
+
+Representation rules:
+
+- `unreachable_ipv4_u32` stores IPv4 addresses as unsigned 32-bit integers in
+  ascending order.
+- Resume-time membership checks should use binary search over the sorted slice.
+- The implementation should avoid rebuilding a `map[string]struct{}` unless a
+  later benchmark proves it is necessary.
 
 Compatibility rules:
 
@@ -223,6 +235,8 @@ Compatibility rules:
 - New resume files persist both chunk state and pre-ping decisions.
 - Resume runs must reuse the saved unreachable IP list instead of re-running
   ping and potentially changing the task graph mid-resume.
+- The saved format is optimized for large IPv4 sets and is expected to remain
+  practical when expanded input size approaches `300,000` unique IPs.
 
 ## Error Handling
 
@@ -244,7 +258,10 @@ Compatibility rules:
 - Pre-scan filtering removes unreachable IPs before runtime totals are built.
 - Rich-mode metadata is merged correctly in unreachable output.
 - Resume save/load supports both legacy chunk arrays and the new envelope.
+- Resume save/load preserves sorted `unreachable_ipv4_u32` data.
 - Batch output finalization renames the unreachable file with the same suffix.
+- Pre-scan reachability work is deduplicated per IP and executed with bounded
+  concurrency.
 
 ### Integration-Level Tests
 
