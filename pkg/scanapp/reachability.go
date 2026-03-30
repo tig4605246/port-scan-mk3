@@ -20,6 +20,10 @@ type ReachabilityChecker interface {
 	Check(ctx context.Context, ip string, timeout time.Duration) ReachabilityResult
 }
 
+type detailedReachabilityChecker interface {
+	CheckDetailed(ctx context.Context, ip string, timeout time.Duration) (ReachabilityResult, error)
+}
+
 type commandReachabilityChecker struct {
 	goos   string
 	runner commandRunner
@@ -36,16 +40,22 @@ func (execCommandRunner) Run(ctx context.Context, name string, args ...string) e
 }
 
 func (c *commandReachabilityChecker) Check(ctx context.Context, ip string, timeout time.Duration) ReachabilityResult {
+	result, _ := c.CheckDetailed(ctx, ip, timeout)
+	return result
+}
+
+func (c *commandReachabilityChecker) CheckDetailed(ctx context.Context, ip string, timeout time.Duration) (ReachabilityResult, error) {
 	result := ReachabilityResult{IP: ip}
 	if strings.TrimSpace(ip) == "" {
-		result.FailureText = "ip is required"
-		return result
+		err := errors.New("ip is required")
+		result.FailureText = err.Error()
+		return result, err
 	}
 
 	name, args, err := buildPingCommand(c.goos, ip, timeout)
 	if err != nil {
 		result.FailureText = err.Error()
-		return result
+		return result, err
 	}
 
 	runner := c.runner
@@ -57,16 +67,30 @@ func (c *commandReachabilityChecker) Check(ctx context.Context, ip string, timeo
 	defer cancel()
 
 	if err := runner.Run(runCtx, name, args...); err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			result.FailureText = err.Error()
-			return result
-		}
 		result.FailureText = err.Error()
-		return result
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return result, ctxErr
+		}
+
+		var exitErr *exec.ExitError
+		if errors.Is(err, context.DeadlineExceeded) || errors.As(err, &exitErr) {
+			return result, nil
+		}
+		return result, err
 	}
 
 	result.Reachable = true
-	return result
+	return result, nil
+}
+
+func checkReachability(ctx context.Context, checker ReachabilityChecker, ip string, timeout time.Duration) (ReachabilityResult, error) {
+	if checker == nil {
+		return ReachabilityResult{IP: ip}, errors.New("reachability checker is required")
+	}
+	if detailed, ok := checker.(detailedReachabilityChecker); ok {
+		return detailed.CheckDetailed(ctx, ip, timeout)
+	}
+	return checker.Check(ctx, ip, timeout), nil
 }
 
 func buildPingCommand(goos, ip string, timeout time.Duration) (string, []string, error) {

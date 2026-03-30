@@ -76,6 +76,9 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 	if err != nil {
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := finalizeUnreachableResults(outputPaths.unreachablePath, preScan.UnreachableRows); err != nil {
 		return err
 	}

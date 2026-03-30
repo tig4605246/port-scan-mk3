@@ -32,11 +32,17 @@ func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, ch
 	if cfg.DisablePreScanPing {
 		return preScanOutcome{}, nil
 	}
+	if err := ctx.Err(); err != nil {
+		return preScanOutcome{}, err
+	}
 
 	if hasSavedPreScanPingState(saved) {
 		unreachable := sortedUniqueIPv4U32(saved.UnreachableIPv4U32)
 		rows, err := collectUnreachableRows(inputs, reachablePredicate(unreachable))
 		if err != nil {
+			return preScanOutcome{}, err
+		}
+		if err := ctx.Err(); err != nil {
 			return preScanOutcome{}, err
 		}
 		return preScanOutcome{
@@ -58,9 +64,15 @@ func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, ch
 	if err != nil {
 		return preScanOutcome{}, err
 	}
+	if err := ctx.Err(); err != nil {
+		return preScanOutcome{}, err
+	}
 
 	rows, err := collectUnreachableRows(inputs, reachablePredicate(unreachable))
 	if err != nil {
+		return preScanOutcome{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return preScanOutcome{}, err
 	}
 
@@ -145,35 +157,85 @@ func runReachabilityChecks(ctx context.Context, checker ReachabilityChecker, ips
 		workers = len(ips)
 	}
 
+	type workerResult struct {
+		ipv4        uint32
+		unreachable bool
+		err         error
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	jobs := make(chan string)
-	results := make(chan uint32, len(ips))
+	results := make(chan workerResult, len(ips))
 
 	var wg sync.WaitGroup
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for ip := range jobs {
-				result := checker.Check(ctx, ip, preScanPingTimeout)
-				if !result.Reachable {
-					results <- ipv4ToUint32(ip)
+			for {
+				select {
+				case <-runCtx.Done():
+					return
+				case ip, ok := <-jobs:
+					if !ok {
+						return
+					}
+
+					result, err := checkReachability(runCtx, checker, ip, preScanPingTimeout)
+					if err != nil {
+						select {
+						case results <- workerResult{err: err}:
+						case <-runCtx.Done():
+						}
+						cancel()
+						return
+					}
+					if !result.Reachable {
+						select {
+						case results <- workerResult{ipv4: ipv4ToUint32(ip), unreachable: true}:
+						case <-runCtx.Done():
+							return
+						}
+					}
 				}
 			}
 		}()
 	}
 
 	go func() {
+		defer close(jobs)
 		for _, ip := range ips {
-			jobs <- ip
+			select {
+			case <-runCtx.Done():
+				return
+			case jobs <- ip:
+			}
 		}
-		close(jobs)
+	}()
+
+	go func() {
 		wg.Wait()
 		close(results)
 	}()
 
 	unreachable := make([]uint32, 0, len(ips))
-	for ipv4 := range results {
-		unreachable = append(unreachable, ipv4)
+	var fatalErr error
+	for result := range results {
+		if result.err != nil && fatalErr == nil {
+			fatalErr = result.err
+			continue
+		}
+		if result.unreachable {
+			unreachable = append(unreachable, result.ipv4)
+		}
+	}
+	if fatalErr != nil {
+		return nil, fatalErr
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	sort.Slice(unreachable, func(i, j int) bool { return unreachable[i] < unreachable[j] })
 	return unreachable, nil

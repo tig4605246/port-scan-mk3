@@ -2,6 +2,7 @@ package scanapp
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"testing"
@@ -121,6 +122,36 @@ func TestPreScanPing_Run_ReusesSavedUnreachableStateWithoutCallingChecker(t *tes
 	}
 }
 
+func TestPreScanPing_Run_WithSavedStateAndCanceledContext_Aborts(t *testing.T) {
+	checker := &fakePreScanChecker{}
+	saved := state.PreScanPingState{
+		Enabled:            true,
+		TimeoutMS:          100,
+		UnreachableIPv4U32: []uint32{ipv4ToUint32("10.0.0.3")},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	outcome, err := runPreScanPing(ctx, runInputs{
+		cidrRecords: []input.CIDRRecord{
+			{CIDR: "10.0.0.0/24", Selector: mustSelectorNet(t, "10.0.0.3/32"), FabName: "fab-a", CIDRName: "cidr-a"},
+		},
+		portSpecs: []input.PortSpec{{Number: 80, Proto: "tcp", Raw: "80/tcp"}},
+	}, config.Config{
+		Timeout: 100 * time.Millisecond,
+		Workers: 1,
+	}, checker, batchOutputPaths{}, saved)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled context error, got %v", err)
+	}
+	if len(checker.calls()) != 0 {
+		t.Fatalf("expected saved-state cancel to skip checker, got %v", checker.calls())
+	}
+	if outcome.State.Enabled || len(outcome.UnreachableIPv4U32) != 0 || len(outcome.UnreachableRows) != 0 {
+		t.Fatalf("expected empty outcome on canceled saved-state pre-scan, got %+v", outcome)
+	}
+}
+
 func TestPreScanPing_Run_RichRowsAggregateToSingleUnreachableRowWithDistinctMergedMetadata(t *testing.T) {
 	checker := &fakePreScanChecker{
 		results: map[string]ReachabilityResult{
@@ -204,6 +235,46 @@ func TestPreScanPing_Run_RichRowsAggregateToSingleUnreachableRowWithDistinctMerg
 	}
 	if got.SrcNetworkSegment != "192.168.1.0/24|192.168.2.0/24" {
 		t.Fatalf("unexpected merged src_network_segment: %s", got.SrcNetworkSegment)
+	}
+}
+
+func TestPreScanPing_Run_FailsOnToolLevelCheckerError(t *testing.T) {
+	checker := &fakePreScanChecker{
+		detailedErrs: map[string]error{
+			"10.0.0.1": errors.New("ping binary missing"),
+		},
+	}
+
+	outcome, err := runPreScanPing(context.Background(), runInputs{
+		cidrRecords: []input.CIDRRecord{
+			{CIDR: "10.0.0.0/24", Selector: mustSelectorNet(t, "10.0.0.1/32"), FabName: "fab-a", CIDRName: "cidr-a"},
+		},
+		portSpecs: []input.PortSpec{{Number: 80, Proto: "tcp", Raw: "80/tcp"}},
+	}, config.Config{
+		Timeout: 250 * time.Millisecond,
+		Workers: 1,
+	}, checker, batchOutputPaths{}, state.PreScanPingState{})
+	if err == nil {
+		t.Fatal("expected tool-level checker failure")
+	}
+	if outcome.State.Enabled || len(outcome.UnreachableIPv4U32) != 0 || len(outcome.UnreachableRows) != 0 {
+		t.Fatalf("expected empty outcome on fatal checker failure, got %+v", outcome)
+	}
+}
+
+func TestRunReachabilityChecks_FailsFastOnFatalCheckerError(t *testing.T) {
+	checker := &fakePreScanChecker{
+		detailedErrs: map[string]error{
+			"10.0.0.1": errors.New("ping binary missing"),
+		},
+	}
+
+	_, err := runReachabilityChecks(context.Background(), checker, []string{"10.0.0.1", "10.0.0.2"}, 1)
+	if err == nil {
+		t.Fatal("expected fatal checker error")
+	}
+	if calls := checker.calls(); len(calls) != 1 || calls[0] != "10.0.0.1" {
+		t.Fatalf("expected fail-fast to stop after first ip, got %v", calls)
 	}
 }
 
@@ -365,31 +436,30 @@ func TestLoadOrBuildChunksWithPredicate_SkipsUnreachableTargetsFromChunkTotals(t
 }
 
 type fakePreScanChecker struct {
-	mu       sync.Mutex
-	called   []string
-	timeouts map[string]time.Duration
-	results  map[string]ReachabilityResult
+	mu           sync.Mutex
+	called       []string
+	timeouts     map[string]time.Duration
+	results      map[string]ReachabilityResult
+	detailedErrs map[string]error
 }
 
 func (f *fakePreScanChecker) Check(_ context.Context, ip string, timeout time.Duration) ReachabilityResult {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.called = append(f.called, ip)
-	if f.timeouts == nil {
-		f.timeouts = make(map[string]time.Duration)
+	return f.recordLocked(ip, timeout)
+}
+
+func (f *fakePreScanChecker) CheckDetailed(_ context.Context, ip string, timeout time.Duration) (ReachabilityResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	result := f.recordLocked(ip, timeout)
+	if err := f.detailedErrs[ip]; err != nil {
+		result.FailureText = err.Error()
+		return result, err
 	}
-	f.timeouts[ip] = timeout
-	if f.results == nil {
-		return ReachabilityResult{IP: ip, Reachable: true}
-	}
-	if result, ok := f.results[ip]; ok {
-		if result.IP == "" {
-			result.IP = ip
-		}
-		return result
-	}
-	return ReachabilityResult{IP: ip, Reachable: true}
+	return result, nil
 }
 
 func (f *fakePreScanChecker) calls() []string {
@@ -406,4 +476,22 @@ func (f *fakePreScanChecker) timeoutFor(ip string) time.Duration {
 	defer f.mu.Unlock()
 
 	return f.timeouts[ip]
+}
+
+func (f *fakePreScanChecker) recordLocked(ip string, timeout time.Duration) ReachabilityResult {
+	f.called = append(f.called, ip)
+	if f.timeouts == nil {
+		f.timeouts = make(map[string]time.Duration)
+	}
+	f.timeouts[ip] = timeout
+	if f.results == nil {
+		return ReachabilityResult{IP: ip, Reachable: true}
+	}
+	if result, ok := f.results[ip]; ok {
+		if result.IP == "" {
+			result.IP = ip
+		}
+		return result
+	}
+	return ReachabilityResult{IP: ip, Reachable: true}
 }

@@ -31,21 +31,36 @@ type lockedBuffer struct {
 }
 
 type fakeRunReachabilityChecker struct {
-	mu      sync.Mutex
-	results map[string]ReachabilityResult
-	called  []string
+	mu             sync.Mutex
+	results        map[string]ReachabilityResult
+	called         []string
+	detailedErrs   map[string]error
+	waitForContext map[string]bool
 }
 
 func (f *fakeRunReachabilityChecker) Check(_ context.Context, ip string, _ time.Duration) ReachabilityResult {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.called = append(f.called, ip)
-	if f.results != nil {
-		if result, ok := f.results[ip]; ok {
-			return result
-		}
+	return f.recordLocked(ip)
+}
+
+func (f *fakeRunReachabilityChecker) CheckDetailed(ctx context.Context, ip string, _ time.Duration) (ReachabilityResult, error) {
+	f.mu.Lock()
+	result := f.recordLocked(ip)
+	wait := f.waitForContext[ip]
+	err := f.detailedErrs[ip]
+	f.mu.Unlock()
+
+	if wait {
+		<-ctx.Done()
+		result.FailureText = ctx.Err().Error()
+		return result, ctx.Err()
 	}
-	return ReachabilityResult{IP: ip, Reachable: true}
+	if err != nil {
+		result.FailureText = err.Error()
+		return result, err
+	}
+	return result, nil
 }
 
 func (f *fakeRunReachabilityChecker) calls() []string {
@@ -54,6 +69,16 @@ func (f *fakeRunReachabilityChecker) calls() []string {
 	out := append([]string(nil), f.called...)
 	sort.Strings(out)
 	return out
+}
+
+func (f *fakeRunReachabilityChecker) recordLocked(ip string) ReachabilityResult {
+	f.called = append(f.called, ip)
+	if f.results != nil {
+		if result, ok := f.results[ip]; ok {
+			return result
+		}
+	}
+	return ReachabilityResult{IP: ip, Reachable: true}
 }
 
 func (l *lockedBuffer) Write(p []byte) (int, error) {
@@ -418,6 +443,85 @@ func TestRun_WhenResumeSnapshotContainsPreScanState_ReusesCheckerAndBlocksSavedU
 	}
 }
 
+func TestRun_WhenResumeSnapshotPreScanStateAndContextCanceled_AbortsWithoutWritingOutputs(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "out.csv")
+	resumeFile := filepath.Join(tmp, "resume.json")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,10.0.0.1,10.0.0.1/32,blocked\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := state.SaveSnapshot(resumeFile, state.Snapshot{
+		Chunks: []task.Chunk{{
+			CIDR:       "10.0.0.1/32",
+			CIDRName:   "blocked",
+			Ports:      []string{"1/tcp"},
+			TotalCount: 1,
+			Status:     "pending",
+		}},
+		PreScanPing: state.PreScanPingState{
+			Enabled:            true,
+			TimeoutMS:          100,
+			UnreachableIPv4U32: []uint32{ipv4ToUint32("10.0.0.1")},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	dialCount := 0
+	checker := &fakeRunReachabilityChecker{}
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          20 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		Resume:           resumeFile,
+		LogLevel:         "error",
+	}
+
+	err := Run(ctx, cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			dialCount++
+			return nil, errors.New("unexpected dial")
+		},
+		DisableKeyboard:     true,
+		ReachabilityChecker: checker,
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context canceled error, got %v", err)
+	}
+	if dialCount != 0 {
+		t.Fatalf("expected canceled saved pre-scan to skip tcp dials, got %d", dialCount)
+	}
+	if calls := checker.calls(); len(calls) != 0 {
+		t.Fatalf("expected saved pre-scan state to skip checker even on cancel, got %v", calls)
+	}
+	if matches, globErr := filepath.Glob(filepath.Join(tmp, "unreachable_results-*.csv")); globErr != nil {
+		t.Fatalf("unexpected glob error: %v", globErr)
+	} else if len(matches) != 0 {
+		t.Fatalf("expected no finalized unreachable output on canceled saved pre-scan, got %v", matches)
+	}
+	if matches, globErr := filepath.Glob(filepath.Join(tmp, "scan_results-*.csv")); globErr != nil {
+		t.Fatalf("unexpected glob error: %v", globErr)
+	} else if len(matches) != 0 {
+		t.Fatalf("expected no finalized scan output on canceled saved pre-scan, got %v", matches)
+	}
+}
+
 func TestRun_WhenLegacyResumeAndCurrentPreScanFiltersUnreachable_SucceedsWithoutChunkMismatch(t *testing.T) {
 	tmp := t.TempDir()
 	cidrFile := filepath.Join(tmp, "cidr.csv")
@@ -554,6 +658,67 @@ func TestRun_WhenPreScanPingDisabled_SkipsCheckerAndDoesNotFilterTargets(t *test
 	}
 	if !strings.Contains(string(scanData), "10.0.0.1,10.0.0.1/32,1,close") {
 		t.Fatalf("expected target to remain in scan output when pre-scan disabled, got %s", string(scanData))
+	}
+}
+
+func TestRun_WhenPreScanPingContextCanceled_AbortsWithoutWritingFakeUnreachableResults(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "out.csv")
+
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,10.0.0.1,10.0.0.1/32,blocked\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	checker := &fakeRunReachabilityChecker{
+		waitForContext: map[string]bool{
+			"10.0.0.1": true,
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+	}()
+
+	dialCount := 0
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          20 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "error",
+	}
+
+	err := Run(ctx, cfg, &bytes.Buffer{}, &bytes.Buffer{}, RunOptions{
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			dialCount++
+			return nil, errors.New("unexpected dial")
+		},
+		DisableKeyboard:     true,
+		ReachabilityChecker: checker,
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context canceled error, got %v", err)
+	}
+	if dialCount != 0 {
+		t.Fatalf("expected canceled pre-scan to skip tcp dials, got %d", dialCount)
+	}
+	if matches, globErr := filepath.Glob(filepath.Join(tmp, "unreachable_results-*.csv")); globErr != nil {
+		t.Fatalf("unexpected glob error: %v", globErr)
+	} else if len(matches) != 0 {
+		t.Fatalf("expected no finalized unreachable output on canceled pre-scan, got %v", matches)
 	}
 }
 

@@ -3,6 +3,7 @@ package scanapp
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"reflect"
 	"testing"
 	"time"
@@ -108,6 +109,64 @@ func TestCommandReachabilityChecker_MarksUnreachableOnDeadlineOrExitError(t *tes
 			t.Fatalf("unexpected failure text: %q", got.FailureText)
 		}
 	})
+}
+
+func TestCommandReachabilityChecker_CheckDetailed_ReturnsFatalErrorOnToolLevelFailure(t *testing.T) {
+	execErr := &exec.Error{Name: "ping", Err: exec.ErrNotFound}
+	runner := &fakeReachabilityRunner{runErr: execErr}
+	checker := &commandReachabilityChecker{goos: "linux", runner: runner}
+
+	got, err := checker.CheckDetailed(context.Background(), "10.0.0.7", 200*time.Millisecond)
+
+	if !errors.As(err, &execErr) {
+		t.Fatalf("expected exec error, got %v", err)
+	}
+	if got.Reachable {
+		t.Fatalf("expected tool-level failure to stay unreachable, got %#v", got)
+	}
+	if got.FailureText != execErr.Error() {
+		t.Fatalf("unexpected failure text: %q", got.FailureText)
+	}
+}
+
+func TestCommandReachabilityChecker_CheckDetailed_ReturnsFatalErrorOnParentContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	runner := &fakeReachabilityRunner{waitForContext: true}
+	checker := &commandReachabilityChecker{goos: "linux", runner: runner}
+
+	got, err := checker.CheckDetailed(ctx, "10.0.0.7", 200*time.Millisecond)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context canceled error, got %v", err)
+	}
+	if got.Reachable {
+		t.Fatalf("expected canceled check to remain unreachable, got %#v", got)
+	}
+	if got.FailureText != context.Canceled.Error() {
+		t.Fatalf("unexpected failure text: %q", got.FailureText)
+	}
+}
+
+func TestCommandReachabilityChecker_CheckDetailed_TreatsPerIPTimeoutAsUnreachable(t *testing.T) {
+	runner := &fakeReachabilityRunner{waitForContext: true}
+	checker := &commandReachabilityChecker{goos: "linux", runner: runner}
+
+	got, err := checker.CheckDetailed(context.Background(), "10.0.0.7", 10*time.Millisecond)
+
+	if err != nil {
+		t.Fatalf("expected per-ip timeout to stay non-fatal, got %v", err)
+	}
+	if got.Reachable {
+		t.Fatalf("expected unreachable result, got %#v", got)
+	}
+	if got.FailureText == "" {
+		t.Fatalf("expected timeout failure text, got %#v", got)
+	}
+	if !errors.Is(runner.observedCtx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("expected deadline exceeded context, got %v", runner.observedCtx.Err())
+	}
 }
 
 type fakeReachabilityRunner struct {
