@@ -511,7 +511,7 @@ func TestStartManualPauseMonitor_WhenManualPauseChanges_LogsStateTransitions(t *
 	time.Sleep(50 * time.Millisecond)
 
 	logs := out.String()
-	if !strings.Contains(logs, "掃描已手動暫停") || !strings.Contains(logs, "掃描已手動恢復") {
+	if !strings.Contains(logs, "scan manually paused") || !strings.Contains(logs, "scan manually resumed") {
 		t.Fatalf("expected manual pause/resume logs, got: %s", logs)
 	}
 }
