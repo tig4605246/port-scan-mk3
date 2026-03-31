@@ -24,9 +24,9 @@ func startManualPauseMonitor(ctx context.Context, ctrl *speedctrl.Controller, lo
 				curr := ctrl.ManualPaused()
 				if curr != prev {
 					if curr {
-						logger.infof("[Manual] 接收到按鍵指令，掃描已手動暫停")
+						logger.infof("[Manual] received keyboard command — scan manually paused")
 					} else {
-						logger.infof("[Manual] 掃描已手動恢復")
+						logger.infof("[Manual] scan manually resumed")
 					}
 					prev = curr
 				}
