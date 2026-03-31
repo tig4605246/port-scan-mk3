@@ -24,7 +24,9 @@ func ScanTCP(dial func(context.Context, string, string) (net.Conn, error), ip st
 	start := time.Now()
 	conn, err := dial(ctx, "tcp", target)
 	if err == nil {
-		_ = conn.Close()
+		if err := conn.Close(); err != nil {
+			// non-fatal: connection already closed; log if needed
+		}
 		return Result{
 			IP:             ip,
 			Port:           port,
