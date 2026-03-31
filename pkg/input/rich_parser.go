@@ -79,22 +79,36 @@ func parseRichRow(row []string, rowNumber int, idx map[string]int) (CIDRRecord, 
 		}
 	}
 
-	srcIP := net.ParseIP(srcIPRaw).To4()
+	srcIP := net.ParseIP(srcIPRaw)
 	if srcIP == nil {
 		return CIDRRecord{}, ValidationInvalidSrcIP, fmt.Errorf("invalid src_ip %q", srcIPRaw)
 	}
-	dstIP := net.ParseIP(dstIPRaw).To4()
+	srcIP = srcIP.To4()
+	if srcIP == nil {
+		return CIDRRecord{}, ValidationInvalidSrcIP, fmt.Errorf("src_ip %q is not an IPv4 address", srcIPRaw)
+	}
+	dstIP := net.ParseIP(dstIPRaw)
 	if dstIP == nil {
 		return CIDRRecord{}, ValidationInvalidDstIP, fmt.Errorf("invalid dst_ip %q", dstIPRaw)
 	}
+	dstIP = dstIP.To4()
+	if dstIP == nil {
+		return CIDRRecord{}, ValidationInvalidDstIP, fmt.Errorf("dst_ip %q is not an IPv4 address", dstIPRaw)
+	}
 
 	_, srcSeg, err := net.ParseCIDR(srcSegRaw)
-	if err != nil || srcSeg.IP.To4() == nil {
+	if err != nil {
 		return CIDRRecord{}, ValidationInvalidSrcSegment, fmt.Errorf("invalid src_network_segment %q", srcSegRaw)
 	}
+	if srcSeg.IP.To4() == nil {
+		return CIDRRecord{}, ValidationInvalidSrcSegment, fmt.Errorf("src_network_segment %q is not an IPv4 address", srcSegRaw)
+	}
 	_, dstSeg, err := net.ParseCIDR(dstSegRaw)
-	if err != nil || dstSeg.IP.To4() == nil {
+	if err != nil {
 		return CIDRRecord{}, ValidationInvalidDstSegment, fmt.Errorf("invalid dst_network_segment %q", dstSegRaw)
+	}
+	if dstSeg.IP.To4() == nil {
+		return CIDRRecord{}, ValidationInvalidDstSegment, fmt.Errorf("dst_network_segment %q is not an IPv4 address", dstSegRaw)
 	}
 	if !srcSeg.Contains(srcIP) {
 		return CIDRRecord{}, ValidationSrcContainmentFail, fmt.Errorf("src_ip %s not in src_network_segment %s", srcIP.String(), srcSeg.String())
