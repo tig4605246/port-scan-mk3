@@ -24,9 +24,9 @@ func startManualPauseMonitor(ctx context.Context, ctrl *speedctrl.Controller, lo
 				curr := ctrl.ManualPaused()
 				if curr != prev {
 					if curr {
-						logger.infof("[Manual] 接收到按鍵指令，掃描已手動暫停")
+						logger.infof("[Manual] received keyboard command — scan manually paused")
 					} else {
-						logger.infof("[Manual] 掃描已手動恢復")
+						logger.infof("[Manual] scan manually resumed")
 					}
 					prev = curr
 				}
@@ -96,9 +96,9 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 			ctrl.SetAPIPaused(paused)
 			if paused != prevPaused {
 				if paused {
-					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
+					logger.infof("[API] router pressure overload — scan automatically paused pressure=%.1f threshold=%.1f", pressure, thresholdValue)
 				} else {
-					logger.infof("[API] 路由器壓力恢復，掃描已自動恢復 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
+					logger.infof("[API] router pressure recovered — scan automatically resumed pressure=%.1f threshold=%.1f", pressure, thresholdValue)
 				}
 				prevPaused = paused
 			}

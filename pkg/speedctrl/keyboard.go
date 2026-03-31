@@ -2,6 +2,7 @@ package speedctrl
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -35,13 +36,17 @@ func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 		return err
 	}
 	if err := keyboardEnableOutputPostProcessing(fd); err != nil {
-		_ = restore(fd, oldState)
+		if err := restore(fd, oldState); err != nil {
+			fmt.Fprintf(os.Stderr, "speedctrl: failed to restore terminal state: %v\n", err)
+		}
 		return err
 	}
 	var restoreOnce sync.Once
 	restoreTerminal := func() {
 		restoreOnce.Do(func() {
-			_ = restore(fd, oldState)
+			if err := restore(fd, oldState); err != nil {
+				fmt.Fprintf(os.Stderr, "speedctrl: failed to restore terminal state: %v\n", err)
+			}
 		})
 	}
 

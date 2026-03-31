@@ -438,7 +438,7 @@ func TestPollPressureAPI_WhenJSONLoggerEnabled_EmitsPauseResumeMessages(t *testi
 	if !strings.Contains(logs, `"level":"info"`) {
 		t.Fatalf("expected json info logs, got %s", logs)
 	}
-	if !strings.Contains(logs, "掃描已自動暫停") || !strings.Contains(logs, "掃描已自動恢復") {
+	if !strings.Contains(logs, "scan automatically paused") || !strings.Contains(logs, "scan automatically resumed") {
 		t.Fatalf("expected pause/resume messages, got %s", logs)
 	}
 }

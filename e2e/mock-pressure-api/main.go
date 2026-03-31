@@ -423,8 +423,14 @@ func handleData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p1, _ := strconv.Atoi(pressureValue1())
-	p2, _ := strconv.Atoi(pressureValue2())
+	p1, err := strconv.Atoi(pressureValue1())
+	if err != nil {
+		log.Printf("WARNING: invalid PRESSURE_VALUE_1 %q — using 0: %v", pressureValue1(), err)
+	}
+	p2, err := strconv.Atoi(pressureValue2())
+	if err != nil {
+		log.Printf("WARNING: invalid PRESSURE_VALUE_2 %q — using 0: %v", pressureValue2(), err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode([]map[string]any{

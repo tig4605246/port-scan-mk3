@@ -6,6 +6,8 @@ import (
 	"net"
 	"sort"
 	"strings"
+
+	"github.com/xuxiping/port-scan-mk3/pkg/netutil"
 )
 
 func ExpandIPSelectors(selectors []string) ([]string, error) {
@@ -27,7 +29,7 @@ func ExpandIPSelectors(selectors []string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid selector %q: %w", raw, err)
 		}
-		start, end, ok := ipv4Range(n)
+		start, end, ok := netutil.IPRange(n)
 		if !ok {
 			return nil, fmt.Errorf("only ipv4 is supported: %s", raw)
 		}
@@ -54,27 +56,4 @@ func ExpandIPSelectors(selectors []string) ([]string, error) {
 		out = append(out, ip.String())
 	}
 	return out, nil
-}
-
-func ipv4Range(n *net.IPNet) (start net.IP, end net.IP, ok bool) {
-	if n == nil {
-		return nil, nil, false
-	}
-	base := n.IP.To4()
-	if base == nil {
-		return nil, nil, false
-	}
-	mask := n.Mask
-	if len(mask) != net.IPv4len {
-		return nil, nil, false
-	}
-	start = make(net.IP, net.IPv4len)
-	for i := 0; i < net.IPv4len; i++ {
-		start[i] = base[i] & mask[i]
-	}
-	end = make(net.IP, net.IPv4len)
-	for i := 0; i < net.IPv4len; i++ {
-		end[i] = start[i] | ^mask[i]
-	}
-	return start, end, true
 }

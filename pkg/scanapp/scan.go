@@ -76,9 +76,6 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		workers = 1
 	}
 	queueSize := workers * 2
-	if queueSize < 1 {
-		queueSize = 1
-	}
 	progressStep := opts.ProgressInterval
 	if progressStep <= 0 {
 		progressStep = 100
