@@ -72,7 +72,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		return err
 	}
 
-	preScan, err := runPreScanPing(ctx, inputs, cfg, resolveReachabilityChecker(cfg, opts), outputPaths, resumeSnapshot.PreScanPing)
+	preScan, err := runPreScanPing(ctx, inputs, cfg, resolveReachabilityChecker(cfg, opts), resumeSnapshot.PreScanPing)
 	if err != nil {
 		return err
 	}

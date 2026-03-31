@@ -29,7 +29,7 @@ func TestPreScanPing_Run_DedupesCheckerCallsAcrossDuplicateIPs(t *testing.T) {
 	}, config.Config{
 		Timeout: 250 * time.Millisecond,
 		Workers: 4,
-	}, checker, batchOutputPaths{}, state.PreScanPingState{})
+		}, checker, state.PreScanPingState{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestPreScanPing_Run_AggregatesUnreachableRowsPerContextWithoutPortExpansion
 	}, config.Config{
 		Timeout: 100 * time.Millisecond,
 		Workers: 2,
-	}, checker, batchOutputPaths{}, state.PreScanPingState{})
+		}, checker, state.PreScanPingState{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestPreScanPing_Run_ReusesSavedUnreachableStateWithoutCallingChecker(t *tes
 	}, config.Config{
 		Timeout: 100 * time.Millisecond,
 		Workers: 4,
-	}, checker, batchOutputPaths{}, saved)
+		}, checker, saved)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestPreScanPing_Run_WithSavedStateAndCanceledContext_Aborts(t *testing.T) {
 	}, config.Config{
 		Timeout: 100 * time.Millisecond,
 		Workers: 1,
-	}, checker, batchOutputPaths{}, saved)
+	}, checker, saved)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected canceled context error, got %v", err)
 	}
@@ -197,7 +197,7 @@ func TestPreScanPing_Run_RichRowsAggregateToSingleUnreachableRowWithDistinctMerg
 	}, config.Config{
 		Timeout: 5 * time.Second,
 		Workers: 2,
-	}, checker, batchOutputPaths{}, state.PreScanPingState{})
+		}, checker, state.PreScanPingState{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -253,7 +253,7 @@ func TestPreScanPing_Run_FailsOnToolLevelCheckerError(t *testing.T) {
 	}, config.Config{
 		Timeout: 250 * time.Millisecond,
 		Workers: 1,
-	}, checker, batchOutputPaths{}, state.PreScanPingState{})
+	}, checker, state.PreScanPingState{})
 	if err == nil {
 		t.Fatal("expected tool-level checker failure")
 	}

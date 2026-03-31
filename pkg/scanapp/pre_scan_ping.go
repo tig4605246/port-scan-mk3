@@ -26,9 +26,7 @@ const (
 	preScanPingReason  = "ping failed within 100ms"
 )
 
-func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, checker ReachabilityChecker, paths batchOutputPaths, saved state.PreScanPingState) (preScanOutcome, error) {
-	_ = paths
-
+func runPreScanPing(ctx context.Context, inputs runInputs, cfg config.Config, checker ReachabilityChecker, saved state.PreScanPingState) (preScanOutcome, error) {
 	if cfg.DisablePreScanPing {
 		return preScanOutcome{}, nil
 	}
