@@ -96,9 +96,9 @@ func pollPressureAPI(ctx context.Context, cfg config.Config, opts RunOptions, ct
 			ctrl.SetAPIPaused(paused)
 			if paused != prevPaused {
 				if paused {
-					logger.infof("[API] 路由器壓力過載，掃描已自動暫停 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
+					logger.infof("[API] router pressure overload — scan automatically paused pressure=%.1f threshold=%.1f", pressure, thresholdValue)
 				} else {
-					logger.infof("[API] 路由器壓力恢復，掃描已自動恢復 pressure=%.1f threshold=%.1f", pressure, thresholdValue)
+					logger.infof("[API] router pressure recovered — scan automatically resumed pressure=%.1f threshold=%.1f", pressure, thresholdValue)
 				}
 				prevPaused = paused
 			}

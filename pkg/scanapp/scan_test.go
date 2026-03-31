@@ -416,7 +416,7 @@ func TestPollPressureAPI_WhenPressureCrossesThreshold_TogglesPauseAndLogsTransit
 	if ctrl.IsPaused() {
 		t.Fatal("expected resumed after pressure drop")
 	}
-	if !strings.Contains(logOut.String(), "掃描已自動暫停") || !strings.Contains(logOut.String(), "掃描已自動恢復") {
+	if !strings.Contains(logOut.String(), "scan automatically paused") || !strings.Contains(logOut.String(), "scan automatically resumed") {
 		t.Fatalf("expected pause/resume logs, got: %s", logOut.String())
 	}
 }

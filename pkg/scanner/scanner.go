@@ -24,15 +24,17 @@ func ScanTCP(dial func(context.Context, string, string) (net.Conn, error), ip st
 	start := time.Now()
 	conn, err := dial(ctx, "tcp", target)
 	if err == nil {
-		if err := conn.Close(); err != nil {
-			// non-fatal: connection already closed; log if needed
-		}
-		return Result{
+		closeErr := conn.Close()
+		res := Result{
 			IP:             ip,
 			Port:           port,
 			Status:         "open",
 			ResponseTimeMS: time.Since(start).Milliseconds(),
 		}
+		if closeErr != nil {
+			res.Error = "close failed: " + closeErr.Error()
+		}
+		return res
 	}
 
 	if ne, ok := err.(net.Error); ok && ne.Timeout() {
