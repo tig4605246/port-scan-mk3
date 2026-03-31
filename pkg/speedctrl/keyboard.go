@@ -4,7 +4,9 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"golang.org/x/term"
 )
@@ -16,9 +18,12 @@ var (
 	keyboardEnableOutputPostProcessing           = enableOutputPostProcessing
 	keyboardFD                                   = func() int { return int(os.Stdin.Fd()) }
 	keyboardInput                      io.Reader = os.Stdin
+	keyboardSignalNotify                         = signal.Notify
+	keyboardSignalStop                           = signal.Stop
+	keyboardPauseSignal                os.Signal = syscall.Signal(15)
 )
 
-// StartKeyboardLoop enables raw-mode keyboard handling and toggles pause on space key.
+// StartKeyboardLoop enables raw-mode keyboard handling where Enter resumes manual pause.
 func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 	fd := keyboardFD()
 	isTerminal := keyboardIsTerminal
@@ -71,11 +76,36 @@ func StartKeyboardLoop(ctx context.Context, c *Controller) error {
 				return
 			default:
 			}
-			if buf[0] == ' ' {
-				c.ToggleManualPaused()
+			switch buf[0] {
+			case '\r', '\n':
+				c.SetManualPaused(false)
 			}
 		}
 	}()
 
 	return nil
+}
+
+// StartPauseSignalLoop enables pause control via SIGTERM (signal 15).
+func StartPauseSignalLoop(ctx context.Context, c *Controller) {
+	sigCh := make(chan os.Signal, 1)
+	pauseSignal := keyboardPauseSignal
+	notify := keyboardSignalNotify
+	stop := keyboardSignalStop
+	notify(sigCh, pauseSignal)
+
+	go func() {
+		defer stop(sigCh)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case sig := <-sigCh:
+				if sig == nil {
+					continue
+				}
+				c.SetManualPaused(true)
+			}
+		}
+	}()
 }

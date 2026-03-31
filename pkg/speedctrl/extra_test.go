@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -36,7 +38,7 @@ func TestControllerToggleManualPaused_WhenCalled_TogglesState(t *testing.T) {
 	}
 }
 
-func TestStartKeyboardLoop_WhenSpacePressed_TogglesManualPause(t *testing.T) {
+func TestStartKeyboardLoop_WhenSpacePressed_DoesNotToggleManualPause(t *testing.T) {
 	oldIsTerminal := keyboardIsTerminal
 	oldMakeRaw := keyboardMakeRaw
 	oldRestore := keyboardRestore
@@ -66,8 +68,91 @@ func TestStartKeyboardLoop_WhenSpacePressed_TogglesManualPause(t *testing.T) {
 		t.Fatalf("unexpected err: %v", err)
 	}
 	time.Sleep(20 * time.Millisecond)
+	if c.ManualPaused() {
+		t.Fatal("expected space key to be ignored")
+	}
+}
+
+func TestStartKeyboardLoop_WhenEnterPressed_ClearsManualPause(t *testing.T) {
+	oldIsTerminal := keyboardIsTerminal
+	oldMakeRaw := keyboardMakeRaw
+	oldRestore := keyboardRestore
+	oldEnableOutputPostProcessing := keyboardEnableOutputPostProcessing
+	oldFD := keyboardFD
+	oldInput := keyboardInput
+	t.Cleanup(func() {
+		keyboardIsTerminal = oldIsTerminal
+		keyboardMakeRaw = oldMakeRaw
+		keyboardRestore = oldRestore
+		keyboardEnableOutputPostProcessing = oldEnableOutputPostProcessing
+		keyboardFD = oldFD
+		keyboardInput = oldInput
+	})
+
+	keyboardIsTerminal = func(fd int) bool { return true }
+	keyboardMakeRaw = func(fd int) (*term.State, error) { return &term.State{}, nil }
+	keyboardRestore = func(fd int, state *term.State) error { return nil }
+	keyboardEnableOutputPostProcessing = func(fd int) error { return nil }
+	keyboardFD = func() int { return 0 }
+	keyboardInput = bytes.NewBuffer([]byte{'\r'})
+
+	c := NewController()
+	c.SetManualPaused(true)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := StartKeyboardLoop(ctx, c); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if c.ManualPaused() {
+		t.Fatal("expected enter key to resume from manual pause")
+	}
+}
+
+func TestStartPauseSignalLoop_WhenSIGTERMReceived_PausesManually(t *testing.T) {
+	oldNotify := keyboardSignalNotify
+	oldStop := keyboardSignalStop
+	oldPauseSignal := keyboardPauseSignal
+	t.Cleanup(func() {
+		keyboardSignalNotify = oldNotify
+		keyboardSignalStop = oldStop
+		keyboardPauseSignal = oldPauseSignal
+	})
+
+	var registered chan<- os.Signal
+	var capturedSignals []os.Signal
+	keyboardSignalNotify = func(ch chan<- os.Signal, sig ...os.Signal) {
+		registered = ch
+		capturedSignals = append([]os.Signal(nil), sig...)
+	}
+
+	stopCalled := false
+	keyboardSignalStop = func(ch chan<- os.Signal) {
+		if ch == registered {
+			stopCalled = true
+		}
+	}
+	keyboardPauseSignal = syscall.Signal(15)
+
+	c := NewController()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	StartPauseSignalLoop(ctx, c)
+
+	if len(capturedSignals) != 1 || capturedSignals[0] != syscall.Signal(15) {
+		t.Fatalf("expected pause signal registration for signal 15, got %#v", capturedSignals)
+	}
+
+	registered <- syscall.Signal(15)
+	time.Sleep(20 * time.Millisecond)
 	if !c.ManualPaused() {
-		t.Fatal("expected space key to toggle manual pause")
+		t.Fatal("expected signal 15 to enable manual pause")
+	}
+
+	cancel()
+	time.Sleep(20 * time.Millisecond)
+	if !stopCalled {
+		t.Fatal("expected signal channel to be unregistered after cancellation")
 	}
 }
 
