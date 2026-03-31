@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xuxiping/port-scan-mk3/pkg/task"
+	"github.com/xuxiping/port-scan-mk3/pkg/netutil"
 )
 
 // ParseRichRows parses and validates rich CIDR input rows. It keeps one
@@ -129,7 +129,7 @@ func parseRichRow(row []string, rowNumber int, idx map[string]int) (CIDRRecord, 
 	if err != nil || port < 1 || port > 65535 {
 		return CIDRRecord{}, ValidationInvalidPort, fmt.Errorf("invalid port %q", portRaw)
 	}
-	key, err := task.BuildExecutionKey(dstIP.String(), port, protocol)
+	key, err := netutil.BuildExecutionKey(dstIP.String(), port, protocol)
 	if err != nil {
 		return CIDRRecord{}, ValidationInvalidPort, err
 	}

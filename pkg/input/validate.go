@@ -3,6 +3,8 @@ package input
 import (
 	"fmt"
 	"net"
+
+	"github.com/xuxiping/port-scan-mk3/pkg/netutil"
 )
 
 // ValidateNoOverlap validates CIDR/IP selector rows and rejects conflicting ranges.
@@ -51,7 +53,7 @@ func networkContains(outer, inner *net.IPNet) bool {
 	if outer == nil || inner == nil {
 		return false
 	}
-	innerStart, innerEnd, ok := ipv4Range(inner)
+	innerStart, innerEnd, ok := netutil.IPRange(inner)
 	if !ok {
 		return false
 	}
@@ -68,27 +70,4 @@ func duplicateTupleSrcDst(row CIDRRecord) (src string, dst string) {
 		dst = row.Selector.String()
 	}
 	return src, dst
-}
-
-func ipv4Range(n *net.IPNet) (start net.IP, end net.IP, ok bool) {
-	if n == nil {
-		return nil, nil, false
-	}
-	base := n.IP.To4()
-	if base == nil {
-		return nil, nil, false
-	}
-	mask := n.Mask
-	if len(mask) != net.IPv4len {
-		return nil, nil, false
-	}
-	start = make(net.IP, net.IPv4len)
-	for i := 0; i < net.IPv4len; i++ {
-		start[i] = base[i] & mask[i]
-	}
-	end = make(net.IP, net.IPv4len)
-	for i := 0; i < net.IPv4len; i++ {
-		end[i] = start[i] | ^mask[i]
-	}
-	return start, end, true
 }
