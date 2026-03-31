@@ -29,11 +29,13 @@ func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.C
 		rt := runtimes[idx]
 		ch := rt.state
 		snap := rt.tracker.Snapshot()
+		// Index at or past total — tracker is idle; advance to signal no more work.
 		if snap.NextIndex >= snap.TotalCount {
-			rt.tracker.AdvanceNextIndex(snap.NextIndex) // triggers status update
+			rt.tracker.AdvanceNextIndex(snap.NextIndex)
 			continue
 		}
-		rt.tracker.AdvanceNextIndex(snap.NextIndex) // sets status to "scanning"
+		// Active scan — advance index and transition tracker to "scanning" state.
+		rt.tracker.AdvanceNextIndex(snap.NextIndex)
 		for i := snap.NextIndex; i < snap.TotalCount; i++ {
 			obs.OnBucketWaitStart(ch.CIDR, i)
 			if err := rt.bkt.Acquire(ctx); err != nil {
