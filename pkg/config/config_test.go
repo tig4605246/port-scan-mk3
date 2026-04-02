@@ -100,3 +100,161 @@ func TestParseConfig_WhenOutputAndResumeFlagsProvided_SetsPaths(t *testing.T) {
 		t.Fatalf("unexpected resume path: %s", cfg.Resume)
 	}
 }
+
+func TestParseConfig_WhenPressureIntervalIsInvalidString_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-interval", "not-a-duration",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid pressure-interval string")
+	}
+}
+
+func TestParseConfig_WhenPressureIntervalIsZero_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-interval", "0s",
+	})
+	if err == nil {
+		t.Fatal("expected error for zero pressure-interval")
+	}
+}
+
+func TestParseConfig_WhenPressureIntervalIsNegative_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-interval", "-5s",
+	})
+	if err == nil {
+		t.Fatal("expected error for negative pressure-interval")
+	}
+}
+
+func TestParseConfig_WhenPressureUseAuthSetWithoutAuthURL_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-use-auth",
+		"-pressure-data-url", "http://data",
+		"-pressure-client-id", "id",
+		"-pressure-client-secret", "secret",
+	})
+	if err == nil {
+		t.Fatal("expected error when pressure-use-auth without auth-url")
+	}
+}
+
+func TestParseConfig_WhenPressureUseAuthSetWithoutDataURL_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-use-auth",
+		"-pressure-auth-url", "http://auth",
+		"-pressure-client-id", "id",
+		"-pressure-client-secret", "secret",
+	})
+	if err == nil {
+		t.Fatal("expected error when pressure-use-auth without data-url")
+	}
+}
+
+func TestParseConfig_WhenPressureUseAuthSetWithoutClientID_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-use-auth",
+		"-pressure-auth-url", "http://auth",
+		"-pressure-data-url", "http://data",
+		"-pressure-client-secret", "secret",
+	})
+	if err == nil {
+		t.Fatal("expected error when pressure-use-auth without client-id")
+	}
+}
+
+func TestParseConfig_WhenPressureUseAuthSetWithoutClientSecret_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-use-auth",
+		"-pressure-auth-url", "http://auth",
+		"-pressure-data-url", "http://data",
+		"-pressure-client-id", "id",
+	})
+	if err == nil {
+		t.Fatal("expected error when pressure-use-auth without client-secret")
+	}
+}
+
+func TestParseConfig_WhenPressureUseAuthSetWithAllRequiredFields_Succeeds(t *testing.T) {
+	cfg, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-use-auth",
+		"-pressure-auth-url", "http://auth",
+		"-pressure-data-url", "http://data",
+		"-pressure-client-id", "my-client-id",
+		"-pressure-client-secret", "my-secret",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.PressureUseAuth {
+		t.Fatal("expected PressureUseAuth to be true")
+	}
+	if cfg.PressureAuthURL != "http://auth" {
+		t.Fatalf("unexpected auth url: %s", cfg.PressureAuthURL)
+	}
+}
+
+func TestParseConfig_WhenCIDRIPCidrColumnIsEmpty_ReturnsError(t *testing.T) {
+	_, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-cidr-ip-col", "source_ip",
+		"-cidr-ip-cidr-col", " ",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty cidr-ip-cidr-col")
+	}
+}
+
+func TestParseConfig_WhenPressureIntervalProvidedAsDuration_ParsesCorrectly(t *testing.T) {
+	cfg, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-pressure-interval", "10s",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.PressureInterval != 10*time.Second {
+		t.Fatalf("expected 10s, got %v", cfg.PressureInterval)
+	}
+}
+
+func TestParseConfig_WithWorkerAndBucketFlags_SetsValues(t *testing.T) {
+	cfg, err := Parse([]string{
+		"-cidr-file", "cidr.csv",
+		"-port-file", "ports.csv",
+		"-workers", "50",
+		"-bucket-rate", "200",
+		"-bucket-capacity", "500",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Workers != 50 {
+		t.Fatalf("expected 50 workers, got %d", cfg.Workers)
+	}
+	if cfg.BucketRate != 200 {
+		t.Fatalf("expected bucket-rate 200, got %d", cfg.BucketRate)
+	}
+	if cfg.BucketCapacity != 500 {
+		t.Fatalf("expected bucket-capacity 500, got %d", cfg.BucketCapacity)
+	}
+}
