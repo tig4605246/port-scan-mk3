@@ -7,11 +7,13 @@ import (
 	"github.com/xuxiping/port-scan-mk3/pkg/writer"
 )
 
+// batchOutputs holds file handles and writers for scan result output.
+// The writer fields use the RecordWriter interface to decouple from concrete types.
 type batchOutputs struct {
 	scanFile       *os.File
 	openOnlyFile   *os.File
-	scanWriter     *writer.CSVWriter
-	openOnlyWriter *writer.OpenOnlyWriter
+	scanWriter     RecordWriter
+	openOnlyWriter RecordWriter
 	scanFinalPath  string
 	openFinalPath  string
 }

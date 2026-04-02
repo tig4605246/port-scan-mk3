@@ -163,7 +163,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 				continue
 			}
 			if runErr == nil {
-				if err := writeScanRecord(outputs.scanWriter, outputs.openOnlyWriter, res.record); err != nil {
+				if err := writeScanRecord(outputs.scanWriter, outputs.openOnlyWriter, res.record.AsWriterRecord()); err != nil {
 					runErr = err
 					cancel()
 				}

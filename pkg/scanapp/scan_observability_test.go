@@ -522,13 +522,13 @@ func TestEmitScanResultEvents_WhenProgressStepReached_EmitsProgressSnapshot(t *t
 
 	emitScanResultEvents(stdout, logger, ctrl, 2, runtimes, scanResult{
 		chunkIdx: 0,
-		record: writer.Record{
+		record: AsScanRecord(writer.Record{
 			IP:         "10.0.0.1",
 			IPCidr:     "10.0.0.0/24",
 			Port:       80,
 			Status:     "open",
 			ResponseMS: 7,
-		},
+		}),
 	}, summary, false)
 
 	if !strings.Contains(stdout.String(), "progress cidr=10.0.0.0/24 scanned=1/4 paused=false") {
