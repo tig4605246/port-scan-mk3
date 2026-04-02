@@ -26,6 +26,15 @@ go run ./cmd/port-scan scan \
   -port-file e2e/inputs/ports.csv
 ```
 
+Skip the default pre-scan reachability check:
+
+```bash
+go run ./cmd/port-scan scan \
+  -cidr-file e2e/inputs/cidr_normal.csv \
+  -port-file e2e/inputs/ports.csv \
+  -disable-pre-scan-ping=true
+```
+
 ## Input Contracts
 
 - CIDR CSV (default mode):
@@ -55,23 +64,29 @@ Exit code behavior:
 
 1. Parse CLI flags and validate required inputs.
 2. Load CIDR CSV and port list, then apply fail-fast validation.
-3. Expand selectors into concrete IPv4 targets and build scan tasks.
-4. Dispatch tasks with rate control and optional pressure-based pause.
-5. Run TCP probes in worker pool and stream progress events.
-6. Write timestamped batch output files:
+3. Run a pre-scan ping stage by default, once per unique IPv4 target, with a fixed `100ms` timeout per IP.
+4. Finalize `unreachable_results-YYYYMMDDTHHMMSSZ[-n].csv` before any TCP work starts.
+5. Expand only reachable selectors into concrete IPv4 targets and build scan tasks.
+6. Dispatch tasks with rate control and optional pressure-based pause.
+7. Run TCP probes in worker pool and stream progress events.
+8. Write timestamped batch output files:
    - `scan_results-YYYYMMDDTHHMMSSZ[-n].csv`
    - `opened_results-YYYYMMDDTHHMMSSZ[-n].csv`
-7. Save resume state when canceled, failed, or partially complete.
+   - `unreachable_results-YYYYMMDDTHHMMSSZ[-n].csv`
+9. Save resume state when canceled, failed, or partially complete.
 
 ## Output and Resume Behavior
 
 - `-output` controls output directory; result files are always timestamped batches.
 - Default batch naming is collision-safe within the same second (`-1`, `-2`, ... suffix).
+- `scan` writes `unreachable_results-*` even when all targets are reachable; in that case it contains the header only.
+- `-disable-pre-scan-ping=true` restores the legacy behavior that skips the reachability gate and unreachable batch output stage.
 - Resume state save path:
   - If `-resume` is set: save and load from that exact path.
   - If `-resume` is not set: save fallback to `<output-dir>/resume_state.json`.
 - Resume state auto-save does not mean auto-load:
   - Loading previous progress requires passing `-resume <path>`.
+- Resume envelopes can persist pre-scan unreachable targets so a resumed run can reuse the same filtering decision.
 
 ## Dashboard and Logging
 
@@ -91,6 +106,7 @@ This section lists high-impact flags. Full definitions are in [All flags](docs/c
 | `-cidr-ip-col` / `-cidr-ip-cidr-col` | Map custom CSV column names |
 | `-output` | Choose output directory anchor |
 | `-resume` | Read/write state from explicit path |
+| `-disable-pre-scan-ping` | Skip the default pre-scan ping filter and unreachable batch stage |
 | `-disable-api` | Disable pressure API polling |
 | `-pressure-api` / `-pressure-interval` | Configure pressure-based pause control |
 | `-workers` / `-timeout` / `-delay` | Tune concurrency and probe pacing |
