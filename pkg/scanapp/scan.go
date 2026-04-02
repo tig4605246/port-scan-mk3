@@ -107,6 +107,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 
 	ctrl := speedctrl.NewController(speedctrl.WithAPIEnabled(!cfg.DisableAPI))
 	startControllerTelemetrySync(runCtx, ctrl, controllerTelemetryInterval(runOpts.dashboardRefreshInterval), runOpts.controllerObserver)
+	speedctrl.StartPauseSignalLoop(runCtx, ctrl)
 	if !opts.DisableKeyboard {
 		if err := speedctrl.StartKeyboardLoop(runCtx, ctrl); err != nil {
 			logger.errorf("failed to start keyboard loop: %v", err)
