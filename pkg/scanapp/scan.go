@@ -126,7 +126,7 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		dialer := &net.Dialer{LocalAddr: &net.TCPAddr{Port: 0}}
 		dial = dialer.DialContext
 	}
-	resultCh := startScanExecutor(workers, cfg.Timeout, dial, logger, taskCh)
+	resultCh, executorErrCh := startScanExecutor(workers, cfg.Timeout, dial, logger, taskCh)
 
 	dispatchPolicy := dispatchPolicyFromConfig(cfg)
 	if dashboardState != nil {
@@ -151,6 +151,15 @@ func Run(ctx context.Context, cfg config.Config, stdout, stderr io.Writer, opts 
 		case apiErr := <-apiErrCh:
 			if apiErr != nil && runErr == nil {
 				runErr = apiErr
+				cancel()
+			}
+		case executorErr, ok := <-executorErrCh:
+			if !ok {
+				executorErrCh = nil
+				continue
+			}
+			if executorErr != nil && runErr == nil {
+				runErr = executorErr
 				cancel()
 			}
 		case err := <-dispatchErrCh:

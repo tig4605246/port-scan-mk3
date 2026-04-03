@@ -3,6 +3,7 @@ package scanapp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -259,5 +260,23 @@ func TestDispatchTasks_EmitsCorrectErrorCause_ForSuccessfulOperations(t *testing
 	// Verify error_cause is "none" for successful operations
 	if !strings.Contains(log, "error_cause:none") {
 		t.Errorf("expected error_cause:none in log for successful operations, got: %s", log)
+	}
+}
+
+func TestDispatchTasks_WhenPanicOccurs_ReturnsRuntimeError(t *testing.T) {
+	ctrl := speedctrl.NewController()
+	var buf bytes.Buffer
+	logger := newLogger("debug", false, &buf)
+
+	taskCh := make(chan scanTask, 1)
+	err := dispatchTasks(context.Background(), dispatchPolicy{delay: 0, observer: noopDispatchObserver{}}, ctrl, logger, []*chunkRuntime{nil}, taskCh)
+	if err == nil {
+		t.Fatal("expected error when dispatcher panics")
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected runtime panic error, got deadline_exceeded: %v", err)
+	}
+	if !strings.Contains(err.Error(), "panic") {
+		t.Fatalf("expected panic in error message, got: %v", err)
 	}
 }

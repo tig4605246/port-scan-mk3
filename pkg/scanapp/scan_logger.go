@@ -27,7 +27,8 @@ const (
 	LogEventGateReleased  = "gate_released"
 
 	// Task events
-	LogEventScanResult = "scan_result"
+	LogEventScanResult      = "scan_result"
+	LogEventScanProbeResult = "scan_probe_result"
 )
 
 type scanLogger struct {

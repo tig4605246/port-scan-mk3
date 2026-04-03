@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestStartScanExecutor_EmitsScanResultEvent_WithCorrectFields(t *testing.T) {
+func TestStartScanExecutor_EmitsScanProbeResultEvent_WithCorrectFields(t *testing.T) {
 	taskCh := make(chan scanTask, 1)
 	taskCh <- scanTask{
 		chunkIdx: 0,
@@ -27,14 +27,15 @@ func TestStartScanExecutor_EmitsScanResultEvent_WithCorrectFields(t *testing.T) 
 	var buf bytes.Buffer
 	logger := newLogger("debug", false, &buf)
 
-	_ = startScanExecutor(1, 100*time.Millisecond, dial, logger, taskCh)
-
-	// Wait for worker to process
-	time.Sleep(200 * time.Millisecond)
+	resultCh, errCh := startScanExecutor(1, 100*time.Millisecond, dial, logger, taskCh)
+	_ = collectResults(t, resultCh)
+	if err := collectExecutorError(t, errCh); err != nil {
+		t.Fatalf("unexpected executor error: %v", err)
+	}
 
 	log := buf.String()
-	if !strings.Contains(log, LogEventScanResult) {
-		t.Errorf("expected log to contain %q, got: %s", LogEventScanResult, log)
+	if !strings.Contains(log, LogEventScanProbeResult) {
+		t.Errorf("expected log to contain %q, got: %s", LogEventScanProbeResult, log)
 	}
 	if !strings.Contains(log, "10.0.0.8") {
 		t.Errorf("expected log to contain target IP 10.0.0.8, got: %s", log)
@@ -68,14 +69,15 @@ func TestStartScanExecutor_EmitsErrorEvent_WhenScanFails(t *testing.T) {
 	var buf bytes.Buffer
 	logger := newLogger("debug", false, &buf)
 
-	_ = startScanExecutor(1, 50*time.Millisecond, dial, logger, taskCh)
-
-	// Wait for worker to process
-	time.Sleep(200 * time.Millisecond)
+	resultCh, errCh := startScanExecutor(1, 50*time.Millisecond, dial, logger, taskCh)
+	_ = collectResults(t, resultCh)
+	if err := collectExecutorError(t, errCh); err != nil {
+		t.Fatalf("unexpected executor error: %v", err)
+	}
 
 	log := buf.String()
-	if !strings.Contains(log, LogEventScanResult) {
-		t.Errorf("expected log to contain %q, got: %s", LogEventScanResult, log)
+	if !strings.Contains(log, LogEventScanProbeResult) {
+		t.Errorf("expected log to contain %q, got: %s", LogEventScanProbeResult, log)
 	}
 	if !strings.Contains(log, LogEventError) {
 		t.Errorf("expected log to contain error state %q, got: %s", LogEventError, log)
@@ -85,8 +87,8 @@ func TestStartScanExecutor_EmitsErrorEvent_WhenScanFails(t *testing.T) {
 	}
 }
 
-func TestStartScanExecutor_RecoversFromPanic_InWorkerGoroutine(t *testing.T) {
-	taskCh := make(chan scanTask, 2)
+func TestStartScanExecutor_WhenWorkerPanics_ReportsFatalError(t *testing.T) {
+	taskCh := make(chan scanTask, 1)
 	taskCh <- scanTask{
 		chunkIdx: 0,
 		ipCidr:   "10.0.0.0/24",
@@ -94,34 +96,32 @@ func TestStartScanExecutor_RecoversFromPanic_InWorkerGoroutine(t *testing.T) {
 		port:     443,
 		meta:     targetMeta{},
 	}
-	// Second task ensures worker keeps going
-	taskCh <- scanTask{
-		chunkIdx: 0,
-		ipCidr:   "10.0.0.0/24",
-		ip:       "10.0.0.9",
-		port:     443,
-		meta:     targetMeta{},
-	}
 	close(taskCh)
 
 	dial := func(context.Context, string, string) (net.Conn, error) {
-		return stubConn{}, nil
+		panic("boom")
 	}
 
 	var buf bytes.Buffer
 	logger := newLogger("debug", false, &buf)
 
-	resultCh := startScanExecutor(1, 100*time.Millisecond, dial, logger, taskCh)
+	resultCh, errCh := startScanExecutor(1, 100*time.Millisecond, dial, logger, taskCh)
 
-	// Collect results - should complete without panic
+	// Panic happens before result publish.
 	results := collectResults(t, resultCh)
-	if len(results) != 2 {
-		t.Fatalf("expected 2 results, got %d", len(results))
+	if len(results) != 0 {
+		t.Fatalf("expected 0 results after worker panic, got %d", len(results))
 	}
 
-	// Verify errorf wasn't called with panic message
-	if strings.Contains(buf.String(), "executor worker panic") {
-		t.Errorf("unexpected panic in worker: %s", buf.String())
+	err := collectExecutorError(t, errCh)
+	if err == nil {
+		t.Fatal("expected executor fatal error when worker panics")
+	}
+	if !strings.Contains(err.Error(), "executor worker panic") {
+		t.Fatalf("expected panic error, got: %v", err)
+	}
+	if !strings.Contains(buf.String(), "executor worker panic") {
+		t.Errorf("expected panic log entry, got: %s", buf.String())
 	}
 }
 
@@ -156,5 +156,22 @@ func TestStartScanExecutor_Constants_AreExported(t *testing.T) {
 	}
 	if LogEventScanResult == "" {
 		t.Error("LogEventScanResult should not be empty")
+	}
+	if LogEventScanProbeResult == "" {
+		t.Error("LogEventScanProbeResult should not be empty")
+	}
+}
+
+func collectExecutorError(t *testing.T, errCh <-chan error) error {
+	t.Helper()
+	select {
+	case err, ok := <-errCh:
+		if !ok {
+			return nil
+		}
+		return err
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for executor error channel to close")
+		return nil
 	}
 }

@@ -33,7 +33,11 @@ func TestStartScanExecutor_WhenTasksComplete_EmitsResultsAndClosesChannel(t *tes
 		return stubConn{}, nil
 	}
 
-	results := collectResults(t, startScanExecutor(1, 100*time.Millisecond, dial, newLogger("debug", false, io.Discard), taskCh))
+	resultCh, errCh := startScanExecutor(1, 100*time.Millisecond, dial, newLogger("debug", false, io.Discard), taskCh)
+	results := collectResults(t, resultCh)
+	if err := collectExecutorError(t, errCh); err != nil {
+		t.Fatalf("unexpected executor error: %v", err)
+	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -46,9 +50,13 @@ func TestStartScanExecutor_WhenTaskChannelClosedImmediately_ClosesWithoutResults
 	taskCh := make(chan scanTask)
 	close(taskCh)
 
-	results := collectResults(t, startScanExecutor(2, 100*time.Millisecond, func(context.Context, string, string) (net.Conn, error) {
+	resultCh, errCh := startScanExecutor(2, 100*time.Millisecond, func(context.Context, string, string) (net.Conn, error) {
 		return stubConn{}, nil
-	}, newLogger("debug", false, io.Discard), taskCh))
+	}, newLogger("debug", false, io.Discard), taskCh)
+	results := collectResults(t, resultCh)
+	if err := collectExecutorError(t, errCh); err != nil {
+		t.Fatalf("unexpected executor error: %v", err)
+	}
 	if len(results) != 0 {
 		t.Fatalf("expected no results, got %d", len(results))
 	}

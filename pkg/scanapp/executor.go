@@ -1,6 +1,7 @@
 package scanapp
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,22 +18,37 @@ import (
 //   - logger: structured logger for scan events
 //   - taskCh: channel delivering scan tasks
 //
-// Returns a channel that will be closed when all workers finish scanning.
-func startScanExecutor(workers int, timeout time.Duration, dial DialFunc, logger *scanLogger, taskCh <-chan scanTask) <-chan scanResult {
+// Returns:
+//   - resultCh: closed when all workers finish scanning.
+//   - errCh: receives a fatal executor error (for example, recovered worker panic).
+func startScanExecutor(workers int, timeout time.Duration, dial DialFunc, logger *scanLogger, taskCh <-chan scanTask) (<-chan scanResult, <-chan error) {
 	if workers <= 0 {
 		workers = 1
 	}
 
 	resultCh := make(chan scanResult, workers*2)
+	errCh := make(chan error, 1)
 
 	var workerWG sync.WaitGroup
+	var errOnce sync.Once
+	reportFatal := func(err error) {
+		if err == nil {
+			return
+		}
+		errOnce.Do(func() {
+			logger.errorf("%v", err)
+			errCh <- err
+			close(errCh)
+		})
+	}
+
 	for i := 0; i < workers; i++ {
 		workerWG.Add(1)
 		go func() {
 			defer workerWG.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					logger.errorf("executor worker panic: %v", r)
+					reportFatal(fmt.Errorf("executor worker panic: %v", r))
 				}
 			}()
 			for t := range taskCh {
@@ -43,7 +59,7 @@ func startScanExecutor(workers int, timeout time.Duration, dial DialFunc, logger
 					errCause = LogEventRuntimeErr
 					state = LogEventError
 				}
-				logger.eventf(LogEventScanResult, t.ip, t.port, state, errCause, map[string]any{
+				logger.eventf(LogEventScanProbeResult, t.ip, t.port, state, errCause, map[string]any{
 					"status": res.Status,
 					"error":  res.Error,
 				})
@@ -58,7 +74,10 @@ func startScanExecutor(workers int, timeout time.Duration, dial DialFunc, logger
 	go func() {
 		workerWG.Wait()
 		close(resultCh)
+		errOnce.Do(func() {
+			close(errCh)
+		})
 	}()
 
-	return resultCh
+	return resultCh, errCh
 }

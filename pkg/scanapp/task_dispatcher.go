@@ -2,6 +2,7 @@ package scanapp
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/xuxiping/port-scan-mk3/pkg/config"
@@ -36,8 +37,8 @@ func dispatchTasks(ctx context.Context, policy dispatchPolicy, ctrl *speedctrl.C
 	// Recover from panics in the dispatcher goroutine
 	defer func() {
 		if r := recover(); r != nil {
-			logger.errorf("task dispatcher panic: %v", r)
-			err = context.DeadlineExceeded // Represent panic as deadline to signal shutdown
+			err = fmt.Errorf("task dispatcher panic: %v", r)
+			logger.errorf("%v", err)
 		}
 	}()
 
