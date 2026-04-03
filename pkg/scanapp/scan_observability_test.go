@@ -202,6 +202,101 @@ func TestRun_WhenObservabilityJSONEnabled_EmitsProgressAndCompletionEvents(t *te
 	}
 }
 
+func TestRun_WhenObservabilityJSONEnabled_EmitsSingleScanResultEventPerTask(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(portFile, []byte("1/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          50 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "info",
+		Format:           "json",
+	}
+
+	stderr := &bytes.Buffer{}
+	err := Run(context.Background(), cfg, io.Discard, stderr, RunOptions{
+		DisableKeyboard: true,
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			return nil, errors.New("dial failed for observability test")
+		},
+		ProgressInterval: 1,
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	logs := stderr.String()
+	if got := strings.Count(logs, `"msg":"scan_result"`); got != 1 {
+		t.Fatalf("expected exactly 1 scan_result event for 1 task, got %d, logs=%s", got, logs)
+	}
+}
+
+func TestRun_WhenExecutorWorkerPanics_ReturnsRuntimeError(t *testing.T) {
+	tmp := t.TempDir()
+	cidrFile := filepath.Join(tmp, "cidr.csv")
+	portFile := filepath.Join(tmp, "ports.csv")
+	outFile := filepath.Join(tmp, "scan_results.csv")
+	if err := os.WriteFile(cidrFile, []byte("fab_name,ip,ip_cidr,cidr_name\nfab1,127.0.0.1,127.0.0.1/32,loopback\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 3 tasks with workers=1 and queue size=2 reproduces blocked dispatch when worker exits unexpectedly.
+	if err := os.WriteFile(portFile, []byte("1/tcp\n2/tcp\n3/tcp\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{
+		CIDRFile:         cidrFile,
+		PortFile:         portFile,
+		Output:           outFile,
+		Timeout:          50 * time.Millisecond,
+		Delay:            0,
+		BucketRate:       100,
+		BucketCapacity:   100,
+		Workers:          1,
+		PressureInterval: 5 * time.Second,
+		DisableAPI:       true,
+		LogLevel:         "info",
+		Format:           "json",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+
+	stderr := &bytes.Buffer{}
+	err := Run(ctx, cfg, io.Discard, stderr, RunOptions{
+		DisableKeyboard: true,
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			panic("boom in dial")
+		},
+		ProgressInterval: 1,
+	})
+	if err == nil {
+		t.Fatal("expected runtime error when executor worker panics")
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected runtime panic error, got deadline_exceeded: %v", err)
+	}
+	if !strings.Contains(err.Error(), "executor worker panic") {
+		t.Fatalf("expected panic error message, got: %v", err)
+	}
+}
+
 func TestRun_WhenRichDashboardEnabled_ReceivesLiveTelemetryState(t *testing.T) {
 	tmp := t.TempDir()
 	cidrFile := filepath.Join(tmp, "cidr.csv")
@@ -522,13 +617,13 @@ func TestEmitScanResultEvents_WhenProgressStepReached_EmitsProgressSnapshot(t *t
 
 	emitScanResultEvents(stdout, logger, ctrl, 2, runtimes, scanResult{
 		chunkIdx: 0,
-		record: writer.Record{
+		record: AsScanRecord(writer.Record{
 			IP:         "10.0.0.1",
 			IPCidr:     "10.0.0.0/24",
 			Port:       80,
 			Status:     "open",
 			ResponseMS: 7,
-		},
+		}),
 	}, summary, false)
 
 	if !strings.Contains(stdout.String(), "progress cidr=10.0.0.0/24 scanned=1/4 paused=false") {
